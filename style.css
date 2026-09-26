@@ -1,0 +1,115 @@
+/*
+  Ma Semaine — feuille de style
+  Thème clair par défaut, thème sombre automatique si le téléphone est en
+  mode sombre (media query prefers-color-scheme). Couleur d'accent : vert.
+*/
+
+:root {
+  --couleur-fond: #f7f7f5;
+  --couleur-texte: #1c1c1a;
+  --couleur-texte-discret: #6b6b66;
+  --couleur-carte: #ffffff;
+  --couleur-bordure: #e2e2de;
+  --couleur-accent: #2e7d32;
+  --couleur-accent-texte: #ffffff;
+
+  --hauteur-header: 56px;
+  --hauteur-tabbar: 64px;
+  --rayon: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --couleur-fond: #14150f;
+    --couleur-texte: #f0f0ec;
+    --couleur-texte-discret: #a3a39c;
+    --couleur-carte: #1f2118;
+    --couleur-bordure: #2c2e24;
+    --couleur-accent: #4caf50;
+    --couleur-accent-texte: #0b0c08;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  /* Empêche la barre du bas de recouvrir le contenu sur iPhone (encoche/home indicator) */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.app-header {
+  height: var(--hauteur-header);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--couleur-bordure);
+  position: sticky;
+  top: 0;
+  background: var(--couleur-fond);
+  z-index: 10;
+}
+
+.app-header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+#contenu {
+  padding: 16px;
+  padding-bottom: calc(var(--hauteur-tabbar) + 24px);
+  min-height: calc(100vh - var(--hauteur-header));
+}
+
+.ecran[hidden] {
+  display: none;
+}
+
+.placeholder {
+  color: var(--couleur-texte-discret);
+  text-align: center;
+  margin-top: 40px;
+}
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--hauteur-tabbar);
+  display: flex;
+  background: var(--couleur-carte);
+  border-top: 1px solid var(--couleur-bordure);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 20;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--couleur-texte-discret);
+  font-family: inherit;
+  font-size: 0.7rem;
+  padding: 6px 0;
+}
+
+.tab-icone {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.tab[aria-current="true"] {
+  color: var(--couleur-accent);
+}

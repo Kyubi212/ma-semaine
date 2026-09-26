@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ma Semaine</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="titre-ecran">Semaine</h1>
+  </header>
+
+  <main id="contenu">
+    <!-- Le contenu de l'écran actif est affiché ici par app.js -->
+    <section id="ecran-semaine" class="ecran">
+      <p class="placeholder">Écran Semaine — à construire à l'étape 4.</p>
+    </section>
+
+    <section id="ecran-courses" class="ecran" hidden>
+      <p class="placeholder">Écran Courses — à construire à l'étape 5.</p>
+    </section>
+
+    <section id="ecran-plats" class="ecran" hidden>
+      <p class="placeholder">Écran Plats &amp; repas — à construire à l'étape 7.</p>
+    </section>
+
+    <section id="ecran-stock" class="ecran" hidden>
+      <p class="placeholder">Écran Stock — à construire à l'étape 6.</p>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab" data-ecran="semaine" aria-current="true">
+      <span class="tab-icone">🗓️</span>
+      <span class="tab-label">Semaine</span>
+    </button>
+    <button class="tab" data-ecran="courses">
+      <span class="tab-icone">🛒</span>
+      <span class="tab-label">Courses</span>
+    </button>
+    <button class="tab" data-ecran="plats">
+      <span class="tab-icone">📖</span>
+      <span class="tab-label">Plats</span>
+    </button>
+    <button class="tab" data-ecran="stock">
+      <span class="tab-icone">🧺</span>
+      <span class="tab-label">Stock</span>
+    </button>
+  </nav>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
