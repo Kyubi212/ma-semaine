@@ -420,6 +420,10 @@ body {
   gap: 8px;
 }
 
+#filtres-stock {
+  margin-bottom: 12px;
+}
+
 .segmente-bouton {
   flex: 1;
   padding: 10px;
@@ -612,6 +616,13 @@ body {
   border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon);
   padding: 10px 12px;
+  /* Resets utiles quand c'est un <button> (écran Stock) plutôt qu'un <div>
+     (écran Courses) : sans ça, le navigateur impose sa propre apparence. */
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .article-info {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20260926d">
+  <link rel="stylesheet" href="style.css?v=20260926e">
 </head>
 <body>
   <header class="app-header">
@@ -38,7 +38,13 @@
     </section>
 
     <section id="ecran-stock" class="ecran" hidden>
-      <p class="placeholder">Écran Stock — à construire à l'étape 6.</p>
+      <div class="segmente" id="filtres-stock">
+        <button class="segmente-bouton" data-filtre="tous" type="button">Tous</button>
+        <button class="segmente-bouton" data-filtre="a-racheter" type="button">À racheter</button>
+        <button class="segmente-bouton" data-filtre="essentiels" type="button">Essentiels</button>
+      </div>
+      <button id="ajouter-ingredient" class="bouton-secondaire bouton-pleine-largeur">+ Ajouter un ingrédient</button>
+      <div id="liste-stock"></div>
     </section>
   </main>
 
@@ -65,6 +71,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260926d"></script>
+  <script type="module" src="app.js?v=20260926e"></script>
 </body>
 </html>

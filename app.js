@@ -16,8 +16,12 @@ import {
   construireListeCourses,
   marquerAchete,
   clampPositif,
+  etatStock,
+  modifierIngredient,
+  ajouterIngredient,
+  supprimerIngredient,
 } from "./calculs.js";
-import { JOURS, RAYONS } from "./constantes.js";
+import { JOURS, RAYONS, UNITES } from "./constantes.js";
 
 // --- Bandeau d'avertissement (EN PREMIER, avant tout le reste : le code
 // plus bas peut avoir besoin de l'afficher dès la toute première ligne) ---
@@ -96,6 +100,7 @@ boutonsOnglets.forEach((bouton) => {
     // L'écran Courses dépend de ce qui a été planifié dans l'écran Semaine :
     // on le recalcule à chaque fois qu'on l'ouvre, pas seulement au démarrage.
     if (bouton.dataset.ecran === "courses") rendreEcranCourses();
+    if (bouton.dataset.ecran === "stock") rendreEcranStock();
   });
 });
 
@@ -664,6 +669,267 @@ function ouvrirPanneauExtra() {
     } else {
       zoneCandidatEl.innerHTML = "";
     }
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// ============================================================
+// Écran Stock
+// ============================================================
+
+// Pas de pas fixe pour tous les ingrédients : 50 g/ml (trop long à ajuster
+// gramme par gramme), 1 pour tout le reste (pièce, gousse, tranche...).
+function pasStock(unite) {
+  return unite === "g" || unite === "ml" ? 50 : 1;
+}
+
+const ETAT_STOCK_INFOS = {
+  vide: { icone: "⚪", label: "Vide" },
+  bas: { icone: "🟠", label: "Bas" },
+  ok: { icone: "🟢", label: "OK" },
+};
+
+let filtreStock = "tous";
+const rayonsRepliesStock = new Set();
+
+const listeStockEl = document.getElementById("liste-stock");
+const filtresStockEl = document.getElementById("filtres-stock");
+
+filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
+  bouton.addEventListener("click", () => {
+    filtreStock = bouton.dataset.filtre;
+    rendreEcranStock();
+  });
+});
+
+function ingredientsFiltres() {
+  switch (filtreStock) {
+    case "a-racheter":
+      return etat.ingredients.filter((i) => etatStock(i) !== "ok");
+    case "essentiels":
+      return etat.ingredients.filter((i) => i.essentiel);
+    default:
+      return etat.ingredients;
+  }
+}
+
+function rendreEcranStock() {
+  filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
+    bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtreStock);
+  });
+
+  const liste = ingredientsFiltres();
+  listeStockEl.innerHTML = "";
+
+  if (liste.length === 0) {
+    listeStockEl.innerHTML = `<p class="liste-vide">Rien à afficher pour ce filtre.</p>`;
+    return;
+  }
+
+  for (const rayon of RAYONS) {
+    const ingredients = liste.filter((i) => i.rayon === rayon);
+    if (ingredients.length === 0) continue;
+
+    const groupe = document.createElement("details");
+    groupe.className = "rayon-groupe";
+    groupe.open = !rayonsRepliesStock.has(rayon);
+    groupe.addEventListener("toggle", () => {
+      if (groupe.open) rayonsRepliesStock.delete(rayon);
+      else rayonsRepliesStock.add(rayon);
+    });
+    groupe.innerHTML = `<summary class="rayon-titre">${rayon} <span class="rayon-compte">${ingredients.length}</span></summary>`;
+
+    const articlesEl = document.createElement("div");
+    articlesEl.className = "rayon-articles";
+
+    for (const ingredient of ingredients) {
+      const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
+      const ligne = document.createElement("button");
+      ligne.className = "article-course";
+      ligne.innerHTML = `
+        <span aria-hidden="true">${infosEtat.icone}</span>
+        <div class="article-info">
+          <span class="article-nom">${ingredient.nom}</span>
+          <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
+        </div>
+        <div class="article-quantite">
+          <span class="article-unite">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+        </div>
+      `;
+      ligne.addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id));
+      articlesEl.appendChild(ligne);
+    }
+
+    groupe.appendChild(articlesEl);
+    listeStockEl.appendChild(groupe);
+  }
+}
+
+// --- Panneau "modifier un ingrédient" ---
+
+function ouvrirPanneauIngredient(ingredientId) {
+  apresFermeturePanneau = rendreEcranStock;
+
+  function rendrePanneau(messageErreur) {
+    const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
+    const pas = pasStock(ingredient.unite);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">${ingredient.nom}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+      <p class="panneau-note">${ingredient.rayon}</p>
+
+      <div class="panneau-section-titre">Stock actuel (${ingredient.unite})</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="stock-moins" aria-label="Moins">−</button>
+        <input type="number" id="stock-valeur" class="article-quantite-input" value="${formaterNombre(ingredient.enStock)}" min="0" step="any">
+        <button class="stepper-bouton" id="stock-plus" aria-label="Plus">+</button>
+      </div>
+
+      <div class="panneau-section-titre">Essentiel</div>
+      <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start;">
+        <input type="checkbox" id="ingredient-essentiel" ${ingredient.essentiel ? "checked" : ""}>
+        Toujours en avoir à la maison
+      </label>
+
+      <div class="panneau-section-titre">Minimum à toujours avoir (${ingredient.unite})</div>
+      <input type="number" id="ingredient-minimum" class="article-quantite-input" value="${formaterNombre(ingredient.minimum)}" min="0" step="any" style="width:100%;">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-discret" id="ingredient-supprimer">🗑️ Supprimer cet ingrédient</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#stock-moins").addEventListener("click", () => {
+      modifierIngredient(etat, ingredientId, { enStock: Math.max(0, ingredient.enStock - pas) });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#stock-plus").addEventListener("click", () => {
+      modifierIngredient(etat, ingredientId, { enStock: ingredient.enStock + pas });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#stock-valeur").addEventListener("change", (evenement) => {
+      modifierIngredient(etat, ingredientId, { enStock: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#ingredient-essentiel").addEventListener("change", (evenement) => {
+      modifierIngredient(etat, ingredientId, { essentiel: evenement.target.checked });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#ingredient-minimum").addEventListener("change", (evenement) => {
+      modifierIngredient(etat, ingredientId, { minimum: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#ingredient-supprimer").addEventListener("click", () => {
+      const resultat = supprimerIngredient(etat, ingredientId);
+      if (!resultat.ok) {
+        rendrePanneau(`Impossible : utilisé par ${resultat.plats.join(", ")}.`);
+        return;
+      }
+      sauvegarder();
+      fermerPanneau();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "ajouter un ingrédient" ---
+
+document.getElementById("ajouter-ingredient").addEventListener("click", ouvrirPanneauNouvelIngredient);
+
+function ouvrirPanneauNouvelIngredient() {
+  apresFermeturePanneau = rendreEcranStock;
+  const nouveau = { nom: "", rayon: null, unite: null };
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouvel ingrédient</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="nouveau-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Déodorant">
+
+      <div class="panneau-section-titre">Rayon</div>
+      <div class="liste-plats" id="liste-rayons"></div>
+
+      <div class="panneau-section-titre">Unité</div>
+      <div class="liste-plats" id="liste-unites"></div>
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="nouveau-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#nouveau-nom").addEventListener("change", (evenement) => {
+      nouveau.nom = evenement.target.value;
+    });
+
+    const listeRayonsEl = panneauPlatEl.querySelector("#liste-rayons");
+    for (const rayon of RAYONS) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (rayon === nouveau.rayon) item.classList.add("selectionne");
+      item.textContent = rayon;
+      item.addEventListener("click", () => {
+        nouveau.rayon = rayon;
+        rendrePanneau();
+      });
+      listeRayonsEl.appendChild(item);
+    }
+
+    const listeUnitesEl = panneauPlatEl.querySelector("#liste-unites");
+    for (const unite of UNITES) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (unite === nouveau.unite) item.classList.add("selectionne");
+      item.textContent = unite;
+      item.addEventListener("click", () => {
+        nouveau.unite = unite;
+        rendrePanneau();
+      });
+      listeUnitesEl.appendChild(item);
+    }
+
+    panneauPlatEl.querySelector("#nouveau-valider").addEventListener("click", () => {
+      const nomSaisi = panneauPlatEl.querySelector("#nouveau-nom").value.trim();
+      if (!nomSaisi) {
+        rendrePanneau("Donne un nom à cet ingrédient.");
+        return;
+      }
+      if (!nouveau.rayon) {
+        rendrePanneau("Choisis un rayon.");
+        return;
+      }
+      if (!nouveau.unite) {
+        rendrePanneau("Choisis une unité.");
+        return;
+      }
+      ajouterIngredient(etat, { nom: nomSaisi, rayon: nouveau.rayon, unite: nouveau.unite });
+      sauvegarder();
+      fermerPanneau();
+    });
 
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
   }
