@@ -24,6 +24,10 @@ import {
   retirerElementDuJour,
   calculerDetailBesoinsSemaine,
   construireListeCourses,
+  etatStock,
+  modifierIngredient,
+  ajouterIngredient,
+  supprimerIngredient,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -457,6 +461,79 @@ test("construireListeCourses : un essentiel sous son minimum apparaît même san
   assert.ok(ligneHuile);
   assert.equal(ligneHuile.aAcheter, 400); // 500 - 100
   assert.deepEqual(ligneHuile.detail, []); // aucun plat ne le demande, juste l'essentiel
+});
+
+// --- Écran Stock : etatStock / modifierIngredient / ajouterIngredient / supprimerIngredient ---
+
+test("etatStock : vide si le stock est à 0 ou moins", () => {
+  assert.equal(etatStock({ enStock: 0, essentiel: false, minimum: 0 }), "vide");
+  assert.equal(etatStock({ enStock: -5, essentiel: false, minimum: 0 }), "vide");
+});
+
+test("etatStock : bas seulement si essentiel ET sous le minimum", () => {
+  assert.equal(etatStock({ enStock: 10, essentiel: true, minimum: 50 }), "bas");
+  assert.equal(etatStock({ enStock: 10, essentiel: false, minimum: 50 }), "ok"); // pas essentiel
+});
+
+test("etatStock : ok si pas essentiel, ou essentiel au-dessus du minimum", () => {
+  assert.equal(etatStock({ enStock: 100, essentiel: false, minimum: 0 }), "ok");
+  assert.equal(etatStock({ enStock: 100, essentiel: true, minimum: 50 }), "ok");
+});
+
+test("modifierIngredient : change stock, essentiel et minimum indépendamment", () => {
+  const etat = etatDeTest();
+  const riz = etat.ingredients.find((i) => i.id === "riz");
+
+  modifierIngredient(etat, "riz", { enStock: 500 });
+  assert.equal(riz.enStock, 500);
+  assert.equal(riz.essentiel, false); // inchangé
+
+  modifierIngredient(etat, "riz", { essentiel: true, minimum: 200 });
+  assert.equal(riz.essentiel, true);
+  assert.equal(riz.minimum, 200);
+  assert.equal(riz.enStock, 500); // inchangé
+});
+
+test("modifierIngredient : une quantité négative ou invalide est ramenée à 0", () => {
+  const etat = etatDeTest();
+  modifierIngredient(etat, "riz", { enStock: -10 });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 0);
+});
+
+test("ajouterIngredient : crée un ingrédient sans lien avec aucun plat", () => {
+  const etat = etatDeTest();
+  const nouveau = ajouterIngredient(etat, { nom: "Déodorant", rayon: "Hygiène", unite: "pièce" });
+
+  assert.equal(nouveau.nom, "Déodorant");
+  assert.equal(nouveau.essentiel, false);
+  assert.equal(nouveau.enStock, 0);
+  assert.ok(etat.ingredients.some((i) => i.id === nouveau.id));
+});
+
+test("ajouterIngredient : deux noms proches n'entrent jamais en collision d'id", () => {
+  const etat = etatDeTest();
+  const premier = ajouterIngredient(etat, { nom: "Savon", rayon: "Hygiène", unite: "pièce" });
+  const second = ajouterIngredient(etat, { nom: "Savon", rayon: "Hygiène", unite: "pièce" });
+  assert.notEqual(premier.id, second.id);
+});
+
+test("supprimerIngredient : refuse si utilisé par au moins un plat, en les nommant", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Plat Riz";
+  const resultat = supprimerIngredient(etat, "riz");
+
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.plats, ["Plat Riz"]);
+  assert.ok(etat.ingredients.some((i) => i.id === "riz"), "l'ingrédient ne doit pas être supprimé");
+});
+
+test("supprimerIngredient : autorise si aucun plat ne l'utilise", () => {
+  const etat = etatDeTest();
+  const nouveau = ajouterIngredient(etat, { nom: "Déodorant", rayon: "Hygiène", unite: "pièce" });
+  const resultat = supprimerIngredient(etat, nouveau.id);
+
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.ingredients.some((i) => i.id === nouveau.id));
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

@@ -31,3 +31,11 @@ export const RAYONS = [
   "Entretien maison",
   "Compléments alimentaires",
 ];
+
+// Unités de stock valides (pas les cuillères — voir CLAUDE.md § Données
+// existantes). Utilisé par l'écran Stock pour proposer un choix fermé
+// quand Qassim ajoute un nouvel ingrédient.
+export const UNITES = [
+  "g", "ml", "pièce", "gousse", "bouquet", "boîte", "tranche", "poignée",
+  "cube", "dose",
+];

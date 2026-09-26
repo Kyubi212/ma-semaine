@@ -440,3 +440,90 @@ export function retirerElementDuJour(etat, dateISO, creneau, elementId) {
   }
   jourEntree[creneau] = jourEntree[creneau].filter((e) => e.id !== elementId);
 }
+
+// --- Écran Stock ---
+
+// L'état d'un ingrédient, pour l'afficher (⚪ vide · 🟠 bas · 🟢 ok) :
+// - vide : plus rien en stock ;
+// - bas : il en reste, mais l'ingrédient est essentiel et sous son minimum ;
+// - ok : sinon (pas essentiel, ou essentiel et au-dessus de son minimum).
+export function etatStock(ingredient) {
+  if (ingredient.enStock <= 0) return "vide";
+  if (ingredient.essentiel && ingredient.enStock < ingredient.minimum) return "bas";
+  return "ok";
+}
+
+// Modifie le stock, le statut "essentiel" et/ou le minimum d'un ingrédient
+// existant. Chaque champ omis dans `changements` reste inchangé. Les
+// quantités invalides (négatives, texte) sont ramenées à 0 (clampPositif),
+// jamais refusées avec une erreur (CLAUDE.md § Cas limites).
+export function modifierIngredient(etat, ingredientId, changements) {
+  const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
+  if (!ingredient) return;
+
+  if (changements.enStock !== undefined) {
+    ingredient.enStock = clampPositif(changements.enStock);
+  }
+  if (changements.essentiel !== undefined) {
+    ingredient.essentiel = Boolean(changements.essentiel);
+  }
+  if (changements.minimum !== undefined) {
+    ingredient.minimum = clampPositif(changements.minimum);
+  }
+}
+
+// Un identifiant simple et unique dérivé du nom (pas d'accents, minuscules,
+// tirets) ; en cas de collision (deux ingrédients au nom proche), un
+// compteur est ajouté à la fin.
+function genererIdIngredient(etat, nom) {
+  const base = nom
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // enlève les accents (é → e, etc.)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+  const idsExistants = new Set(etat.ingredients.map((i) => i.id));
+
+  let id = base || "ingredient";
+  let compteur = 2;
+  while (idsExistants.has(id)) {
+    id = `${base}-${compteur}`;
+    compteur += 1;
+  }
+  return id;
+}
+
+// Ajoute un tout nouvel ingrédient au catalogue (alimentaire ou non — voir
+// CLAUDE.md § Rayons et articles non-alimentaires). Pas besoin d'être
+// utilisé dans un plat pour exister : essentiel/minimum/extra démarrent à
+// zéro, à régler ensuite si besoin. Rend l'ingrédient créé.
+export function ajouterIngredient(etat, { nom, rayon, unite, enStock = 0 }) {
+  const ingredient = {
+    id: genererIdIngredient(etat, nom),
+    nom,
+    rayon,
+    unite,
+    enStock: clampPositif(enStock),
+    essentiel: false,
+    minimum: 0,
+    extra: 0,
+    parCuillereACafe: null,
+  };
+  etat.ingredients.push(ingredient);
+  return ingredient;
+}
+
+// Supprime un ingrédient — SAUF s'il est utilisé par au moins un plat
+// (CLAUDE.md § Règles de calcul) : la suppression est alors refusée, avec
+// la liste des plats concernés, plutôt que de casser silencieusement ces
+// plats. Rend { ok: true } si supprimé, { ok: false, plats: [...noms] } sinon.
+export function supprimerIngredient(etat, ingredientId) {
+  const platsConcernes = etat.plats.filter((plat) =>
+    plat.ingredients.some((ligne) => ligne.ingredientId === ingredientId)
+  );
+  if (platsConcernes.length > 0) {
+    return { ok: false, plats: platsConcernes.map((p) => p.nom) };
+  }
+  etat.ingredients = etat.ingredients.filter((i) => i.id !== ingredientId);
+  return { ok: true };
+}
