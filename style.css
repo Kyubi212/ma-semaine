@@ -113,3 +113,364 @@ body {
 .tab[aria-current="true"] {
   color: var(--couleur-accent);
 }
+
+/* --- Avertissement (stockage plein, mode privé, données corrompues...) --- */
+
+.avertissement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff3cd;
+  color: #7a5b00;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f0d98c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .avertissement {
+    background: #4a3b00;
+    color: #ffe08a;
+    border-bottom-color: #6b5700;
+  }
+}
+
+.avertissement[hidden] {
+  display: none;
+}
+
+#avertissement-texte {
+  flex: 1;
+}
+
+#avertissement-fermer {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  padding: 4px;
+}
+
+/* --- Écran Semaine : navigation entre semaines --- */
+
+.semaine-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.semaine-nav-fleche {
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.1rem;
+  color: var(--couleur-texte);
+}
+
+.semaine-nav-fleche:disabled {
+  opacity: 0.3;
+}
+
+.semaine-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+/* --- Pastilles des 7 jours --- */
+
+.jours-pastilles {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.jour-pastille {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 6px 2px;
+  color: var(--couleur-texte);
+  font-family: inherit;
+}
+
+.jour-pastille-nom {
+  font-size: 0.65rem;
+  color: var(--couleur-texte-discret);
+  text-transform: uppercase;
+}
+
+.jour-pastille-numero {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.jour-pastille.aujourdhui {
+  border-color: var(--couleur-accent);
+}
+
+.jour-pastille.aujourdhui .jour-pastille-nom {
+  color: var(--couleur-accent);
+}
+
+.jour-pastille.actif {
+  background: var(--couleur-accent);
+  border-color: var(--couleur-accent);
+}
+
+.jour-pastille.actif .jour-pastille-nom,
+.jour-pastille.actif .jour-pastille-numero {
+  color: var(--couleur-accent-texte);
+}
+
+/* --- Cartes de créneaux --- */
+
+.cartes-creneaux {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.carte-creneau {
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.carte-creneau-info {
+  flex: 1;
+  min-width: 0; /* permet au texte de tronquer proprement */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  padding: 0;
+}
+
+.carte-creneau-entete {
+  font-size: 0.7rem;
+  color: var(--couleur-texte-discret);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.carte-creneau-plat {
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carte-creneau-plat.vide {
+  color: var(--couleur-texte-discret);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.carte-creneau-detail {
+  font-size: 0.75rem;
+  color: var(--couleur-texte-discret);
+}
+
+.carte-creneau-cuisine {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+/* --- Panneau "choisir un plat" (monte du bas) --- */
+
+.panneau-fond {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 30;
+}
+
+.panneau-fond[hidden] {
+  display: none;
+}
+
+.panneau-plat {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--couleur-fond);
+  border-radius: 16px 16px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  z-index: 31;
+}
+
+.panneau-plat[hidden] {
+  display: none;
+}
+
+.panneau-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panneau-titre {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.panneau-fermer {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--couleur-texte-discret);
+  padding: 4px 8px;
+}
+
+.panneau-section-titre {
+  font-size: 0.75rem;
+  color: var(--couleur-texte-discret);
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+
+.liste-plats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.plat-choix {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 10px 12px;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.plat-choix.selectionne {
+  border-color: var(--couleur-accent);
+  background: color-mix(in srgb, var(--couleur-accent) 12%, var(--couleur-carte));
+}
+
+.lien-voir-tous {
+  background: none;
+  border: none;
+  color: var(--couleur-accent);
+  font-size: 0.8rem;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stepper-bouton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  font-size: 1.1rem;
+}
+
+.stepper-valeur {
+  min-width: 24px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.segmente {
+  display: flex;
+  gap: 8px;
+}
+
+.segmente-bouton {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.segmente-bouton.selectionne {
+  border-color: var(--couleur-accent);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+}
+
+.panneau-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.bouton-principal {
+  padding: 12px;
+  border-radius: var(--rayon);
+  border: none;
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.bouton-secondaire {
+  padding: 12px;
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.bouton-discret {
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--couleur-texte-discret);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  font-family: inherit;
+}

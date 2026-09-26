@@ -11,10 +11,21 @@
     <h1 id="titre-ecran">Semaine</h1>
   </header>
 
+  <div id="avertissement" class="avertissement" hidden>
+    <span id="avertissement-texte"></span>
+    <button id="avertissement-fermer" aria-label="Fermer l'avertissement">✕</button>
+  </div>
+
   <main id="contenu">
     <!-- Le contenu de l'écran actif est affiché ici par app.js -->
     <section id="ecran-semaine" class="ecran">
-      <p class="placeholder">Écran Semaine — à construire à l'étape 4.</p>
+      <div class="semaine-nav">
+        <button id="semaine-precedente" class="semaine-nav-fleche" aria-label="Semaine précédente">←</button>
+        <span id="semaine-label" class="semaine-label"></span>
+        <button id="semaine-suivante" class="semaine-nav-fleche" aria-label="Semaine suivante">→</button>
+      </div>
+      <div id="jours-pastilles" class="jours-pastilles"></div>
+      <div id="cartes-creneaux" class="cartes-creneaux"></div>
     </section>
 
     <section id="ecran-courses" class="ecran" hidden>
@@ -29,6 +40,10 @@
       <p class="placeholder">Écran Stock — à construire à l'étape 6.</p>
     </section>
   </main>
+
+  <!-- Panneau "choisir un plat", masqué par défaut, rempli par app.js -->
+  <div id="panneau-fond" class="panneau-fond" hidden></div>
+  <div id="panneau-plat" class="panneau-plat" hidden></div>
 
   <nav class="tabbar">
     <button class="tab" data-ecran="semaine" aria-current="true">
