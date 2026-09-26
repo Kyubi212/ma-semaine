@@ -13,6 +13,9 @@ import {
   decalerSemaine,
   dateEnISO,
   jourDeLaSemaine,
+  construireListeCourses,
+  marquerAchete,
+  clampPositif,
 } from "./calculs.js";
 import { JOURS } from "./constantes.js";
 
@@ -88,7 +91,12 @@ function afficherEcran(nomEcran) {
 }
 
 boutonsOnglets.forEach((bouton) => {
-  bouton.addEventListener("click", () => afficherEcran(bouton.dataset.ecran));
+  bouton.addEventListener("click", () => {
+    afficherEcran(bouton.dataset.ecran);
+    // L'écran Courses dépend de ce qui a été planifié dans l'écran Semaine :
+    // on le recalcule à chaque fois qu'on l'ouvre, pas seulement au démarrage.
+    if (bouton.dataset.ecran === "courses") rendreEcranCourses();
+  });
 });
 
 afficherEcran("semaine");
@@ -264,15 +272,22 @@ function construireCarteCreneau(dateISO, creneau) {
 const panneauFondEl = document.getElementById("panneau-fond");
 const panneauPlatEl = document.getElementById("panneau-plat");
 
+// Le panneau est partagé entre plusieurs usages (choisir un plat, ajouter un
+// extra) : chaque fonction qui l'ouvre indique ici quel écran rafraîchir à
+// la fermeture, plutôt que de coder ça en dur dans le bouton "fermer".
+let apresFermeturePanneau = null;
+
 function fermerPanneau() {
   panneauFondEl.hidden = true;
   panneauPlatEl.hidden = true;
   panneauPlatEl.innerHTML = "";
+  if (apresFermeturePanneau) apresFermeturePanneau();
 }
 
 panneauFondEl.addEventListener("click", fermerPanneau);
 
 function ouvrirPanneau(dateISO, creneau) {
+  apresFermeturePanneau = rendreEcranSemaine;
   const infos = CRENEAU_INFOS[creneau];
   const jourLabel = jourDeLaSemaine(dateISO);
 
@@ -446,10 +461,206 @@ function ouvrirPanneau(dateISO, creneau) {
       zoneCandidatEl.innerHTML = "";
     }
 
-    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", () => {
-      fermerPanneau();
-      rendreEcranSemaine();
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// ============================================================
+// Écran Courses
+// ============================================================
+
+// Ordre des rayons = ton parcours dans le magasin (voir CLAUDE.md).
+const RAYONS_ORDRE = [
+  "Boucherie halal", "Poissonnerie", "Crèmerie", "Fruits et légumes",
+  "Épicerie", "Épices", "Conserves", "Surgelés ou frais", "Boulangerie",
+  "Emballage",
+];
+
+// Articles cochés "Acheté" PENDANT cette visite de l'écran (pas persisté) :
+// ingredientId → quantité ajoutée au stock. Sert à garder l'article visible
+// et barré en bas de son rayon jusqu'à ce que Qassim quitte l'écran, plutôt
+// que de le faire disparaître instantanément (décision prise avec lui).
+const achetesSession = new Map();
+
+function formaterNombre(n) {
+  const arrondi = Math.round(n * 10) / 10;
+  return String(arrondi);
+}
+
+function formaterDetail(article) {
+  if (article.detail.length > 0) {
+    return article.detail
+      .map((d) => `${d.platNom} : ${formaterNombre(d.quantite)} ${article.unite}`)
+      .join(" · ");
+  }
+  const ingredient = etat.ingredients.find((i) => i.id === article.ingredientId);
+  if (ingredient?.essentiel) return "⭐ Stock minimum";
+  return "Envie ponctuelle";
+}
+
+const listeCoursesEl = document.getElementById("liste-courses");
+
+function rendreEcranCourses() {
+  const liste = construireListeCourses(etat, new Date());
+
+  // On ajoute les articles achetés pendant cette session mais qui ont
+  // disparu du calcul (normal : ils ne sont plus "à acheter" une fois le
+  // stock reconstitué), pour qu'ils restent visibles, barrés, en bas.
+  const idsEnListe = new Set(liste.map((a) => a.ingredientId));
+  for (const [ingredientId, quantiteAjoutee] of achetesSession) {
+    if (idsEnListe.has(ingredientId)) continue;
+    const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
+    if (!ingredient) continue;
+    liste.push({
+      ingredientId,
+      nom: ingredient.nom,
+      rayon: ingredient.rayon,
+      unite: ingredient.unite,
+      aAcheter: quantiteAjoutee,
+      detail: [],
     });
+  }
+
+  listeCoursesEl.innerHTML = "";
+
+  if (liste.length === 0) {
+    listeCoursesEl.innerHTML = `<p class="liste-vide">Rien à acheter pour l'instant.</p>`;
+    return;
+  }
+
+  for (const rayon of RAYONS_ORDRE) {
+    const articles = liste.filter((a) => a.rayon === rayon);
+    if (articles.length === 0) continue;
+
+    // Pas encore achetés d'abord, achetés (cette session) en bas.
+    articles.sort((a, b) => {
+      const aAchete = achetesSession.has(a.ingredientId) ? 1 : 0;
+      const bAchete = achetesSession.has(b.ingredientId) ? 1 : 0;
+      return aAchete - bAchete;
+    });
+
+    const groupe = document.createElement("div");
+    groupe.className = "rayon-groupe";
+    groupe.innerHTML = `<h2 class="rayon-titre">${rayon}</h2>`;
+
+    const articlesEl = document.createElement("div");
+    articlesEl.className = "rayon-articles";
+
+    for (const article of articles) {
+      const achete = achetesSession.has(article.ingredientId);
+      const ligne = document.createElement("div");
+      ligne.className = `article-course${achete ? " achete" : ""}`;
+      ligne.innerHTML = `
+        <input type="checkbox" class="article-checkbox" aria-label="Acheté" ${achete ? "checked" : ""}>
+        <div class="article-info">
+          <span class="article-nom">${article.nom}</span>
+          <span class="article-detail">${formaterDetail(article)}</span>
+        </div>
+        <div class="article-quantite">
+          <input type="number" class="article-quantite-input" value="${formaterNombre(article.aAcheter)}" min="0" step="any" ${achete ? "disabled" : ""}>
+          <span class="article-unite">${article.unite}</span>
+        </div>
+      `;
+
+      const caseACocher = ligne.querySelector(".article-checkbox");
+      const champQuantite = ligne.querySelector(".article-quantite-input");
+
+      caseACocher.addEventListener("change", () => {
+        const ingredient = etat.ingredients.find((i) => i.id === article.ingredientId);
+        if (caseACocher.checked) {
+          const quantite = clampPositif(champQuantite.value) || article.aAcheter;
+          marquerAchete(ingredient, quantite);
+          achetesSession.set(article.ingredientId, quantite);
+        } else {
+          // On décoche : correction d'erreur, on retire du stock exactement
+          // ce qui avait été ajouté.
+          const quantiteAjoutee = achetesSession.get(article.ingredientId) ?? 0;
+          ingredient.enStock -= quantiteAjoutee;
+          achetesSession.delete(article.ingredientId);
+        }
+        sauvegarder();
+        rendreEcranCourses();
+      });
+
+      articlesEl.appendChild(ligne);
+    }
+
+    groupe.appendChild(articlesEl);
+    listeCoursesEl.appendChild(groupe);
+  }
+}
+
+// --- Panneau "ajouter un extra" ---
+
+document.getElementById("ajouter-extra").addEventListener("click", ouvrirPanneauExtra);
+
+function ouvrirPanneauExtra() {
+  apresFermeturePanneau = rendreEcranCourses;
+  let candidat = null; // { ingredientId, quantite }
+
+  function rendrePanneau() {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">🛒 Ajouter un extra</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Ingrédient</div>
+      <div class="liste-plats" id="liste-ingredients"></div>
+
+      <div id="zone-candidat-extra"></div>
+    `;
+
+    const listeEl = panneauPlatEl.querySelector("#liste-ingredients");
+    for (const ingredient of etat.ingredients) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (candidat && candidat.ingredientId === ingredient.id) item.classList.add("selectionne");
+      item.textContent = ingredient.nom;
+      item.addEventListener("click", () => {
+        candidat = { ingredientId: ingredient.id, quantite: 1 };
+        rendrePanneau();
+      });
+      listeEl.appendChild(item);
+    }
+
+    const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat-extra");
+    if (candidat) {
+      const ingredient = etat.ingredients.find((i) => i.id === candidat.ingredientId);
+      zoneCandidatEl.innerHTML = `
+        <div class="panneau-section-titre">${ingredient.nom} (${ingredient.unite})</div>
+        <div class="stepper">
+          <button class="stepper-bouton" id="extra-moins" aria-label="Moins">−</button>
+          <span class="stepper-valeur">${candidat.quantite}</span>
+          <button class="stepper-bouton" id="extra-plus" aria-label="Plus">+</button>
+        </div>
+        <div class="panneau-actions">
+          <button class="bouton-principal" id="extra-ajouter">Ajouter cet extra</button>
+        </div>
+      `;
+      zoneCandidatEl.querySelector("#extra-moins").addEventListener("click", () => {
+        candidat.quantite = Math.max(0, candidat.quantite - 1);
+        rendrePanneau();
+      });
+      zoneCandidatEl.querySelector("#extra-plus").addEventListener("click", () => {
+        candidat.quantite += 1;
+        rendrePanneau();
+      });
+      zoneCandidatEl.querySelector("#extra-ajouter").addEventListener("click", () => {
+        ingredient.extra = clampPositif(ingredient.extra) + candidat.quantite;
+        sauvegarder();
+        candidat = null;
+        rendrePanneau();
+      });
+    } else {
+      zoneCandidatEl.innerHTML = "";
+    }
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
   }
 
   rendrePanneau();

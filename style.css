@@ -552,3 +552,101 @@ body {
   color: var(--couleur-texte-discret);
   margin-top: 8px;
 }
+
+/* --- Écran Courses --- */
+
+.bouton-pleine-largeur {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.rayon-groupe {
+  margin-bottom: 20px;
+}
+
+.rayon-titre {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--couleur-texte-discret);
+  margin: 0 0 8px;
+}
+
+.rayon-articles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.article-course {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 10px 12px;
+}
+
+.article-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.article-nom {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.article-detail {
+  font-size: 0.72rem;
+  color: var(--couleur-texte-discret);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.article-quantite {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.article-quantite-input {
+  width: 56px;
+  text-align: right;
+  padding: 4px 6px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.article-unite {
+  font-size: 0.8rem;
+  color: var(--couleur-texte-discret);
+}
+
+.article-course.achete {
+  opacity: 0.55;
+}
+
+.article-course.achete .article-nom,
+.article-course.achete .article-detail {
+  text-decoration: line-through;
+}
+
+.liste-vide {
+  color: var(--couleur-texte-discret);
+  text-align: center;
+  margin-top: 40px;
+}
