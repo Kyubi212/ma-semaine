@@ -711,8 +711,12 @@ function ingredientsFiltres() {
   switch (filtreStock) {
     case "essentiels":
       return etat.ingredients.filter((i) => i.essentiel);
-    default:
+    case "catalogue":
       return etat.ingredients;
+    default:
+      // À 0, un ingrédient non essentiel n'est plus "en stock" : il disparaît.
+      // Un essentiel à 0 reste affiché (vide) pour rappeler de le racheter.
+      return etat.ingredients.filter((i) => i.enStock > 0 || i.essentiel);
   }
 }
 

@@ -418,6 +418,7 @@ body {
 .segmente {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 #filtres-stock {
