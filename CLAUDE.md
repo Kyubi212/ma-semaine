@@ -13,8 +13,8 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
   par jour : petit-déjeuner, smoko, lunch, snack, dîner.
 - Générer automatiquement la **liste de courses** à partir du planning restant, moins le stock
   actuel, plus les essentiels et les envies ponctuelles (extra).
-- Suivre le **stock** en temps réel, uniquement à partir d'actions réelles (voir "Semaine
-  glissante" ci-dessous).
+- Suivre le **stock** en temps réel, uniquement à partir d'actions réelles (voir "Semaines
+  réelles et modèle" ci-dessous).
 - Permettre à Qassim d'**ajouter/modifier lui-même** des plats et des ingrédients, sans dépendre
   de l'IA au quotidien.
 
@@ -35,7 +35,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 
 | Écran | Rôle |
 |---|---|
-| **Semaine** | Semaine type, 5 créneaux/jour, un jour affiché à la fois avec pastilles des 7 jours en haut, choix du plat + portions + préparation (cuisiné ici / reste), case "Cuisiné" directement sur la carte |
+| **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
 | **Courses** | Liste calculée en direct, groupée par rayon, cocher "Acheté" ajoute au stock |
 | **Plats & repas** | Bibliothèque de plats, filtrable par repas, ajout/modification par Qassim |
 | **Stock** | Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum, extra ponctuel |
@@ -45,33 +45,57 @@ import de sauvegarde" est dans un menu ⋯ en haut (pas un 5e onglet). Écran d'
 sur le jour d'aujourd'hui. Mode sombre automatique selon le réglage du téléphone. Style sobre,
 couleur d'accent verte.
 
-## Semaine glissante (décision clé, remplace un système "Nouvelle semaine" à bouton)
+## Semaines réelles et modèle (décision clé, remplace un système "Nouvelle semaine" à bouton)
 
-Le planning affiche **toujours les 7 jours dans l'ordre fixe lundi → dimanche** : l'affichage
-n'est **jamais réorganisé** pour mettre "aujourd'hui" en premier. Le jour réel du calendrier est
-seulement mis en évidence (ex. pastille marquée "aujourd'hui") parmi les 7 cases toujours dans le
-même ordre.
+**Historique de la décision** : on est passé par deux versions avant celle-ci. D'abord une
+"semaine type sans dates, avec réinitialisation automatique" (les jours passés se remettaient à
+zéro tout seuls) — abandonnée car elle empêchait Qassim de corriger un jour oublié une fois qu'il
+était passé (ex. se rendre compte le mardi qu'on a oublié de cocher lundi). La version actuelle
+règle ce problème en gardant un vrai historique par date, navigable.
 
-Ce qui change avec le temps, ce n'est pas l'ordre affiché, mais l'état "cuisiné" de chaque case :
+**Deux couches de données** (voir `storage.js` et `calculs.js`) :
+- **`modele`** : la "semaine type", 35 cases fixes (7 jours × 5 créneaux : jour, créneau, plat,
+  portions, préparation). C'est la valeur par défaut, modifiable à tout moment.
+- **`historique`** : un enregistrement RÉEL par date ("AAAA-MM-JJ"), créé à la demande (la première
+  fois qu'une date précise est consultée ou modifiée) en copiant le modèle. C'est là que vit l'état
+  "cuisiné", propre à chaque date, **jamais réinitialisé tout seul** : Qassim peut toujours revenir
+  corriger un jour passé, aussi loin que la navigation le permet.
 
-- **Quand un jour réel commence** (le vrai lundi matin, le vrai mardi matin, etc.), la case
-  correspondante (ex. "lundi") se réinitialise automatiquement : **le plat choisi est conservé**
-  (c'est une semaine type, réutilisable), mais l'état "cuisiné" repart à "pas cuisiné" — cette case
-  représente maintenant l'occurrence à venir de ce jour, pas celle de la semaine passée.
-  Concrètement : si on est jeudi, les cases lundi/mardi/mercredi (à gauche, dans l'ordre fixe) ont
-  déjà été réinitialisées ce matin-là et représentent donc déjà le lundi/mardi/mercredi
-  **prochain**, prêtes à replanifier — pas un vieux jour non coché de cette semaine.
-- **Le stock ne bouge pas à cette réinitialisation.** Il ne bouge que sur deux actions réelles :
-  - cocher **Cuisiné** sur une case → déduit le stock immédiatement ; décocher → le restitue
-    (sert à corriger une erreur de saisie, pas à "avancer d'un jour") ;
-  - cocher **Acheté** sur un article de la liste de courses → ajoute au stock immédiatement.
-- Si l'app n'est pas ouverte pendant plusieurs jours (ex. le week-end), au prochain lancement,
-  **tous** les jours réels passés entre-temps sont réinitialisés d'un coup (pas seulement le
-  dernier) — voir `calculs.js` → `appliquerPassageDesJours`.
-- Un repas dont le jour est passé et qui n'a **pas** été coché cuisiné doit être signalé à Qassim
-  à l'ouverture de l'app (ex. "As-tu mangé X ?"), pour que le stock ne devienne pas faux
-  silencieusement. *(Pas encore implémenté à ce stade du projet — prévu avec l'écran Semaine.)*
-- La liste de courses porte sur les 7 cases du planning (toujours les mêmes 7, dans l'ordre fixe).
+**Affichage** : toujours les 7 jours dans l'ordre fixe lundi → dimanche (jamais réorganisé pour
+mettre "aujourd'hui" en premier). Le jour réel du calendrier est seulement mis en évidence parmi
+les 7 cases. **Navigation entre semaines** : 1 semaine en arrière, 2 semaines en avance par rapport
+à la semaine réelle en cours (flèches précédente/suivante). Une semaine future pas encore visitée
+démarre en reprenant le modèle (pas vide, pas une copie figée — voir "à partir d'aujourd'hui"
+ci-dessous).
+
+**Choisir un plat pour un jour précis** propose toujours deux options :
+- **"Juste ce jour"** : ne change que l'enregistrement de cette date précise (`historique`), sans
+  toucher au modèle.
+- **"À partir d'aujourd'hui"** : met AUSSI à jour le `modele` pour ce jour de la semaine + créneau
+  → devient la nouvelle valeur par défaut pour tous les jours futurs pas encore consultés, jusqu'à
+  ce que Qassim la change à nouveau de la même façon.
+
+**Le stock ne bouge que sur deux actions réelles**, peu importe la date affichée ou le nombre de
+jours écoulés :
+- cocher **Cuisiné** sur une case → déduit le stock immédiatement ; décocher → le restitue (sert à
+  corriger une erreur de saisie) ;
+- cocher **Acheté** sur un article de la liste de courses → ajoute au stock immédiatement.
+
+**Repas prévu à l'avance mais pas mangé** (ex. un batch cuisiné le dimanche pour toute la semaine,
+finalement pas terminé, ou un jour où Qassim change d'avis et sort manger dehors) : rien à faire
+dans l'app. Le stock ne suit que les ingrédients bruts, déduits au moment de la cuisson — pas les
+repas ensuite mangés ou non. Une case "reste" ne touche jamais au stock, cochée ou non. Si Qassim
+sait d'avance qu'il ne mangera rien à un créneau (ex. restaurant), il laisse simplement `platId`
+vide : la case ne compte dans rien.
+
+Un repas dont le jour est passé et qui n'a **pas** été coché cuisiné n'est **pas** signalé
+automatiquement pour l'instant (contrairement à une version antérieure de cette section) : Qassim
+navigue lui-même vers le jour concerné pour le corriger s'il le souhaite. *(Une relance automatique
+reste une piste possible, voir Roadmap post-MVP.)*
+
+**La liste de courses (besoin) porte sur la semaine réelle en cours uniquement** (celle qui
+contient aujourd'hui), pas sur les semaines passées (de l'historique consultable, pas des achats à
+faire) ni sur les semaines futures (à remplir au fur et à mesure).
 
 Conséquence : il n'y a **pas** de bouton "Nouvelle semaine" ni de notion de "graver le stock" —
 c'était une contrainte propre à l'ancien système Notion, qui ne s'applique plus ici.
@@ -82,16 +106,19 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
 - **Plat** (MVP allégé) : id, nom, repas, étapes, liste d'ingrédients avec quantité **par
   portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
-- **Case de planning** : jour (lundi-dimanche), créneau, plat choisi, portions, préparation
-  (cuisiné ici / reste), cuisiné (oui/non).
+- **Case du modèle** : jour (lundi-dimanche), créneau, plat choisi, portions, préparation (cuisiné
+  ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle").
+- **Enregistrement d'historique** : par date réelle ("AAAA-MM-JJ"), un objet par créneau avec plat
+  choisi, portions, préparation, et cuisiné (oui/non) — la seule couche qui porte l'état "cuisiné".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (pour migrer les données existantes si la structure change).
+du format (actuellement 2 ; migration automatique depuis la v1 dans `storage.js` → `migrer`).
 
 ## Règles de calcul
 
-- **Besoin** (par ingrédient) = somme, sur les créneaux des 7 jours affichés avec un plat choisi,
-  ni "reste" ni déjà cuisinés, de *portions × quantité par portion* (convertie en unité de base).
+- **Besoin** (par ingrédient) = somme, sur les créneaux des 7 jours de la semaine réelle en cours
+  (cases effectives : historique si déjà consulté, sinon aperçu du modèle) avec un plat choisi, ni
+  "reste" ni déjà cuisinés, de *portions × quantité par portion* (convertie en unité de base).
 - **À acheter** = maximum(0, besoin + minimum essentiel + extra − stock actuel). Arrondi au
   supérieur pour les unités "pièce", inchangé pour les grammes/ml.
 - Cocher **Cuisiné** sur une case : déduit immédiatement le stock des ingrédients du plat (portions
