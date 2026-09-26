@@ -175,3 +175,71 @@ export function marquerAchete(ingredient, quantiteAchetee) {
   ingredient.enStock += clampPositif(quantiteAchetee);
   ingredient.extra = 0;
 }
+
+// --- Semaine glissante (voir CLAUDE.md § Semaine glissante) ---
+//
+// L'affichage du planning reste TOUJOURS dans l'ordre fixe lundi → dimanche
+// (jamais réorganisé). Ce qui change avec le temps, c'est l'état "cuisiné"
+// de chaque case : quand un jour réel commence (le vrai lundi matin, par
+// exemple), la case "lundi" redevient "pas cuisiné" (le plat choisi, lui,
+// est conservé). Le stock ne bouge pas à ce moment-là : il a déjà bougé en
+// temps réel quand la case a été cochée "Cuisiné" (ou pas bougé si elle ne
+// l'a jamais été).
+
+const NOMS_JOURS_PAR_INDICE_JS = [
+  "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+]; // Date.prototype.getDay() rend 0 pour dimanche, 1 pour lundi, etc.
+
+function jourPourDate(date) {
+  return NOMS_JOURS_PAR_INDICE_JS[date.getDay()];
+}
+
+function dateEnISO(date) {
+  // On construit la date à partir des composants LOCAUX (fuseau horaire du
+  // téléphone), pas de toISOString() (qui donne la date en UTC : le soir ou
+  // le matin à Sydney, ce serait parfois la veille ou le lendemain).
+  const annee = date.getFullYear();
+  const mois = String(date.getMonth() + 1).padStart(2, "0");
+  const jour = String(date.getDate()).padStart(2, "0");
+  return `${annee}-${mois}-${jour}`;
+}
+
+// Réinitialise (cuisine → false, sans toucher au stock) toutes les cases du
+// planning dont le jour réel du calendrier a commencé depuis le dernier
+// passage de l'app. Si plusieurs jours se sont écoulés sans que l'app soit
+// ouverte (ex. un week-end), ils sont tous réinitialisés d'un coup.
+// `maintenant` est injectable pour les tests (par défaut : la vraie date).
+export function appliquerPassageDesJours(etat, maintenant = new Date()) {
+  const aujourdhuiISO = dateEnISO(maintenant);
+
+  if (!etat.dernierePassageDate) {
+    // Tout premier lancement : rien à réinitialiser, on note juste la date.
+    etat.dernierePassageDate = aujourdhuiISO;
+    return;
+  }
+
+  if (etat.dernierePassageDate === aujourdhuiISO) {
+    return; // déjà fait aujourd'hui, rien à faire
+  }
+
+  const dernierPassage = new Date(`${etat.dernierePassageDate}T00:00:00`);
+  const millisecondesParJour = 24 * 60 * 60 * 1000;
+  const joursEcoules = Math.round((maintenant - dernierPassage) / millisecondesParJour);
+
+  // Au-delà de 7 jours, les 7 jours de la semaine ont de toute façon tous
+  // eu une occurrence : pas besoin d'aller chercher plus loin.
+  const joursAReinitialiser = new Set();
+  for (let i = 1; i <= Math.min(joursEcoules, 7); i++) {
+    const date = new Date(dernierPassage);
+    date.setDate(date.getDate() + i);
+    joursAReinitialiser.add(jourPourDate(date));
+  }
+
+  for (const caseP of etat.planning) {
+    if (joursAReinitialiser.has(caseP.jour)) {
+      caseP.cuisine = false;
+    }
+  }
+
+  etat.dernierePassageDate = aujourdhuiISO;
+}

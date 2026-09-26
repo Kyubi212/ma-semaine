@@ -13,6 +13,7 @@ import {
   calculerAAcheter,
   definirCuisine,
   marquerAchete,
+  appliquerPassageDesJours,
 } from "../calculs.js";
 import { creerEtatInitial, JOURS } from "../storage.js";
 
@@ -192,6 +193,61 @@ test("marquerAchete : une quantité négative ou invalide n'ajoute rien", () => 
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---
+
+// --- appliquerPassageDesJours ---
+
+function planningTousJoursCuisines() {
+  return JOURS.map((jour) => ({
+    jour,
+    creneau: "lunch",
+    platId: "plat-test",
+    portions: 1,
+    preparation: "cuisine-ici",
+    cuisine: true,
+  }));
+}
+
+test("appliquerPassageDesJours : premier lancement → n'enregistre que la date, ne réinitialise rien", () => {
+  const etat = { dernierePassageDate: null, planning: planningTousJoursCuisines() };
+  appliquerPassageDesJours(etat, new Date(2026, 8, 24)); // jeudi 24/09/2026
+  assert.equal(etat.dernierePassageDate, "2026-09-24");
+  assert.ok(etat.planning.every((c) => c.cuisine === true));
+});
+
+test("appliquerPassageDesJours : même jour que le dernier passage → rien ne change", () => {
+  const etat = { dernierePassageDate: "2026-09-24", planning: planningTousJoursCuisines() };
+  appliquerPassageDesJours(etat, new Date(2026, 8, 24, 18)); // même jour, plus tard
+  assert.ok(etat.planning.every((c) => c.cuisine === true));
+});
+
+test("appliquerPassageDesJours : un jour s'est écoulé → seul le jour qui vient de commencer est réinitialisé", () => {
+  // Dernier passage : mercredi 23/09/2026. Nouveau passage : jeudi 24/09/2026.
+  const etat = { dernierePassageDate: "2026-09-23", planning: planningTousJoursCuisines() };
+  appliquerPassageDesJours(etat, new Date(2026, 8, 24, 9));
+
+  const parJour = Object.fromEntries(etat.planning.map((c) => [c.jour, c.cuisine]));
+  assert.equal(parJour["jeudi"], false, "jeudi vient de commencer : doit être réinitialisé");
+  assert.equal(parJour["mercredi"], true, "mercredi ne doit pas être touché à nouveau");
+  assert.equal(parJour["lundi"], true, "les autres jours restent inchangés");
+});
+
+test("appliquerPassageDesJours : plusieurs jours d'absence → tous réinitialisés d'un coup", () => {
+  // Dernier passage : lundi 21/09/2026. Reprise : jeudi 24/09/2026 (3 jours plus tard).
+  const etat = { dernierePassageDate: "2026-09-21", planning: planningTousJoursCuisines() };
+  appliquerPassageDesJours(etat, new Date(2026, 8, 24, 9));
+
+  const parJour = Object.fromEntries(etat.planning.map((c) => [c.jour, c.cuisine]));
+  assert.equal(parJour["mardi"], false);
+  assert.equal(parJour["mercredi"], false);
+  assert.equal(parJour["jeudi"], false);
+  assert.equal(parJour["lundi"], true, "lundi était déjà réinitialisé lors du dernier passage");
+  assert.equal(parJour["vendredi"], true, "vendredi n'a pas encore eu lieu, pas touché");
+});
+
+test("appliquerPassageDesJours : ne touche jamais au stock (aucun champ ingredients requis)", () => {
+  const etat = { dernierePassageDate: "2026-09-23", planning: planningTousJoursCuisines() };
+  assert.doesNotThrow(() => appliquerPassageDesJours(etat, new Date(2026, 8, 24)));
+});
 
 test("bout-en-bout : 7 petits-déjeuners 'Petit-déj habituel' planifiés → 21 œufs et 3,5 avocats", () => {
   const etat = creerEtatInitial();

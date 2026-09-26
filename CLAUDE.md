@@ -47,20 +47,31 @@ couleur d'accent verte.
 
 ## Semaine glissante (décision clé, remplace un système "Nouvelle semaine" à bouton)
 
-Le planning affiche toujours les **7 prochains jours à partir d'aujourd'hui**, aujourd'hui en
-premier (à gauche). Quand un jour passe minuit :
+Le planning affiche **toujours les 7 jours dans l'ordre fixe lundi → dimanche** : l'affichage
+n'est **jamais réorganisé** pour mettre "aujourd'hui" en premier. Le jour réel du calendrier est
+seulement mis en évidence (ex. pastille marquée "aujourd'hui") parmi les 7 cases toujours dans le
+même ordre.
 
-- Ce jour sort de l'affichage (il repasse en dernière position, pour la semaine suivante).
-- **Le plat choisi est conservé** (c'est la semaine type) ; l'état "cuisiné" repart à "pas
-  cuisiné" pour la nouvelle occurrence.
-- **Le stock ne bouge pas à ce changement de jour.** Il ne bouge que sur deux actions réelles :
-  - cocher **Cuisiné** sur une case → déduit le stock immédiatement ; décocher → le restitue (sert
-    à corriger une erreur, pas à "passer à la semaine suivante" — il n'y a plus besoin de ça) ;
+Ce qui change avec le temps, ce n'est pas l'ordre affiché, mais l'état "cuisiné" de chaque case :
+
+- **Quand un jour réel commence** (le vrai lundi matin, le vrai mardi matin, etc.), la case
+  correspondante (ex. "lundi") se réinitialise automatiquement : **le plat choisi est conservé**
+  (c'est une semaine type, réutilisable), mais l'état "cuisiné" repart à "pas cuisiné" — cette case
+  représente maintenant l'occurrence à venir de ce jour, pas celle de la semaine passée.
+  Concrètement : si on est jeudi, les cases lundi/mardi/mercredi (à gauche, dans l'ordre fixe) ont
+  déjà été réinitialisées ce matin-là et représentent donc déjà le lundi/mardi/mercredi
+  **prochain**, prêtes à replanifier — pas un vieux jour non coché de cette semaine.
+- **Le stock ne bouge pas à cette réinitialisation.** Il ne bouge que sur deux actions réelles :
+  - cocher **Cuisiné** sur une case → déduit le stock immédiatement ; décocher → le restitue
+    (sert à corriger une erreur de saisie, pas à "avancer d'un jour") ;
   - cocher **Acheté** sur un article de la liste de courses → ajoute au stock immédiatement.
+- Si l'app n'est pas ouverte pendant plusieurs jours (ex. le week-end), au prochain lancement,
+  **tous** les jours réels passés entre-temps sont réinitialisés d'un coup (pas seulement le
+  dernier) — voir `calculs.js` → `appliquerPassageDesJours`.
 - Un repas dont le jour est passé et qui n'a **pas** été coché cuisiné doit être signalé à Qassim
   à l'ouverture de l'app (ex. "As-tu mangé X ?"), pour que le stock ne devienne pas faux
-  silencieusement.
-- La liste de courses porte sur les 7 jours actuellement affichés.
+  silencieusement. *(Pas encore implémenté à ce stade du projet — prévu avec l'écran Semaine.)*
+- La liste de courses porte sur les 7 cases du planning (toujours les mêmes 7, dans l'ordre fixe).
 
 Conséquence : il n'y a **pas** de bouton "Nouvelle semaine" ni de notion de "graver le stock" —
 c'était une contrainte propre à l'ancien système Notion, qui ne s'applique plus ici.

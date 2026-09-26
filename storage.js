@@ -60,6 +60,11 @@ export function creerEtatInitial() {
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
     planning: creerPlanningVide(),
+    // Date (AAAA-MM-JJ) du dernier jour où appliquerPassageDesJours a tourné
+    // (voir calculs.js). null au tout premier lancement : la toute première
+    // exécution se contente d'enregistrer la date du jour, sans rien
+    // réinitialiser (il n'y a encore aucune case cuisinée à réinitialiser).
+    dernierePassageDate: null,
   };
 }
 
