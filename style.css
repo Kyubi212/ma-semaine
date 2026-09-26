@@ -474,3 +474,81 @@ body {
   text-decoration: underline;
   font-family: inherit;
 }
+
+/* --- Panneau : liste des plats déjà prévus pour ce créneau --- */
+
+.panneau-vide {
+  color: var(--couleur-texte-discret);
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+}
+
+.liste-elements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.element-prevu {
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 10px 12px;
+}
+
+.element-prevu-ligne1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.element-nom {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.element-retirer {
+  background: none;
+  border: none;
+  color: var(--couleur-texte-discret);
+  font-size: 1rem;
+  padding: 2px 6px;
+}
+
+.element-prevu-ligne2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stepper-compact {
+  gap: 8px;
+}
+
+.stepper-compact .stepper-bouton {
+  width: 28px;
+  height: 28px;
+  font-size: 0.9rem;
+}
+
+.pastille-prep {
+  background: var(--couleur-fond);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--couleur-texte);
+  font-family: inherit;
+}
+
+.panneau-note {
+  font-size: 0.75rem;
+  color: var(--couleur-texte-discret);
+  margin-top: 8px;
+}
