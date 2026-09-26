@@ -17,7 +17,7 @@ import {
   marquerAchete,
   clampPositif,
 } from "./calculs.js";
-import { JOURS } from "./constantes.js";
+import { JOURS, RAYONS } from "./constantes.js";
 
 // --- Bandeau d'avertissement (EN PREMIER, avant tout le reste : le code
 // plus bas peut avoir besoin de l'afficher dès la toute première ligne) ---
@@ -473,18 +473,16 @@ function ouvrirPanneau(dateISO, creneau) {
 // Écran Courses
 // ============================================================
 
-// Ordre des rayons = ton parcours dans le magasin (voir CLAUDE.md).
-const RAYONS_ORDRE = [
-  "Boucherie halal", "Poissonnerie", "Crèmerie", "Fruits et légumes",
-  "Épicerie", "Épices", "Conserves", "Surgelés ou frais", "Boulangerie",
-  "Emballage",
-];
-
 // Articles cochés "Acheté" PENDANT cette visite de l'écran (pas persisté) :
 // ingredientId → quantité ajoutée au stock. Sert à garder l'article visible
 // et barré en bas de son rayon jusqu'à ce que Qassim quitte l'écran, plutôt
 // que de le faire disparaître instantanément (décision prise avec lui).
 const achetesSession = new Map();
+
+// Rayons repliés PENDANT cette visite de l'écran (pas persisté non plus) :
+// un rayon replié doit le rester quand la liste se redessine après une
+// coche, sinon Qassim devrait tout replier à nouveau à chaque action.
+const rayonsReplies = new Set();
 
 function formaterNombre(n) {
   const arrondi = Math.round(n * 10) / 10;
@@ -532,7 +530,7 @@ function rendreEcranCourses() {
     return;
   }
 
-  for (const rayon of RAYONS_ORDRE) {
+  for (const rayon of RAYONS) {
     const articles = liste.filter((a) => a.rayon === rayon);
     if (articles.length === 0) continue;
 
@@ -543,9 +541,16 @@ function rendreEcranCourses() {
       return aAchete - bAchete;
     });
 
-    const groupe = document.createElement("div");
+    // <details> : repliable nativement, sans JS pour l'ouverture/fermeture.
+    // Le nombre d'articles reste visible dans le titre même replié.
+    const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
-    groupe.innerHTML = `<h2 class="rayon-titre">${rayon}</h2>`;
+    groupe.open = !rayonsReplies.has(rayon);
+    groupe.addEventListener("toggle", () => {
+      if (groupe.open) rayonsReplies.delete(rayon);
+      else rayonsReplies.add(rayon);
+    });
+    groupe.innerHTML = `<summary class="rayon-titre">${rayon} <span class="rayon-compte">${articles.length}</span></summary>`;
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";

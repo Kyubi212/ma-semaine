@@ -41,7 +41,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | Écran | Rôle |
 |---|---|
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
-| **Courses** | Liste calculée en direct, groupée par rayon, cocher "Acheté" ajoute au stock |
+| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock |
 | **Plats & repas** | Bibliothèque de plats, filtrable par repas, ajout/modification par Qassim |
 | **Stock** | Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum, extra ponctuel |
 
@@ -172,6 +172,22 @@ du format (actuellement 3 ; migrations en chaîne v1 → v2 → v3 dans `storage
 recréer de zéro. Les unités en cuillères sont converties vers l'unité de stock au moment de
 l'import (champ "Par c. à café" dans Notion) ; les cuillères ne sont pas une unité de stock dans
 l'app.
+
+## Rayons et articles non-alimentaires
+
+Les rayons (`constantes.js` → `RAYONS`) suivent le parcours d'un vrai supermarché, alimentaire
+d'abord (ceux déjà utilisés par les ingrédients importés de Notion), puis non-alimentaire —
+**"Hygiène"** (dentifrice, déodorant...) et **"Entretien maison"** (produits ménagers...), jamais
+mélangés entre eux ni avec l'alimentaire, comme dans un vrai magasin.
+
+**Un ingrédient n'a pas besoin d'être utilisé dans un plat pour exister.** Le mécanisme
+essentiel + minimum (déjà dans le modèle de données, voir "Règles de calcul") fonctionne pour
+n'importe quel article, alimentaire ou non : marqué essentiel avec un minimum, il apparaît dans la
+liste de courses dès que son stock passe sous ce minimum, **même si aucun plat ne le demande cette
+semaine** (ex. dentifrice, ou huile d'olive même en semaine sans plat qui en a besoin). Ça permet à
+l'app de servir à **toutes** les courses de Qassim, pas seulement à la nourriture liée au planning.
+L'écran Stock (à construire) est l'endroit prévu pour cocher essentiel/minimum et ajouter un tout
+nouvel ingrédient (y compris non-alimentaire, sans l'associer à aucun plat).
 
 ## Sécurité et vie privée
 

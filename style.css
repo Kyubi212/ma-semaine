@@ -565,11 +565,37 @@ body {
 }
 
 .rayon-titre {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--couleur-texte-discret);
   margin: 0 0 8px;
+  cursor: pointer;
+  list-style: none; /* enlève le triangle par défaut du navigateur */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Notre propre triangle, qui pivote selon l'état ouvert/fermé. */
+.rayon-titre::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.15s;
+  color: var(--couleur-accent);
+}
+
+.rayon-groupe[open] > .rayon-titre::before {
+  transform: rotate(90deg);
+}
+
+.rayon-titre::-webkit-details-marker {
+  display: none; /* enlève le triangle par défaut sur Safari/iOS */
+}
+
+.rayon-compte {
+  font-weight: 400;
+  color: var(--couleur-texte-discret);
 }
 
 .rayon-articles {
