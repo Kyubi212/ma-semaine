@@ -30,6 +30,11 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 - **Hébergement** : GitHub Pages (dépôt public — voir "Sécurité et vie privée").
 - **Tests** : `node --test` (outil intégré à Node.js, aucune dépendance à installer), pour la
   logique de calcul uniquement (fonctions pures dans `calculs.js`, séparées de l'affichage).
+- **Anti-cache** : `index.html` charge `app.js` et `style.css` avec un paramètre `?v=AAAAMMJJx`
+  (ex. `?v=20260926a`). Safari mobile a tendance à garder une ancienne version de ces fichiers en
+  cache même après un rechargement de la page. **À chaque modification de `app.js` ou
+  `style.css`, changer ce numéro de version dans `index.html`** (les deux endroits), sinon Qassim
+  peut continuer à voir l'ancienne version sans erreur ni message.
 
 ## Écrans (MVP, 4 écrans)
 
