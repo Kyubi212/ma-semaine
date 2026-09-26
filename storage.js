@@ -11,7 +11,6 @@
 // stockage du téléphone, de ne changer QUE ce fichier.
 
 import { ingredients as ingredientsParDefaut, plats as platsParDefaut } from "./data.js";
-import { JOURS, CRENEAUX } from "./constantes.js";
 
 // Une seule clé, un seul objet JSON dedans : plus simple à inspecter
 // (Outils de développement → Application → Local Storage) et à sauvegarder
@@ -22,33 +21,20 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 2;
-
-function creerModeleVide() {
-  const modele = [];
-  for (const jour of JOURS) {
-    for (const creneau of CRENEAUX) {
-      modele.push({
-        jour,
-        creneau,
-        platId: null, // aucun plat choisi pour l'instant
-        portions: 1,
-        preparation: "cuisine-ici", // ou "reste" (voir CLAUDE.md)
-      });
-    }
-  }
-  return modele;
-}
+const VERSION_FORMAT = 3;
 
 // Construit un état de départ propre, à partir du catalogue de data.js.
 // Utilisé au tout premier lancement de l'app, et chaque fois que les
 // données sauvegardées sont absentes ou illisibles.
 //
 // Deux couches de planning (voir CLAUDE.md § Semaine glissante) :
-// - `modele` : la "semaine type", 35 cases fixes (7 jours × 5 créneaux),
-//   modifiable à tout moment ; sert de valeur par défaut.
-// - `historique` : un enregistrement RÉEL par date (clé "AAAA-MM-JJ"), créé
-//   à la demande (voir calculs.js → obtenirOuCreerJourHistorique) la
+// - `modele` : la "semaine type", une liste de "règles" (jour, créneau, plat,
+//   portions, préparation). PLUSIEURS règles peuvent partager le même jour +
+//   créneau (ex. "fruits" ET "œufs" au petit-déjeuner du lundi) — voir
+//   CLAUDE.md § Plusieurs plats par créneau. Vide au départ (aucune règle).
+// - `historique` : par date réelle ("AAAA-MM-JJ") puis par créneau, une
+//   LISTE d'éléments réels { id, platId, portions, preparation, cuisine },
+//   créée à la demande (voir calculs.js → obtenirOuCreerJourHistorique) la
 //   première fois qu'un jour précis est consulté ou modifié. C'est là que
 //   vit l'état "cuisiné", propre à chaque date, jamais réinitialisé tout
 //   seul : Qassim peut toujours revenir corriger un jour passé.
@@ -60,13 +46,14 @@ export function creerEtatInitial() {
       ...plat,
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
-    modele: creerModeleVide(),
+    modele: [],
     historique: {},
   };
 }
 
 // Fait passer un état sauvegardé dans une ANCIENNE version du format à la
-// version actuelle.
+// version actuelle. Les migrations s'enchaînent (v1 → v2 → v3) pour ne
+// jamais perdre les données déjà sauvegardées, quelle que soit l'ancienneté.
 function migrer(etat) {
   if (etat.version === 1) {
     // v1 → v2 : le "planning" unique (35 cases, sans dates) devient le
@@ -85,6 +72,50 @@ function migrer(etat) {
     delete etat.planning;
     delete etat.dernierePassageDate;
   }
+
+  if (etat.version === 2) {
+    // v2 → v3 : une case ne contient plus UN plat mais une LISTE de plats
+    // (voir CLAUDE.md § Plusieurs plats par créneau). Une case vide
+    // (platId: null) devient une liste vide ; une case avec un plat devient
+    // une liste à un seul élément.
+    let prochainId = 1;
+    const genererId = () => `migre-${prochainId++}`;
+
+    etat = {
+      ...etat,
+      modele: (etat.modele ?? [])
+        .filter((c) => c.platId)
+        .map((c) => ({
+          id: genererId(),
+          jour: c.jour,
+          creneau: c.creneau,
+          platId: c.platId,
+          portions: c.portions,
+          preparation: c.preparation,
+        })),
+      historique: Object.fromEntries(
+        Object.entries(etat.historique ?? {}).map(([dateISO, jourEntree]) => [
+          dateISO,
+          Object.fromEntries(
+            Object.entries(jourEntree).map(([creneau, ancienneCase]) => [
+              creneau,
+              ancienneCase.platId
+                ? [{
+                    id: genererId(),
+                    platId: ancienneCase.platId,
+                    portions: ancienneCase.portions,
+                    preparation: ancienneCase.preparation,
+                    cuisine: ancienneCase.cuisine,
+                  }]
+                : [],
+            ])
+          ),
+        ])
+      ),
+      version: 3,
+    };
+  }
+
   return etat;
 }
 

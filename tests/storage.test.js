@@ -9,7 +9,6 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { JOURS, CRENEAUX } from "../constantes.js";
 
 function creerFauxLocalStorage() {
   const donnees = new Map();
@@ -42,15 +41,12 @@ test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
   assert.equal(etat.plats.length, 25);
   assert.equal(etat.ingredients.length, 60);
-  assert.equal(etat.version, 2);
+  assert.equal(etat.version, 3);
 });
 
-test("creerEtatInitial : modèle de 7 jours × 5 créneaux, tous vides ; historique vide", () => {
+test("creerEtatInitial : modèle et historique vides au départ", () => {
   const etat = creerEtatInitial();
-  assert.equal(etat.modele.length, JOURS.length * CRENEAUX.length);
-  for (const caseP of etat.modele) {
-    assert.equal(caseP.platId, null);
-  }
+  assert.deepEqual(etat.modele, []);
   assert.deepEqual(etat.historique, {});
 });
 
@@ -62,10 +58,9 @@ test("chargerEtat : premier lancement (rien en stockage) → état initial, sans
 
 test("sauvegarderEtat puis chargerEtat : on retrouve exactement ce qu'on a sauvegardé", () => {
   const etat = creerEtatInitial();
-  etat.modele[0].platId = "wraps-chili-au-poulet-riz";
-  etat.modele[0].portions = 2;
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "wraps-chili-au-poulet-riz", portions: 2, preparation: "cuisine-ici" });
   etat.historique["2026-09-21"] = {
-    "petit-dejeuner": { platId: "bol-yaourt-grec", portions: 1, preparation: "cuisine-ici", cuisine: true },
+    "petit-dejeuner": [{ id: "e1", platId: "bol-yaourt-grec", portions: 1, preparation: "cuisine-ici", cuisine: true }],
   };
 
   const ok = sauvegarderEtat(etat);
@@ -74,11 +69,44 @@ test("sauvegarderEtat puis chargerEtat : on retrouve exactement ce qu'on a sauve
   const relu = chargerEtat();
   assert.equal(relu.erreurLecture, false);
   assert.equal(relu.etat.modele[0].platId, "wraps-chili-au-poulet-riz");
-  assert.equal(relu.etat.modele[0].portions, 2);
-  assert.equal(relu.etat.historique["2026-09-21"]["petit-dejeuner"].platId, "bol-yaourt-grec");
+  assert.equal(relu.etat.historique["2026-09-21"]["petit-dejeuner"][0].platId, "bol-yaourt-grec");
 });
 
-test("chargerEtat : données de l'ancien format (v1, planning) sont migrées vers modele/historique", () => {
+test("chargerEtat : migre un ancien format v2 (un seul plat par case) vers v3 (liste de plats)", () => {
+  const ancienEtat = {
+    version: 2,
+    ingredients: [],
+    plats: [],
+    modele: [
+      { jour: "lundi", creneau: "lunch", platId: "x", portions: 2, preparation: "cuisine-ici" },
+      { jour: "mardi", creneau: "lunch", platId: null, portions: 1, preparation: "cuisine-ici" },
+    ],
+    historique: {
+      "2026-09-21": {
+        lunch: { platId: "x", portions: 2, preparation: "cuisine-ici", cuisine: true },
+        diner: { platId: null, portions: 1, preparation: "cuisine-ici", cuisine: false },
+      },
+    },
+  };
+  globalThis.localStorage.setItem("ma-semaine", JSON.stringify(ancienEtat));
+
+  const { etat, erreurLecture } = chargerEtat();
+  assert.equal(erreurLecture, false);
+  assert.equal(etat.version, 3);
+
+  // Une case vide (platId: null) disparaît (liste vide), une case avec un
+  // plat devient une liste à un seul élément.
+  assert.equal(etat.modele.length, 1);
+  assert.equal(etat.modele[0].platId, "x");
+  assert.ok(etat.modele[0].id, "chaque règle doit avoir un id");
+
+  assert.deepEqual(etat.historique["2026-09-21"].diner, []);
+  assert.equal(etat.historique["2026-09-21"].lunch.length, 1);
+  assert.equal(etat.historique["2026-09-21"].lunch[0].platId, "x");
+  assert.equal(etat.historique["2026-09-21"].lunch[0].cuisine, true);
+});
+
+test("chargerEtat : migre un très ancien format v1 jusqu'à v3, en chaîne", () => {
   const ancienEtat = {
     version: 1,
     ingredients: [],
@@ -92,9 +120,9 @@ test("chargerEtat : données de l'ancien format (v1, planning) sont migrées ver
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 2);
+  assert.equal(etat.version, 3);
+  assert.equal(etat.modele.length, 1);
   assert.equal(etat.modele[0].platId, "x");
-  assert.equal(etat.modele[0].cuisine, undefined, "le modèle ne porte plus l'état cuisiné");
   assert.deepEqual(etat.historique, {});
   assert.equal(etat.planning, undefined);
   assert.equal(etat.dernierePassageDate, undefined);

@@ -59,12 +59,29 @@ zéro tout seuls) — abandonnée car elle empêchait Qassim de corriger un jour
 règle ce problème en gardant un vrai historique par date, navigable.
 
 **Deux couches de données** (voir `storage.js` et `calculs.js`) :
-- **`modele`** : la "semaine type", 35 cases fixes (7 jours × 5 créneaux : jour, créneau, plat,
-  portions, préparation). C'est la valeur par défaut, modifiable à tout moment.
-- **`historique`** : un enregistrement RÉEL par date ("AAAA-MM-JJ"), créé à la demande (la première
-  fois qu'une date précise est consultée ou modifiée) en copiant le modèle. C'est là que vit l'état
+- **`modele`** : la "semaine type", une liste de **règles** { id, jour, créneau, plat, portions,
+  préparation }. C'est la valeur par défaut, modifiable à tout moment.
+- **`historique`** : par date RÉELLE ("AAAA-MM-JJ") puis par créneau, une **liste** de plats réels
+  { id, plat, portions, préparation, cuisiné }, créée à la demande (la première fois qu'une date
+  précise est consultée ou modifiée) en copiant les règles du modèle. C'est là que vit l'état
   "cuisiné", propre à chaque date, **jamais réinitialisé tout seul** : Qassim peut toujours revenir
   corriger un jour passé, aussi loin que la navigation le permet.
+
+**Plusieurs plats par créneau** : une case (jour + créneau, ex. "lundi déjeuner") peut contenir
+**plusieurs plats en même temps** (ex. "fruits" + "œufs" comme deux choix séparés), pas un seul.
+Concrètement : plusieurs règles du modèle peuvent partager le même jour + créneau, et la liste
+d'historique d'un jour + créneau peut contenir plusieurs éléments. Chaque plat a son propre état
+"cuisiné" (on peut cocher les œufs sans cocher les fruits). Actions possibles sur une case :
+**ajouter** un plat (juste ce jour, ou à partir d'aujourd'hui — ajoute une règle, ne remplace pas
+les plats déjà prévus), **modifier** les portions/préparation d'un plat déjà présent (toujours
+juste ce jour), **retirer** un plat (toujours juste ce jour — s'il venait d'une règle récurrente,
+elle n'est pas touchée et le plat réapparaît les autres jours).
+
+**Important pour le code** : quand un plat est encore un simple aperçu du modèle (pas encore
+enregistré dans l'historique), son `id` affiché reprend celui de la règle d'origine — jamais un id
+généré à la volée. Un id lu en aperçu doit rester valable si, juste après, une action (cocher,
+retirer...) crée réellement l'enregistrement du jour, sinon l'action échoue silencieusement (bug
+réel rencontré et corrigé à l'étape 4d).
 
 **Affichage** : toujours les 7 jours dans l'ordre fixe lundi → dimanche (jamais réorganisé pour
 mettre "aujourd'hui" en premier). Le jour réel du calendrier est seulement mis en évidence parmi
@@ -73,12 +90,14 @@ les 7 cases. **Navigation entre semaines** : 1 semaine en arrière, 2 semaines e
 démarre en reprenant le modèle (pas vide, pas une copie figée — voir "à partir d'aujourd'hui"
 ci-dessous).
 
-**Choisir un plat pour un jour précis** propose toujours deux options :
-- **"Juste ce jour"** : ne change que l'enregistrement de cette date précise (`historique`), sans
-  toucher au modèle.
-- **"À partir d'aujourd'hui"** : met AUSSI à jour le `modele` pour ce jour de la semaine + créneau
-  → devient la nouvelle valeur par défaut pour tous les jours futurs pas encore consultés, jusqu'à
-  ce que Qassim la change à nouveau de la même façon.
+**Ajouter un plat à un jour précis** propose toujours deux options :
+- **"Juste ce jour"** : n'ajoute qu'à cette date précise (`historique`), sans toucher au modèle.
+- **"À partir d'aujourd'hui"** : ajoute AUSSI une règle au `modele` pour ce jour de la semaine +
+  créneau → s'appliquera à tous les jours futurs pas encore consultés (en plus des plats déjà
+  prévus ce jour-là, pas à leur place). **Attention, portée exacte** : ça ne change QUE ce jour de
+  la semaine (ex. tous les jeudis futurs), pas tous les jours suivants sans distinction — vendredi,
+  samedi, etc. gardent leurs propres plats par défaut. C'est un point qui peut prêter à confusion,
+  à bien expliciter dans l'interface.
 
 **Le stock ne bouge que sur deux actions réelles**, peu importe la date affichée ou le nombre de
 jours écoulés :
@@ -111,13 +130,14 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
 - **Plat** (MVP allégé) : id, nom, repas, étapes, liste d'ingrédients avec quantité **par
   portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
-- **Case du modèle** : jour (lundi-dimanche), créneau, plat choisi, portions, préparation (cuisiné
-  ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle").
-- **Enregistrement d'historique** : par date réelle ("AAAA-MM-JJ"), un objet par créneau avec plat
-  choisi, portions, préparation, et cuisiné (oui/non) — la seule couche qui porte l'état "cuisiné".
+- **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions, préparation
+  (cuisiné ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle"). Plusieurs
+  règles peuvent partager le même jour + créneau.
+- **Élément d'historique** : par date réelle ("AAAA-MM-JJ") puis par créneau, une LISTE d'éléments
+  { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 2 ; migration automatique depuis la v1 dans `storage.js` → `migrer`).
+du format (actuellement 3 ; migrations en chaîne v1 → v2 → v3 dans `storage.js` → `migrer`).
 
 ## Règles de calcul
 

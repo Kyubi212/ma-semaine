@@ -16,13 +16,15 @@ import {
   jourDeLaSemaine,
   datesDeLaSemaine,
   decalerSemaine,
-  obtenirCaseEffective,
+  obtenirElementsEffectifs,
   calculerBesoinsSemaine,
   definirCuisine,
-  definirPlatDuJour,
+  ajouterPlatAuJour,
+  modifierElementDuJour,
+  retirerElementDuJour,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
-import { JOURS, CRENEAUX } from "../constantes.js";
+import { JOURS } from "../constantes.js";
 
 // --- clampPositif ---
 
@@ -83,7 +85,14 @@ const platTest = {
   id: "plat-test",
   ingredients: [{ ingredientId: "riz", quantitePortion: 100, unite: "g" }],
 };
-const ingredientsTest = [{ ...riz, enStock: 0, essentiel: false, minimum: 0, extra: 0 }];
+const platTest2 = {
+  id: "plat-test-2",
+  ingredients: [{ ingredientId: "huile", quantitePortion: 10, unite: "ml" }],
+};
+const ingredientsTest = [
+  { ...riz, enStock: 0, essentiel: false, minimum: 0, extra: 0 },
+  { ...huile, enStock: 0, essentiel: false, minimum: 0, extra: 0 },
+];
 
 test("calculerBesoins : additionne portions × quantité par portion sur les cases qui comptent", () => {
   const cases = [
@@ -92,6 +101,18 @@ test("calculerBesoins : additionne portions × quantité par portion sur les cas
   ];
   const besoins = calculerBesoins(cases, [platTest], ingredientsTest);
   assert.equal(besoins.get("riz"), 300); // 2*100 + 1*100
+});
+
+test("calculerBesoins : additionne plusieurs plats différents d'une même case", () => {
+  // Deux plats au même créneau (ex. "fruits" + "œufs") : la somme doit
+  // couvrir les deux, voir CLAUDE.md § Plusieurs plats par créneau.
+  const cases = [
+    { platId: "plat-test", portions: 1, preparation: "cuisine-ici", cuisine: false },
+    { platId: "plat-test-2", portions: 1, preparation: "cuisine-ici", cuisine: false },
+  ];
+  const besoins = calculerBesoins(cases, [platTest, platTest2], ingredientsTest);
+  assert.equal(besoins.get("riz"), 100);
+  assert.equal(besoins.get("huile"), 10);
 });
 
 test("calculerBesoins : ignore les cases 'reste', déjà cuisinées, à 0 portion ou vides", () => {
@@ -190,113 +211,171 @@ test("decalerSemaine : avance ou recule de 7 jours par semaine demandée", () =>
   assert.equal(dateEnISO(decalerSemaine(reference, 2)), "2026-10-08");
 });
 
-// --- obtenirCaseEffective / definirCuisine / definirPlatDuJour ---
+// --- obtenirElementsEffectifs / ajouterPlatAuJour / definirCuisine / etc. ---
 
 function etatDeTest() {
   const etat = creerEtatInitial();
-  etat.plats = [platTest];
-  etat.ingredients = [{ ...riz, enStock: 200 }];
+  etat.plats = [platTest, platTest2];
+  etat.ingredients = [
+    { ...riz, enStock: 200 },
+    { ...huile, enStock: 200 },
+  ];
   return etat;
 }
 
-test("obtenirCaseEffective : sans historique, reprend le modèle (jamais cuisiné)", () => {
+test("obtenirElementsEffectifs : sans historique, reprend les règles du modèle (jamais cuisiné)", () => {
   const etat = etatDeTest();
-  const jourSemaine = jourDeLaSemaine("2026-09-21"); // lundi
-  const caseModele = etat.modele.find((c) => c.jour === jourSemaine && c.creneau === "lunch");
-  caseModele.platId = "plat-test";
-  caseModele.portions = 3;
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 3, preparation: "cuisine-ici" });
 
-  const effective = obtenirCaseEffective(etat, "2026-09-21", "lunch");
-  assert.equal(effective.platId, "plat-test");
-  assert.equal(effective.portions, 3);
-  assert.equal(effective.cuisine, false);
+  const elements = obtenirElementsEffectifs(etat, "2026-09-21", "lunch"); // lundi
+  assert.equal(elements.length, 1);
+  assert.equal(elements[0].platId, "plat-test");
+  assert.equal(elements[0].portions, 3);
+  assert.equal(elements[0].cuisine, false);
   assert.equal(etat.historique["2026-09-21"], undefined, "ne doit rien enregistrer en lecture seule");
 });
 
-test("definirCuisine : crée l'enregistrement du jour, déduit le stock, décocher le restitue", () => {
+test("obtenirElementsEffectifs : plusieurs règles pour le même jour + créneau → plusieurs plats", () => {
   const etat = etatDeTest();
-  const jourSemaine = jourDeLaSemaine("2026-09-21");
-  etat.modele.find((c) => c.jour === jourSemaine && c.creneau === "lunch").platId = "plat-test";
-  etat.modele.find((c) => c.jour === jourSemaine && c.creneau === "lunch").portions = 2;
+  etat.modele.push(
+    { id: "r1", jour: "lundi", creneau: "petit-dejeuner", platId: "plat-test", portions: 1, preparation: "cuisine-ici" },
+    { id: "r2", jour: "lundi", creneau: "petit-dejeuner", platId: "plat-test-2", portions: 1, preparation: "cuisine-ici" }
+  );
+  const elements = obtenirElementsEffectifs(etat, "2026-09-21", "petit-dejeuner");
+  assert.equal(elements.length, 2);
+  assert.deepEqual(elements.map((e) => e.platId).sort(), ["plat-test", "plat-test-2"]);
+});
 
-  definirCuisine(etat, "2026-09-21", "lunch", true);
-  assert.equal(etat.ingredients[0].enStock, 0); // 200 - 2*100
-  assert.ok(etat.historique["2026-09-21"], "l'enregistrement du jour doit maintenant exister");
-  assert.equal(etat.historique["2026-09-21"].lunch.cuisine, true);
+test("ajouterPlatAuJour : 'juste ce jour' ajoute au jour sans toucher au modèle", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
 
-  definirCuisine(etat, "2026-09-21", "lunch", false);
-  assert.equal(etat.ingredients[0].enStock, 200);
-  assert.equal(etat.historique["2026-09-21"].lunch.cuisine, false);
+  const elements = etat.historique["2026-09-21"].lunch;
+  assert.equal(elements.length, 1);
+  assert.equal(elements[0].platId, "plat-test");
+  assert.equal(etat.modele.length, 0, "le modèle ne doit pas changer");
+});
+
+test("ajouterPlatAuJour : on peut ajouter plusieurs plats à la même case", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test", portions: 1 }, false);
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test-2", portions: 1 }, false);
+
+  const elements = etat.historique["2026-09-21"]["petit-dejeuner"];
+  assert.equal(elements.length, 2);
+});
+
+test("ajouterPlatAuJour : 'à partir d'aujourd'hui' ajoute AUSSI une règle au modèle", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, true);
+
+  assert.equal(etat.modele.length, 1);
+  assert.equal(etat.modele[0].jour, "lundi");
+  assert.equal(etat.modele[0].platId, "plat-test");
+
+  // Un jour futur (même jour de semaine) pas encore consulté doit reprendre ce choix.
+  const semaineSuivante = obtenirElementsEffectifs(etat, "2026-09-28", "lunch"); // lundi suivant
+  assert.equal(semaineSuivante.length, 1);
+  assert.equal(semaineSuivante[0].platId, "plat-test");
+});
+
+test("ajouterPlatAuJour : la propagation ne remplace pas les plats déjà prévus, elle s'ajoute", () => {
+  const etat = etatDeTest();
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 1, preparation: "cuisine-ici" });
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test-2", portions: 1 }, true);
+
+  const elements = obtenirElementsEffectifs(etat, "2026-09-28", "lunch");
+  assert.equal(elements.length, 2);
+});
+
+test("definirCuisine : coche un plat précis, déduit le stock, décocher le restitue", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
+  const [element] = etat.historique["2026-09-21"].lunch;
+
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 0); // 200 - 2*100
+  assert.equal(etat.historique["2026-09-21"].lunch[0].cuisine, true);
+
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, false);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200);
+});
+
+test("definirCuisine : ne touche qu'au plat visé, pas aux autres plats de la même case", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test", portions: 1 }, false);
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test-2", portions: 1 }, false);
+  const [premier, second] = etat.historique["2026-09-21"]["petit-dejeuner"];
+
+  definirCuisine(etat, "2026-09-21", "petit-dejeuner", premier.id, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 100); // déduit
+  assert.equal(etat.ingredients.find((i) => i.id === "huile").enStock, 200); // inchangé
+  assert.equal(etat.historique["2026-09-21"]["petit-dejeuner"].find((e) => e.id === second.id).cuisine, false);
 });
 
 test("definirCuisine : cocher deux fois de suite ne déduit qu'une fois", () => {
   const etat = etatDeTest();
-  etat.modele.find((c) => c.creneau === "lunch" && c.jour === "lundi").platId = "plat-test";
-  definirCuisine(etat, "2026-09-21", "lunch", true);
-  definirCuisine(etat, "2026-09-21", "lunch", true);
-  assert.equal(etat.ingredients[0].enStock, 100); // une seule déduction de 100g
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
+  const [element] = etat.historique["2026-09-21"].lunch;
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 100);
 });
 
-test("definirCuisine : un jour passé peut toujours être corrigé, quel que soit le nombre de jours écoulés", () => {
+test("modifierElementDuJour : change les portions, restitue d'abord le stock si déjà cuisiné", () => {
   const etat = etatDeTest();
-  etat.modele.find((c) => c.creneau === "lunch" && c.jour === "lundi").platId = "plat-test";
-  // On "oublie" de cocher lundi, et on ne s'en occupe que le jeudi suivant :
-  // aucune limite dans le code pour ça, contrairement à l'ancien système de
-  // réinitialisation automatique.
-  definirCuisine(etat, "2026-09-21", "lunch", true);
-  assert.equal(etat.ingredients[0].enStock, 100);
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
+  const [element] = etat.historique["2026-09-21"].lunch;
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 100);
+
+  modifierElementDuJour(etat, "2026-09-21", "lunch", element.id, { portions: 2 });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200, "le stock doit être restitué");
+  assert.equal(etat.historique["2026-09-21"].lunch[0].portions, 2);
+  assert.equal(etat.historique["2026-09-21"].lunch[0].cuisine, false);
 });
 
-test("definirPlatDuJour : 'juste ce jour' ne touche pas au modèle", () => {
+test("retirerElementDuJour : enlève un plat de ce jour, restitue le stock s'il était cuisiné", () => {
   const etat = etatDeTest();
-  definirPlatDuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test", portions: 1 }, false);
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test-2", portions: 1 }, false);
+  const [premier, second] = etat.historique["2026-09-21"]["petit-dejeuner"];
+  definirCuisine(etat, "2026-09-21", "petit-dejeuner", premier.id, true);
 
-  assert.equal(etat.historique["2026-09-21"].lunch.platId, "plat-test");
-  const caseModele = etat.modele.find((c) => c.jour === "lundi" && c.creneau === "lunch");
-  assert.equal(caseModele.platId, null, "le modèle ne doit pas changer");
+  retirerElementDuJour(etat, "2026-09-21", "petit-dejeuner", premier.id);
+  const restants = etat.historique["2026-09-21"]["petit-dejeuner"];
+  assert.equal(restants.length, 1);
+  assert.equal(restants[0].id, second.id);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200, "le stock doit être restitué");
 });
 
-test("definirPlatDuJour : 'à partir d'aujourd'hui' met aussi à jour le modèle", () => {
+test("retirerElementDuJour : ne touche pas au modèle (réapparaît les autres jours)", () => {
   const etat = etatDeTest();
-  definirPlatDuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, true);
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 1, preparation: "cuisine-ici" });
+  const [element] = obtenirElementsEffectifs(etat, "2026-09-21", "lunch");
+  retirerElementDuJour(etat, "2026-09-21", "lunch", element.id);
 
-  const caseModele = etat.modele.find((c) => c.jour === "lundi" && c.creneau === "lunch");
-  assert.equal(caseModele.platId, "plat-test");
-  assert.equal(caseModele.portions, 2);
-
-  // Un jour futur pas encore consulté doit maintenant reprendre ce choix.
-  const effectiveSemaineSuivante = obtenirCaseEffective(etat, "2026-09-28", "lunch"); // lundi suivant
-  assert.equal(effectiveSemaineSuivante.platId, "plat-test");
-});
-
-test("definirPlatDuJour : changer une case déjà cuisinée restitue d'abord son ancien stock", () => {
-  const etat = etatDeTest();
-  definirPlatDuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
-  definirCuisine(etat, "2026-09-21", "lunch", true);
-  assert.equal(etat.ingredients[0].enStock, 0); // 200 - 200
-
-  // Qassim change d'avis : il enlève finalement le plat de cette case.
-  definirPlatDuJour(etat, "2026-09-21", "lunch", { platId: null }, false);
-  assert.equal(etat.ingredients[0].enStock, 200, "le stock déduit doit être restitué");
-  assert.equal(etat.historique["2026-09-21"].lunch.cuisine, false);
+  assert.equal(etat.historique["2026-09-21"].lunch.length, 0);
+  assert.equal(obtenirElementsEffectifs(etat, "2026-09-28", "lunch").length, 1, "lundi suivant garde la règle");
 });
 
 // --- calculerBesoinsSemaine ---
 
 test("calculerBesoinsSemaine : additionne sur les 7 jours de la semaine réelle en cours", () => {
   const etat = etatDeTest();
-  // Un plat le lundi et le jeudi de la semaine type (via le modèle).
-  etat.modele.find((c) => c.jour === "lundi" && c.creneau === "lunch").platId = "plat-test";
-  etat.modele.find((c) => c.jour === "jeudi" && c.creneau === "lunch").platId = "plat-test";
-
+  etat.modele.push(
+    { id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 1, preparation: "cuisine-ici" },
+    { id: "r2", jour: "jeudi", creneau: "lunch", platId: "plat-test", portions: 1, preparation: "cuisine-ici" }
+  );
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24)); // jeudi 24/09/2026
-  assert.equal(besoins.get("riz"), 200); // 1 portion lundi + 1 portion jeudi, 100g chacune
+  assert.equal(besoins.get("riz"), 200);
 });
 
-test("calculerBesoinsSemaine : une case déjà cuisinée cette semaine ne compte plus dans le besoin", () => {
+test("calculerBesoinsSemaine : un plat déjà cuisiné cette semaine ne compte plus dans le besoin", () => {
   const etat = etatDeTest();
-  etat.modele.find((c) => c.jour === "lundi" && c.creneau === "lunch").platId = "plat-test";
-  definirCuisine(etat, "2026-09-21", "lunch", true); // lundi de cette même semaine, déjà cuisiné
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 1, preparation: "cuisine-ici" });
+  const [element] = obtenirElementsEffectifs(etat, "2026-09-21", "lunch");
+  definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
 
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24));
   assert.equal(besoins.get("riz") ?? 0, 0);
@@ -310,9 +389,10 @@ test("bout-en-bout : 7 petits-déjeuners 'Petit-déj habituel' planifiés → 21
   assert.ok(etat.plats.some((p) => p.id === idPlat), "le plat de test doit exister dans data.js");
 
   for (const jour of JOURS) {
-    const caseModele = etat.modele.find((c) => c.jour === jour && c.creneau === "petit-dejeuner");
-    caseModele.platId = idPlat;
-    caseModele.portions = 1;
+    etat.modele.push({
+      id: `regle-${jour}`, jour, creneau: "petit-dejeuner",
+      platId: idPlat, portions: 1, preparation: "cuisine-ici",
+    });
   }
 
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24)); // jeudi 24/09/2026

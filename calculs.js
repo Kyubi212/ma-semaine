@@ -9,11 +9,14 @@
 // Vocabulaire du modèle de données (voir CLAUDE.md) :
 // - un "ingrédient" a un enStock, un minimum (si essentiel) et un extra ;
 // - un "plat" a une liste de lignes { ingredientId, quantitePortion, unite } ;
-// - `etat.modele` est la "semaine type" : 35 cases fixes (7 jours × 5
-//   créneaux), modifiable, qui sert de valeur par défaut ;
-// - `etat.historique` contient un enregistrement RÉEL par date
-//   ("AAAA-MM-JJ"), créé à la demande, qui porte l'état "cuisiné" — jamais
-//   réinitialisé tout seul : on peut toujours revenir corriger un jour passé.
+// - `etat.modele` est la "semaine type" : une liste de règles { id, jour,
+//   creneau, platId, portions, preparation }. Plusieurs règles peuvent
+//   partager le même jour + créneau (une case peut contenir plusieurs
+//   plats, voir CLAUDE.md § Plusieurs plats par créneau) ;
+// - `etat.historique` contient, par date ("AAAA-MM-JJ") puis par créneau,
+//   une LISTE de plats réels { id, platId, portions, preparation, cuisine },
+//   créée à la demande, qui porte l'état "cuisiné" — jamais réinitialisée
+//   toute seule : on peut toujours revenir corriger un jour passé.
 
 import { JOURS, CRENEAUX } from "./constantes.js";
 
@@ -209,109 +212,164 @@ export function decalerSemaine(dateReference, nombreDeSemaines) {
   return date;
 }
 
-// La case du modèle (la "semaine type") pour un jour + créneau donnés.
-function caseDuModele(etat, jour, creneau) {
-  return etat.modele.find((c) => c.jour === jour && c.creneau === creneau);
+// Identifiant simple, unique dans cet état (pas besoin de plus robuste :
+// tout reste local à ce seul appareil, voir CLAUDE.md § Stack technique).
+function genererId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Rend la case "effective" d'une date + créneau : l'enregistrement réel
-// dans l'historique s'il existe déjà, sinon un aperçu construit depuis le
-// modèle (jamais cuisiné, puisqu'il n'existe pas encore vraiment). NE
-// MODIFIE PAS l'état — à utiliser pour l'affichage et les calculs en
-// lecture seule (ex. calculerBesoinsSemaine).
-export function obtenirCaseEffective(etat, dateISO, creneau) {
+// Les règles du modèle (la "semaine type") pour un jour + créneau donnés.
+// PLUSIEURS règles peuvent partager le même jour + créneau (ex. "fruits" ET
+// "œufs" au petit-déjeuner du lundi) — voir CLAUDE.md § Plusieurs plats par
+// créneau.
+function reglesDuModele(etat, jour, creneau) {
+  return etat.modele.filter((r) => r.jour === jour && r.creneau === creneau);
+}
+
+// Rend la LISTE des plats effectifs d'une date + créneau : l'enregistrement
+// réel dans l'historique s'il existe déjà, sinon un aperçu construit depuis
+// les règles du modèle (jamais cuisiné, puisqu'il n'existe pas encore
+// vraiment). NE MODIFIE PAS l'état — à utiliser pour l'affichage et les
+// calculs en lecture seule (ex. calculerBesoinsSemaine).
+export function obtenirElementsEffectifs(etat, dateISO, creneau) {
   const jourEntree = etat.historique[dateISO];
   if (jourEntree && jourEntree[creneau]) {
-    return { ...jourEntree[creneau], dateISO, creneau };
+    return jourEntree[creneau].map((element) => ({ ...element }));
   }
-  const caseModele = caseDuModele(etat, jourDeLaSemaine(dateISO), creneau);
-  return {
-    platId: caseModele.platId,
-    portions: caseModele.portions,
-    preparation: caseModele.preparation,
+  // Important : on reprend l'id de la RÈGLE telle quelle (pas un nouvel id
+  // généré ici) pour qu'un id lu en aperçu reste valable si, juste après,
+  // une action (cocher Cuisiné, retirer...) crée réellement l'enregistrement
+  // du jour via obtenirOuCreerJourHistorique — qui doit produire le même id.
+  return reglesDuModele(etat, jourDeLaSemaine(dateISO), creneau).map((regle) => ({
+    id: regle.id,
+    platId: regle.platId,
+    portions: regle.portions,
+    preparation: regle.preparation,
     cuisine: false,
-    dateISO,
-    creneau,
-  };
+  }));
 }
 
-// Comme obtenirCaseEffective, mais CRÉE (et enregistre dans
+// Comme obtenirElementsEffectifs, mais CRÉE (et enregistre dans
 // etat.historique) l'enregistrement du jour s'il n'existe pas encore, en le
 // copiant depuis le modèle. À utiliser avant toute modification d'un jour
-// précis (cocher Cuisiné, changer de plat) : c'est cette création qui fait
-// qu'une date, une fois touchée, garde sa propre histoire pour toujours,
-// indépendamment des changements futurs du modèle.
+// précis (cocher Cuisiné, ajouter/retirer un plat) : c'est cette création
+// qui fait qu'une date, une fois touchée, garde sa propre histoire pour
+// toujours, indépendamment des changements futurs du modèle.
 function obtenirOuCreerJourHistorique(etat, dateISO) {
   if (!etat.historique[dateISO]) {
     const jour = jourDeLaSemaine(dateISO);
     const jourEntree = {};
     for (const creneau of CRENEAUX) {
-      const caseModele = caseDuModele(etat, jour, creneau);
-      jourEntree[creneau] = {
-        platId: caseModele.platId,
-        portions: caseModele.portions,
-        preparation: caseModele.preparation,
+      // Même id que la règle d'origine (voir obtenirElementsEffectifs) :
+      // un id lu en aperçu avant cette création doit rester valable après.
+      jourEntree[creneau] = reglesDuModele(etat, jour, creneau).map((regle) => ({
+        id: regle.id,
+        platId: regle.platId,
+        portions: regle.portions,
+        preparation: regle.preparation,
         cuisine: false,
-      };
+      }));
     }
     etat.historique[dateISO] = jourEntree;
   }
   return etat.historique[dateISO];
 }
 
-// Calcule le besoin de la semaine (voir calculerBesoins) sur les 7 × 5
-// cases EFFECTIVES de la semaine réelle qui contient `dateReference` (par
-// défaut aujourd'hui). Ne modifie pas l'état : les jours pas encore
-// consultés sont lus depuis le modèle sans être enregistrés dans
-// l'historique.
+// Calcule le besoin de la semaine (voir calculerBesoins) sur tous les plats
+// EFFECTIFS de la semaine réelle qui contient `dateReference` (par défaut
+// aujourd'hui). Ne modifie pas l'état : les jours pas encore consultés sont
+// lus depuis le modèle sans être enregistrés dans l'historique.
 export function calculerBesoinsSemaine(etat, dateReference = new Date()) {
-  const cases = [];
+  const elements = [];
   for (const dateISO of datesDeLaSemaine(dateReference)) {
     for (const creneau of CRENEAUX) {
-      cases.push(obtenirCaseEffective(etat, dateISO, creneau));
+      elements.push(...obtenirElementsEffectifs(etat, dateISO, creneau));
     }
   }
-  return calculerBesoins(cases, etat.plats, etat.ingredients);
+  return calculerBesoins(elements, etat.plats, etat.ingredients);
 }
 
-// Coche ou décoche "Cuisiné" sur la case d'une date + créneau précis, et
+// Coche ou décoche "Cuisiné" sur UN plat précis d'une date + créneau, et
 // ajuste le stock en conséquence : cocher déduit immédiatement, décocher
-// restitue (correction d'erreur). Ne fait rien si la case a déjà cet état.
-export function definirCuisine(etat, dateISO, creneau, cuisine) {
+// restitue (correction d'erreur). Ne fait rien si l'élément a déjà cet état.
+export function definirCuisine(etat, dateISO, creneau, elementId, cuisine) {
   const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
-  const caseP = jourEntree[creneau];
-  if (caseP.cuisine === cuisine) {
+  const element = jourEntree[creneau].find((e) => e.id === elementId);
+  if (!element || element.cuisine === cuisine) {
     return;
   }
   const sens = cuisine ? -1 : 1; // cuisiner retire du stock, décocher restitue
-  ajusterStockPourCase(caseP, etat.plats, etat.ingredients, sens);
-  caseP.cuisine = cuisine;
+  ajusterStockPourCase(element, etat.plats, etat.ingredients, sens);
+  element.cuisine = cuisine;
 }
 
-// Change le plat (et/ou portions, préparation) d'une date + créneau précis.
-// - propager = false (défaut) : "juste ce jour", ne touche que cette date.
-// - propager = true : "à partir d'aujourd'hui", met AUSSI à jour le modèle
-//   pour ce jour de la semaine + créneau, ce qui deviendra la nouvelle
-//   valeur par défaut pour tous les jours futurs pas encore consultés.
-// Si la case était déjà cuisinée, on restitue d'abord son ancien stock
-// (sécurité : on ne change jamais silencieusement un plat déjà "consommé").
-export function definirPlatDuJour(etat, dateISO, creneau, choix, propager = false) {
+// Ajoute un plat à une date + créneau (une case peut désormais contenir
+// plusieurs plats, voir CLAUDE.md § Plusieurs plats par créneau).
+// - propager = false (défaut) : "juste ce jour", n'ajoute qu'à cette date.
+// - propager = true : "à partir d'aujourd'hui", ajoute AUSSI une règle au
+//   modèle pour ce jour de la semaine + créneau, qui s'appliquera à tous
+//   les jours futurs pas encore consultés (en plus des plats déjà prévus,
+//   pas à leur place).
+export function ajouterPlatAuJour(etat, dateISO, creneau, choix, propager = false) {
   const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
-  const caseP = jourEntree[creneau];
+  const portions = clampPositif(choix.portions) || 1;
+  const preparation = choix.preparation ?? "cuisine-ici";
 
-  if (caseP.cuisine) {
-    ajusterStockPourCase(caseP, etat.plats, etat.ingredients, 1);
-    caseP.cuisine = false;
-  }
-
-  caseP.platId = choix.platId ?? null;
-  caseP.portions = clampPositif(choix.portions) || 1;
-  caseP.preparation = choix.preparation ?? "cuisine-ici";
+  jourEntree[creneau].push({
+    id: genererId(),
+    platId: choix.platId,
+    portions,
+    preparation,
+    cuisine: false,
+  });
 
   if (propager) {
-    const caseModele = caseDuModele(etat, jourDeLaSemaine(dateISO), creneau);
-    caseModele.platId = caseP.platId;
-    caseModele.portions = caseP.portions;
-    caseModele.preparation = caseP.preparation;
+    etat.modele.push({
+      id: genererId(),
+      jour: jourDeLaSemaine(dateISO),
+      creneau,
+      platId: choix.platId,
+      portions,
+      preparation,
+    });
   }
+}
+
+// Modifie les portions et/ou la préparation d'un plat déjà présent à une
+// date + créneau (toujours "juste ce jour" : pour changer la règle
+// récurrente, retirer puis rajouter avec "à partir d'aujourd'hui"). Si le
+// plat était déjà cuisiné, restitue d'abord son ancien stock avant
+// d'appliquer le changement (sécurité : on ne modifie jamais silencieusement
+// un plat déjà "consommé").
+export function modifierElementDuJour(etat, dateISO, creneau, elementId, changements) {
+  const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
+  const element = jourEntree[creneau].find((e) => e.id === elementId);
+  if (!element) return;
+
+  if (element.cuisine) {
+    ajusterStockPourCase(element, etat.plats, etat.ingredients, 1);
+    element.cuisine = false;
+  }
+
+  if (changements.portions !== undefined) {
+    element.portions = clampPositif(changements.portions) || 1;
+  }
+  if (changements.preparation !== undefined) {
+    element.preparation = changements.preparation;
+  }
+}
+
+// Retire un plat d'une date + créneau (toujours "juste ce jour" : s'il
+// venait d'une règle récurrente du modèle, elle n'est pas touchée et
+// réapparaîtra les autres jours). Si le plat était déjà cuisiné, restitue
+// d'abord son stock.
+export function retirerElementDuJour(etat, dateISO, creneau, elementId) {
+  const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
+  const element = jourEntree[creneau].find((e) => e.id === elementId);
+  if (!element) return;
+
+  if (element.cuisine) {
+    ajusterStockPourCase(element, etat.plats, etat.ingredients, 1);
+  }
+  jourEntree[creneau] = jourEntree[creneau].filter((e) => e.id !== elementId);
 }
