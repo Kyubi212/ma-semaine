@@ -709,8 +709,6 @@ filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
 
 function ingredientsFiltres() {
   switch (filtreStock) {
-    case "a-racheter":
-      return etat.ingredients.filter((i) => etatStock(i) !== "ok");
     case "essentiels":
       return etat.ingredients.filter((i) => i.essentiel);
     default:
