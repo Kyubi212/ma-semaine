@@ -13,6 +13,32 @@ import {
 } from "./calculs.js";
 import { JOURS } from "./constantes.js";
 
+// --- Bandeau d'avertissement (EN PREMIER, avant tout le reste : le code
+// plus bas peut avoir besoin de l'afficher dès la toute première ligne) ---
+
+const avertissementEl = document.getElementById("avertissement");
+const avertissementTexteEl = document.getElementById("avertissement-texte");
+document.getElementById("avertissement-fermer").addEventListener("click", () => {
+  avertissementEl.hidden = true;
+});
+
+function afficherAvertissement(message) {
+  avertissementTexteEl.textContent = message;
+  avertissementEl.hidden = false;
+}
+
+// Qassim n'a pas d'ordinateur : il ne peut pas ouvrir la console du
+// navigateur pour me montrer une erreur technique. Si quelque chose plante
+// de façon imprévue, on l'affiche directement et lisiblement à l'écran
+// (dans le même bandeau), pour qu'il puisse au moins m'envoyer une capture
+// d'écran du message exact plutôt qu'une page blanche muette.
+window.addEventListener("error", (evenement) => {
+  afficherAvertissement(`Erreur technique : ${evenement.message}`);
+});
+window.addEventListener("unhandledrejection", (evenement) => {
+  afficherAvertissement(`Erreur technique : ${evenement.reason}`);
+});
+
 // --- Chargement de l'état (une seule fois, au démarrage) ---
 
 const { etat, erreurLecture } = chargerEtat();
@@ -34,19 +60,6 @@ function sauvegarder() {
       "Le stockage de ton téléphone semble plein : ce dernier changement n'a peut-être pas été enregistré."
     );
   }
-}
-
-// --- Bandeau d'avertissement ---
-
-const avertissementEl = document.getElementById("avertissement");
-const avertissementTexteEl = document.getElementById("avertissement-texte");
-document.getElementById("avertissement-fermer").addEventListener("click", () => {
-  avertissementEl.hidden = true;
-});
-
-function afficherAvertissement(message) {
-  avertissementTexteEl.textContent = message;
-  avertissementEl.hidden = false;
 }
 
 // --- Navigation entre les 4 écrans (barre du bas) ---
