@@ -9,6 +9,7 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { JOURS, CRENEAUX } from "../constantes.js";
 
 function creerFauxLocalStorage() {
   const donnees = new Map();
@@ -29,8 +30,7 @@ function creerFauxLocalStorage() {
 // storage.js utilise `localStorage` comme une variable globale (comme dans
 // un vrai navigateur). On la pose ici avant d'importer le module.
 globalThis.localStorage = creerFauxLocalStorage();
-const { creerEtatInitial, chargerEtat, sauvegarderEtat, JOURS, CRENEAUX } =
-  await import("../storage.js");
+const { creerEtatInitial, chargerEtat, sauvegarderEtat } = await import("../storage.js");
 
 beforeEach(() => {
   // Un faux localStorage tout neuf avant chaque test, pour qu'ils ne se
@@ -42,16 +42,16 @@ test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
   assert.equal(etat.plats.length, 25);
   assert.equal(etat.ingredients.length, 60);
-  assert.equal(etat.version, 1);
+  assert.equal(etat.version, 2);
 });
 
-test("creerEtatInitial : planning de 7 jours × 5 créneaux, tous vides", () => {
+test("creerEtatInitial : modèle de 7 jours × 5 créneaux, tous vides ; historique vide", () => {
   const etat = creerEtatInitial();
-  assert.equal(etat.planning.length, JOURS.length * CRENEAUX.length);
-  for (const caseP of etat.planning) {
+  assert.equal(etat.modele.length, JOURS.length * CRENEAUX.length);
+  for (const caseP of etat.modele) {
     assert.equal(caseP.platId, null);
-    assert.equal(caseP.cuisine, false);
   }
+  assert.deepEqual(etat.historique, {});
 });
 
 test("chargerEtat : premier lancement (rien en stockage) → état initial, sans erreur", () => {
@@ -62,16 +62,42 @@ test("chargerEtat : premier lancement (rien en stockage) → état initial, sans
 
 test("sauvegarderEtat puis chargerEtat : on retrouve exactement ce qu'on a sauvegardé", () => {
   const etat = creerEtatInitial();
-  etat.planning[0].platId = "wraps-chili-au-poulet-riz";
-  etat.planning[0].portions = 2;
+  etat.modele[0].platId = "wraps-chili-au-poulet-riz";
+  etat.modele[0].portions = 2;
+  etat.historique["2026-09-21"] = {
+    "petit-dejeuner": { platId: "bol-yaourt-grec", portions: 1, preparation: "cuisine-ici", cuisine: true },
+  };
 
   const ok = sauvegarderEtat(etat);
   assert.equal(ok, true);
 
   const relu = chargerEtat();
   assert.equal(relu.erreurLecture, false);
-  assert.equal(relu.etat.planning[0].platId, "wraps-chili-au-poulet-riz");
-  assert.equal(relu.etat.planning[0].portions, 2);
+  assert.equal(relu.etat.modele[0].platId, "wraps-chili-au-poulet-riz");
+  assert.equal(relu.etat.modele[0].portions, 2);
+  assert.equal(relu.etat.historique["2026-09-21"]["petit-dejeuner"].platId, "bol-yaourt-grec");
+});
+
+test("chargerEtat : données de l'ancien format (v1, planning) sont migrées vers modele/historique", () => {
+  const ancienEtat = {
+    version: 1,
+    ingredients: [],
+    plats: [],
+    planning: [
+      { jour: "lundi", creneau: "petit-dejeuner", platId: "x", portions: 1, preparation: "cuisine-ici", cuisine: true },
+    ],
+    dernierePassageDate: "2026-09-20",
+  };
+  globalThis.localStorage.setItem("ma-semaine", JSON.stringify(ancienEtat));
+
+  const { etat, erreurLecture } = chargerEtat();
+  assert.equal(erreurLecture, false);
+  assert.equal(etat.version, 2);
+  assert.equal(etat.modele[0].platId, "x");
+  assert.equal(etat.modele[0].cuisine, undefined, "le modèle ne porte plus l'état cuisiné");
+  assert.deepEqual(etat.historique, {});
+  assert.equal(etat.planning, undefined);
+  assert.equal(etat.dernierePassageDate, undefined);
 });
 
 test("chargerEtat : données corrompues → repart sur un état propre, avec erreurLecture", () => {

@@ -11,6 +11,7 @@
 // stockage du téléphone, de ne changer QUE ce fichier.
 
 import { ingredients as ingredientsParDefaut, plats as platsParDefaut } from "./data.js";
+import { JOURS, CRENEAUX } from "./constantes.js";
 
 // Une seule clé, un seul objet JSON dedans : plus simple à inspecter
 // (Outils de développement → Application → Local Storage) et à sauvegarder
@@ -21,36 +22,36 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 1;
+const VERSION_FORMAT = 2;
 
-// Les 7 jours de la semaine type (pas de dates, voir CLAUDE.md § Semaine glissante).
-export const JOURS = [
-  "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche",
-];
-
-// Les 5 créneaux de repas par jour.
-export const CRENEAUX = ["petit-dejeuner", "smoko", "lunch", "snack", "diner"];
-
-function creerPlanningVide() {
-  const planning = [];
+function creerModeleVide() {
+  const modele = [];
   for (const jour of JOURS) {
     for (const creneau of CRENEAUX) {
-      planning.push({
+      modele.push({
         jour,
         creneau,
         platId: null, // aucun plat choisi pour l'instant
         portions: 1,
         preparation: "cuisine-ici", // ou "reste" (voir CLAUDE.md)
-        cuisine: false,
       });
     }
   }
-  return planning;
+  return modele;
 }
 
 // Construit un état de départ propre, à partir du catalogue de data.js.
 // Utilisé au tout premier lancement de l'app, et chaque fois que les
 // données sauvegardées sont absentes ou illisibles.
+//
+// Deux couches de planning (voir CLAUDE.md § Semaine glissante) :
+// - `modele` : la "semaine type", 35 cases fixes (7 jours × 5 créneaux),
+//   modifiable à tout moment ; sert de valeur par défaut.
+// - `historique` : un enregistrement RÉEL par date (clé "AAAA-MM-JJ"), créé
+//   à la demande (voir calculs.js → obtenirOuCreerJourHistorique) la
+//   première fois qu'un jour précis est consulté ou modifié. C'est là que
+//   vit l'état "cuisiné", propre à chaque date, jamais réinitialisé tout
+//   seul : Qassim peut toujours revenir corriger un jour passé.
 export function creerEtatInitial() {
   return {
     version: VERSION_FORMAT,
@@ -59,24 +60,31 @@ export function creerEtatInitial() {
       ...plat,
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
-    planning: creerPlanningVide(),
-    // Date (AAAA-MM-JJ) du dernier jour où appliquerPassageDesJours a tourné
-    // (voir calculs.js). null au tout premier lancement : la toute première
-    // exécution se contente d'enregistrer la date du jour, sans rien
-    // réinitialiser (il n'y a encore aucune case cuisinée à réinitialiser).
-    dernierePassageDate: null,
+    modele: creerModeleVide(),
+    historique: {},
   };
 }
 
 // Fait passer un état sauvegardé dans une ANCIENNE version du format à la
-// version actuelle. Pour l'instant il n'y a qu'une version (1), donc rien à
-// convertir : cette fonction ne fait qu'attendre le jour où ce sera utile.
+// version actuelle.
 function migrer(etat) {
-  if (etat.version === VERSION_FORMAT) {
-    return etat;
+  if (etat.version === 1) {
+    // v1 → v2 : le "planning" unique (35 cases, sans dates) devient le
+    // "modele" (même contenu, sans le champ "cuisine" qui n'a plus sa place
+    // ici) + un "historique" vide. L'état "cuisiné" de la v1 n'était pas
+    // daté, donc rien de fiable à reprendre dans l'historique : on part
+    // simplement d'un historique propre à partir de maintenant.
+    etat = {
+      ...etat,
+      modele: (etat.planning ?? []).map(({ jour, creneau, platId, portions, preparation }) => ({
+        jour, creneau, platId, portions, preparation,
+      })),
+      historique: {},
+      version: 2,
+    };
+    delete etat.planning;
+    delete etat.dernierePassageDate;
   }
-  // Exemple pour plus tard :
-  // if (etat.version === 1) { ...adapter etat vers la forme de la v2...; etat.version = 2; }
   return etat;
 }
 

@@ -2,16 +2,20 @@
 //
 // Toute la logique de calcul du projet, et RIEN d'autre : pas de
 // localStorage, pas de manipulation de l'écran. Rien que des fonctions
-// "pures" (même entrée → toujours la même sortie), ce qui les rend faciles
-// à tester automatiquement (voir tests/calculs.test.js) — c'est le but :
-// une erreur ici serait invisible à l'œil nu dans l'app, mais un test la
-// repère tout de suite.
+// "pures" ou qui ne modifient que l'état qu'on leur passe (même entrée →
+// toujours le même résultat), ce qui les rend faciles à tester
+// automatiquement (voir tests/calculs.test.js).
 //
 // Vocabulaire du modèle de données (voir CLAUDE.md) :
 // - un "ingrédient" a un enStock, un minimum (si essentiel) et un extra ;
 // - un "plat" a une liste de lignes { ingredientId, quantitePortion, unite } ;
-// - une "case" de planning a { jour, creneau, platId, portions, preparation,
-//   cuisine }. preparation vaut "cuisine-ici" ou "reste".
+// - `etat.modele` est la "semaine type" : 35 cases fixes (7 jours × 5
+//   créneaux), modifiable, qui sert de valeur par défaut ;
+// - `etat.historique` contient un enregistrement RÉEL par date
+//   ("AAAA-MM-JJ"), créé à la demande, qui porte l'état "cuisiné" — jamais
+//   réinitialisé tout seul : on peut toujours revenir corriger un jour passé.
+
+import { JOURS, CRENEAUX } from "./constantes.js";
 
 const UNITES_CUILLERE_EN_C_A_CAFE = {
   "c. à café": 1,
@@ -31,7 +35,6 @@ export function clampPositif(valeur) {
 
 // Convertit la quantité d'une ligne de plat (dans l'unité de la recette,
 // par ex. "c. à café") vers l'unité de stock de l'ingrédient (par ex. "g").
-// Si l'unité de la ligne est déjà l'unité de stock, rien à convertir.
 export function convertirVersUniteStock(quantite, uniteLigne, ingredient) {
   if (uniteLigne === ingredient.unite) {
     return quantite;
@@ -57,31 +60,32 @@ export function convertirVersUniteStock(quantite, uniteLigne, ingredient) {
   return quantite * enCuillereACafe * ingredient.parCuillereACafe;
 }
 
-// Une case de planning compte-t-elle dans les calculs (besoin, déduction du
-// stock) ? Non si : aucun plat choisi, "reste" (pas une nouvelle cuisson),
-// ou 0 portion (CLAUDE.md § Cas limites : équivalent à un créneau vide).
+// Une case (qu'elle vienne du modèle ou de l'historique) compte-t-elle dans
+// les calculs (besoin, déduction du stock) ? Non si : aucun plat choisi
+// (case volontairement vide, ex. "je sors au restaurant"), "reste" (pas une
+// nouvelle cuisson), ou 0 portion (CLAUDE.md § Cas limites : équivalent à
+// un créneau vide).
 export function caseCompte(caseP) {
   return Boolean(caseP.platId) && caseP.preparation !== "reste" && caseP.portions > 0;
 }
 
-// Calcule, pour chaque ingrédient, la quantité nécessaire sur les cases du
-// planning qui ne sont ni "reste" ni déjà cuisinées (celles-ci ont déjà
-// déduit le stock au moment où on les a cochées, voir appliquerCuisine).
-// Rend une Map<ingredientId, quantité en unité de stock>.
-export function calculerBesoins(planning, plats, ingredients) {
+// Calcule, pour chaque ingrédient, la quantité nécessaire sur une liste de
+// cases qui ne sont ni "reste" ni déjà cuisinées (celles-ci ont déjà déduit
+// le stock au moment où on les a cochées, voir definirCuisine). Rend une
+// Map<ingredientId, quantité en unité de stock>.
+export function calculerBesoins(cases, plats, ingredients) {
   const platsParId = new Map(plats.map((plat) => [plat.id, plat]));
   const ingredientsParId = new Map(ingredients.map((ing) => [ing.id, ing]));
   const besoins = new Map();
 
-  for (const caseP of planning) {
+  for (const caseP of cases) {
     if (!caseCompte(caseP) || caseP.cuisine) {
       continue;
     }
     const plat = platsParId.get(caseP.platId);
     if (!plat) {
       // Le plat a été supprimé entre-temps : on ignore la case plutôt que
-      // de planter (CLAUDE.md § Cas limites : ingrédient/plat manquant
-      // signalé ailleurs, jamais un crash).
+      // de planter (CLAUDE.md § Cas limites).
       continue;
     }
     for (const ligne of plat.ingredients) {
@@ -103,8 +107,7 @@ export function calculerBesoins(planning, plats, ingredients) {
 }
 
 // À acheter = max(0, besoin + minimum essentiel + extra − stock actuel).
-// Arrondi au supérieur uniquement pour l'unité "pièce" (on n'achète pas
-// 2,4 œufs), inchangé pour g/ml/etc.
+// Arrondi au supérieur uniquement pour l'unité "pièce", inchangé pour g/ml/etc.
 export function calculerAAcheter(ingredients, besoins) {
   return ingredients.map((ingredient) => {
     const besoin = besoins.get(ingredient.id) ?? 0;
@@ -120,17 +123,8 @@ export function calculerAAcheter(ingredients, besoins) {
   });
 }
 
-// Trouve une case précise du planning (jour + créneau). Rend `undefined`
-// si elle n'existe pas (ne devrait pas arriver avec un planning bien formé,
-// mais on laisse l'appelant décider quoi faire plutôt que de planter ici).
-export function trouverCase(planning, jour, creneau) {
-  return planning.find((c) => c.jour === jour && c.creneau === creneau);
-}
-
-// Déduit du stock les ingrédients d'un plat pour une case donnée (portions
-// × quantité par portion, convertie). Ne fait rien si la case ne "compte"
-// pas (voir caseCompte) : cocher Cuisiné sur une case vide ou "reste" ou à
-// 0 portion n'a aucun effet sur le stock.
+// Déduit (sens = -1) ou restitue (sens = +1) du stock les ingrédients d'un
+// plat pour une case donnée. Ne fait rien si la case ne "compte" pas.
 function ajusterStockPourCase(caseP, plats, ingredients, sens) {
   if (!caseCompte(caseP)) {
     return;
@@ -151,23 +145,6 @@ function ajusterStockPourCase(caseP, plats, ingredients, sens) {
   }
 }
 
-// Coche ou décoche "Cuisiné" sur une case, et ajuste le stock en
-// conséquence : cocher déduit immédiatement, décocher restitue (correction
-// d'erreur). Ne fait rien si la case a déjà cet état (pour ne jamais
-// déduire ou restituer deux fois de suite par erreur).
-// Modifie `etat.planning` et `etat.ingredients` directement (mutation), ce
-// qui est le choix le plus simple ici : c'est app.js qui décide quand
-// resauvegarder l'état modifié (storage.js), calculs.js ne s'en occupe pas.
-export function definirCuisine(etat, jour, creneau, cuisine) {
-  const caseP = trouverCase(etat.planning, jour, creneau);
-  if (!caseP || caseP.cuisine === cuisine) {
-    return;
-  }
-  const sens = cuisine ? -1 : 1; // cuisiner retire du stock, décocher restitue
-  ajusterStockPourCase(caseP, etat.plats, etat.ingredients, sens);
-  caseP.cuisine = cuisine;
-}
-
 // Marque un ingrédient comme acheté : ajoute la quantité au stock. Remet
 // aussi son "extra" à 0 (l'envie ponctuelle a été satisfaite) — décision
 // prise avec Qassim au démarrage du projet.
@@ -176,70 +153,165 @@ export function marquerAchete(ingredient, quantiteAchetee) {
   ingredient.extra = 0;
 }
 
-// --- Semaine glissante (voir CLAUDE.md § Semaine glissante) ---
+// --- Dates et semaines réelles (voir CLAUDE.md § Semaine glissante) ---
 //
-// L'affichage du planning reste TOUJOURS dans l'ordre fixe lundi → dimanche
-// (jamais réorganisé). Ce qui change avec le temps, c'est l'état "cuisiné"
-// de chaque case : quand un jour réel commence (le vrai lundi matin, par
-// exemple), la case "lundi" redevient "pas cuisiné" (le plat choisi, lui,
-// est conservé). Le stock ne bouge pas à ce moment-là : il a déjà bougé en
-// temps réel quand la case a été cochée "Cuisiné" (ou pas bougé si elle ne
-// l'a jamais été).
+// L'affichage reste toujours 7 jours dans l'ordre fixe lundi → dimanche,
+// mais chaque date réelle peut désormais être consultée et corrigée à
+// n'importe quel moment (navigation arrière/avant), au lieu d'une semaine
+// type unique qui se réinitialise toute seule.
 
-const NOMS_JOURS_PAR_INDICE_JS = [
-  "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
-]; // Date.prototype.getDay() rend 0 pour dimanche, 1 pour lundi, etc.
-
-function jourPourDate(date) {
-  return NOMS_JOURS_PAR_INDICE_JS[date.getDay()];
-}
-
-function dateEnISO(date) {
-  // On construit la date à partir des composants LOCAUX (fuseau horaire du
-  // téléphone), pas de toISOString() (qui donne la date en UTC : le soir ou
-  // le matin à Sydney, ce serait parfois la veille ou le lendemain).
+// "AAAA-MM-JJ" à partir des composants LOCAUX du téléphone (pas
+// toISOString(), qui donne l'heure UTC : le soir ou le matin à Sydney, ce
+// serait parfois la date de la veille ou du lendemain).
+export function dateEnISO(date) {
   const annee = date.getFullYear();
   const mois = String(date.getMonth() + 1).padStart(2, "0");
   const jour = String(date.getDate()).padStart(2, "0");
   return `${annee}-${mois}-${jour}`;
 }
 
-// Réinitialise (cuisine → false, sans toucher au stock) toutes les cases du
-// planning dont le jour réel du calendrier a commencé depuis le dernier
-// passage de l'app. Si plusieurs jours se sont écoulés sans que l'app soit
-// ouverte (ex. un week-end), ils sont tous réinitialisés d'un coup.
-// `maintenant` est injectable pour les tests (par défaut : la vraie date).
-export function appliquerPassageDesJours(etat, maintenant = new Date()) {
-  const aujourdhuiISO = dateEnISO(maintenant);
+// Analyse une date "AAAA-MM-JJ" comme une date LOCALE à minuit (et non en
+// UTC, ce que ferait `new Date("AAAA-MM-JJ")` directement).
+function analyserDateISO(dateISO) {
+  return new Date(`${dateISO}T00:00:00`);
+}
 
-  if (!etat.dernierePassageDate) {
-    // Tout premier lancement : rien à réinitialiser, on note juste la date.
-    etat.dernierePassageDate = aujourdhuiISO;
-    return;
-  }
+// Index du jour dans la semaine, lundi = 0 … dimanche = 6 (contrairement à
+// Date.prototype.getDay(), qui donne 0 pour dimanche).
+function indexLundiZero(date) {
+  return (date.getDay() + 6) % 7;
+}
 
-  if (etat.dernierePassageDate === aujourdhuiISO) {
-    return; // déjà fait aujourd'hui, rien à faire
-  }
+export function jourDeLaSemaine(dateISO) {
+  return JOURS[indexLundiZero(analyserDateISO(dateISO))];
+}
 
-  const dernierPassage = new Date(`${etat.dernierePassageDate}T00:00:00`);
-  const millisecondesParJour = 24 * 60 * 60 * 1000;
-  const joursEcoules = Math.round((maintenant - dernierPassage) / millisecondesParJour);
+// Les 7 dates ("AAAA-MM-JJ") de la semaine (lundi → dimanche) qui contient
+// `dateReference`.
+export function datesDeLaSemaine(dateReference) {
+  const lundi = new Date(dateReference);
+  lundi.setDate(lundi.getDate() - indexLundiZero(dateReference));
 
-  // Au-delà de 7 jours, les 7 jours de la semaine ont de toute façon tous
-  // eu une occurrence : pas besoin d'aller chercher plus loin.
-  const joursAReinitialiser = new Set();
-  for (let i = 1; i <= Math.min(joursEcoules, 7); i++) {
-    const date = new Date(dernierPassage);
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(lundi);
     date.setDate(date.getDate() + i);
-    joursAReinitialiser.add(jourPourDate(date));
+    dates.push(dateEnISO(date));
   }
+  return dates;
+}
 
-  for (const caseP of etat.planning) {
-    if (joursAReinitialiser.has(caseP.jour)) {
-      caseP.cuisine = false;
+// Décale une date de N semaines (N négatif = en arrière). Sert à la
+// navigation "semaine précédente / suivante" de l'écran Semaine.
+export function decalerSemaine(dateReference, nombreDeSemaines) {
+  const date = new Date(dateReference);
+  date.setDate(date.getDate() + nombreDeSemaines * 7);
+  return date;
+}
+
+// La case du modèle (la "semaine type") pour un jour + créneau donnés.
+function caseDuModele(etat, jour, creneau) {
+  return etat.modele.find((c) => c.jour === jour && c.creneau === creneau);
+}
+
+// Rend la case "effective" d'une date + créneau : l'enregistrement réel
+// dans l'historique s'il existe déjà, sinon un aperçu construit depuis le
+// modèle (jamais cuisiné, puisqu'il n'existe pas encore vraiment). NE
+// MODIFIE PAS l'état — à utiliser pour l'affichage et les calculs en
+// lecture seule (ex. calculerBesoinsSemaine).
+export function obtenirCaseEffective(etat, dateISO, creneau) {
+  const jourEntree = etat.historique[dateISO];
+  if (jourEntree && jourEntree[creneau]) {
+    return { ...jourEntree[creneau], dateISO, creneau };
+  }
+  const caseModele = caseDuModele(etat, jourDeLaSemaine(dateISO), creneau);
+  return {
+    platId: caseModele.platId,
+    portions: caseModele.portions,
+    preparation: caseModele.preparation,
+    cuisine: false,
+    dateISO,
+    creneau,
+  };
+}
+
+// Comme obtenirCaseEffective, mais CRÉE (et enregistre dans
+// etat.historique) l'enregistrement du jour s'il n'existe pas encore, en le
+// copiant depuis le modèle. À utiliser avant toute modification d'un jour
+// précis (cocher Cuisiné, changer de plat) : c'est cette création qui fait
+// qu'une date, une fois touchée, garde sa propre histoire pour toujours,
+// indépendamment des changements futurs du modèle.
+function obtenirOuCreerJourHistorique(etat, dateISO) {
+  if (!etat.historique[dateISO]) {
+    const jour = jourDeLaSemaine(dateISO);
+    const jourEntree = {};
+    for (const creneau of CRENEAUX) {
+      const caseModele = caseDuModele(etat, jour, creneau);
+      jourEntree[creneau] = {
+        platId: caseModele.platId,
+        portions: caseModele.portions,
+        preparation: caseModele.preparation,
+        cuisine: false,
+      };
+    }
+    etat.historique[dateISO] = jourEntree;
+  }
+  return etat.historique[dateISO];
+}
+
+// Calcule le besoin de la semaine (voir calculerBesoins) sur les 7 × 5
+// cases EFFECTIVES de la semaine réelle qui contient `dateReference` (par
+// défaut aujourd'hui). Ne modifie pas l'état : les jours pas encore
+// consultés sont lus depuis le modèle sans être enregistrés dans
+// l'historique.
+export function calculerBesoinsSemaine(etat, dateReference = new Date()) {
+  const cases = [];
+  for (const dateISO of datesDeLaSemaine(dateReference)) {
+    for (const creneau of CRENEAUX) {
+      cases.push(obtenirCaseEffective(etat, dateISO, creneau));
     }
   }
+  return calculerBesoins(cases, etat.plats, etat.ingredients);
+}
 
-  etat.dernierePassageDate = aujourdhuiISO;
+// Coche ou décoche "Cuisiné" sur la case d'une date + créneau précis, et
+// ajuste le stock en conséquence : cocher déduit immédiatement, décocher
+// restitue (correction d'erreur). Ne fait rien si la case a déjà cet état.
+export function definirCuisine(etat, dateISO, creneau, cuisine) {
+  const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
+  const caseP = jourEntree[creneau];
+  if (caseP.cuisine === cuisine) {
+    return;
+  }
+  const sens = cuisine ? -1 : 1; // cuisiner retire du stock, décocher restitue
+  ajusterStockPourCase(caseP, etat.plats, etat.ingredients, sens);
+  caseP.cuisine = cuisine;
+}
+
+// Change le plat (et/ou portions, préparation) d'une date + créneau précis.
+// - propager = false (défaut) : "juste ce jour", ne touche que cette date.
+// - propager = true : "à partir d'aujourd'hui", met AUSSI à jour le modèle
+//   pour ce jour de la semaine + créneau, ce qui deviendra la nouvelle
+//   valeur par défaut pour tous les jours futurs pas encore consultés.
+// Si la case était déjà cuisinée, on restitue d'abord son ancien stock
+// (sécurité : on ne change jamais silencieusement un plat déjà "consommé").
+export function definirPlatDuJour(etat, dateISO, creneau, choix, propager = false) {
+  const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
+  const caseP = jourEntree[creneau];
+
+  if (caseP.cuisine) {
+    ajusterStockPourCase(caseP, etat.plats, etat.ingredients, 1);
+    caseP.cuisine = false;
+  }
+
+  caseP.platId = choix.platId ?? null;
+  caseP.portions = clampPositif(choix.portions) || 1;
+  caseP.preparation = choix.preparation ?? "cuisine-ici";
+
+  if (propager) {
+    const caseModele = caseDuModele(etat, jourDeLaSemaine(dateISO), creneau);
+    caseModele.platId = caseP.platId;
+    caseModele.portions = caseP.portions;
+    caseModele.preparation = caseP.preparation;
+  }
 }
