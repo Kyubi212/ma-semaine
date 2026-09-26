@@ -22,6 +22,8 @@ import {
   ajouterPlatAuJour,
   modifierElementDuJour,
   retirerElementDuJour,
+  calculerDetailBesoinsSemaine,
+  construireListeCourses,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -215,10 +217,15 @@ test("decalerSemaine : avance ou recule de 7 jours par semaine demandée", () =>
 
 function etatDeTest() {
   const etat = creerEtatInitial();
-  etat.plats = [platTest, platTest2];
+  // Copies (pas les objets partagés platTest/platTest2) : certains tests
+  // modifient le "nom" du plat, ça ne doit pas fuiter d'un test à l'autre.
+  etat.plats = [
+    { ...platTest, ingredients: platTest.ingredients.map((l) => ({ ...l })) },
+    { ...platTest2, ingredients: platTest2.ingredients.map((l) => ({ ...l })) },
+  ];
   etat.ingredients = [
-    { ...riz, enStock: 200 },
-    { ...huile, enStock: 200 },
+    { ...riz, enStock: 200, rayon: "Épicerie", essentiel: false, minimum: 0, extra: 0 },
+    { ...huile, enStock: 200, rayon: "Épicerie", essentiel: false, minimum: 0, extra: 0 },
   ];
   return etat;
 }
@@ -379,6 +386,77 @@ test("calculerBesoinsSemaine : un plat déjà cuisiné cette semaine ne compte p
 
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24));
   assert.equal(besoins.get("riz") ?? 0, 0);
+});
+
+// --- calculerDetailBesoinsSemaine / construireListeCourses ---
+
+test("calculerDetailBesoinsSemaine : indique quel plat contribue et pour combien", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Plat Test";
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
+
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  const detailRiz = detail.get("riz");
+  assert.equal(detailRiz.length, 1);
+  assert.equal(detailRiz[0].platNom, "Plat Test");
+  assert.equal(detailRiz[0].quantite, 200); // 2 portions × 100 g
+});
+
+test("calculerDetailBesoinsSemaine : additionne si le même plat apparaît plusieurs fois", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Plat Test";
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
+  ajouterPlatAuJour(etat, "2026-09-22", "diner", { platId: "plat-test", portions: 1 }, false);
+
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  const detailRiz = detail.get("riz");
+  assert.equal(detailRiz.length, 1); // un seul plat nommé "Plat Test", quantités cumulées
+  assert.equal(detailRiz[0].platNom, "Plat Test");
+  assert.equal(detailRiz[0].quantite, 200); // 100g + 100g
+});
+
+test("calculerDetailBesoinsSemaine : deux plats différents apparaissent séparément", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Plat Riz";
+  etat.plats[1].nom = "Plat Huile";
+  // plat-test-2 utilise l'huile, pas le riz : pas d'entrée croisée attendue.
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test", portions: 1 }, false);
+  ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test-2", portions: 1 }, false);
+
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  assert.equal(detail.get("riz").length, 1);
+  assert.equal(detail.get("riz")[0].platNom, "Plat Riz");
+  assert.equal(detail.get("huile").length, 1);
+  assert.equal(detail.get("huile")[0].platNom, "Plat Huile");
+});
+
+test("construireListeCourses : ne garde que les ingrédients à acheter > 0, avec rayon et détail", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Plat Riz";
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
+  // Riz : besoin 100g, stock 200g → rien à acheter. Baisse le stock pour en avoir besoin.
+  etat.ingredients.find((i) => i.id === "riz").enStock = 20;
+
+  const liste = construireListeCourses(etat, new Date(2026, 8, 24));
+  assert.equal(liste.length, 1);
+  assert.equal(liste[0].ingredientId, "riz");
+  assert.equal(liste[0].rayon, "Épicerie");
+  assert.equal(liste[0].aAcheter, 80); // 100 - 20
+  assert.equal(liste[0].detail[0].platNom, "Plat Riz");
+});
+
+test("construireListeCourses : un essentiel sous son minimum apparaît même sans plat planifié", () => {
+  const etat = etatDeTest();
+  const sel = etat.ingredients.find((i) => i.id === "huile");
+  sel.essentiel = true;
+  sel.minimum = 500;
+  sel.enStock = 100;
+
+  const liste = construireListeCourses(etat, new Date(2026, 8, 24));
+  const ligneHuile = liste.find((l) => l.ingredientId === "huile");
+  assert.ok(ligneHuile);
+  assert.equal(ligneHuile.aAcheter, 400); // 500 - 100
+  assert.deepEqual(ligneHuile.detail, []); // aucun plat ne le demande, juste l'essentiel
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

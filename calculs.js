@@ -279,14 +279,81 @@ function obtenirOuCreerJourHistorique(etat, dateISO) {
 // EFFECTIFS de la semaine réelle qui contient `dateReference` (par défaut
 // aujourd'hui). Ne modifie pas l'état : les jours pas encore consultés sont
 // lus depuis le modèle sans être enregistrés dans l'historique.
-export function calculerBesoinsSemaine(etat, dateReference = new Date()) {
+function elementsDeLaSemaine(etat, dateReference) {
   const elements = [];
   for (const dateISO of datesDeLaSemaine(dateReference)) {
     for (const creneau of CRENEAUX) {
       elements.push(...obtenirElementsEffectifs(etat, dateISO, creneau));
     }
   }
-  return calculerBesoins(elements, etat.plats, etat.ingredients);
+  return elements;
+}
+
+export function calculerBesoinsSemaine(etat, dateReference = new Date()) {
+  return calculerBesoins(elementsDeLaSemaine(etat, dateReference), etat.plats, etat.ingredients);
+}
+
+// Pour chaque ingrédient du besoin, le détail de quels plats y contribuent
+// et pour quelle quantité (ex. "Riz mexicain : 150 g"). Sert uniquement à
+// l'affichage (écran Courses) — n'influence aucun calcul.
+// Rend une Map<ingredientId, Array<{ platNom, quantite }>>.
+export function calculerDetailBesoinsSemaine(etat, dateReference = new Date()) {
+  const platsParId = new Map(etat.plats.map((p) => [p.id, p]));
+  const ingredientsParId = new Map(etat.ingredients.map((i) => [i.id, i]));
+  const detail = new Map();
+
+  for (const element of elementsDeLaSemaine(etat, dateReference)) {
+    if (!caseCompte(element) || element.cuisine) continue;
+    const plat = platsParId.get(element.platId);
+    if (!plat) continue;
+
+    for (const ligne of plat.ingredients) {
+      const ingredient = ingredientsParId.get(ligne.ingredientId);
+      if (!ingredient) continue;
+      const quantite = element.portions * convertirVersUniteStock(
+        ligne.quantitePortion,
+        ligne.unite,
+        ingredient
+      );
+
+      if (!detail.has(ingredient.id)) detail.set(ingredient.id, new Map());
+      const parPlat = detail.get(ingredient.id);
+      parPlat.set(plat.nom, (parPlat.get(plat.nom) ?? 0) + quantite);
+    }
+  }
+
+  const resultat = new Map();
+  for (const [ingredientId, parPlat] of detail) {
+    resultat.set(
+      ingredientId,
+      [...parPlat.entries()].map(([platNom, quantite]) => ({ platNom, quantite }))
+    );
+  }
+  return resultat;
+}
+
+// Construit la liste de courses complète : un article par ingrédient dont
+// la quantité "à acheter" est supérieure à 0 (CLAUDE.md § Écran Courses),
+// avec son rayon, son unité, et le détail d'où vient le besoin.
+export function construireListeCourses(etat, dateReference = new Date()) {
+  const besoins = calculerBesoinsSemaine(etat, dateReference);
+  const detail = calculerDetailBesoinsSemaine(etat, dateReference);
+  const aAcheter = calculerAAcheter(etat.ingredients, besoins);
+  const ingredientsParId = new Map(etat.ingredients.map((i) => [i.id, i]));
+
+  return aAcheter
+    .filter((ligne) => ligne.aAcheter > 0)
+    .map((ligne) => {
+      const ingredient = ingredientsParId.get(ligne.ingredientId);
+      return {
+        ingredientId: ligne.ingredientId,
+        nom: ingredient.nom,
+        rayon: ingredient.rayon,
+        unite: ingredient.unite,
+        aAcheter: ligne.aAcheter,
+        detail: detail.get(ligne.ingredientId) ?? [],
+      };
+    });
 }
 
 // Coche ou décoche "Cuisiné" sur UN plat précis d'une date + créneau, et
