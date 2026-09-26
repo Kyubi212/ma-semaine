@@ -29,4 +29,5 @@ export const RAYONS = [
   "Emballage",
   "Hygiène",
   "Entretien maison",
+  "Compléments alimentaires",
 ];
