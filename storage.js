@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 7;
+const VERSION_FORMAT = 8;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -52,12 +52,13 @@ function rayonsParDefaut() {
   });
 }
 
-// Repas par défaut (écran Plats & repas — voir CLAUDE.md § Repas éditables) :
-// Déjeuner et Dîner sont FUSIONNÉS en une seule catégorie dès le départ (pour
-// Qassim, ce sont les mêmes plats), contrairement aux 5 créneaux fixes de la
-// journée (Semaine) qui restent distincts (lunch ET diner utilisent ce même
-// repas — voir CRENEAU_INFOS dans app.js).
-const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Smoko", "Déjeuner/Dîner", "Snack"];
+// Repas par défaut (écran Plats & repas — voir CLAUDE.md § Repas éditables),
+// en français : Déjeuner/Dîner fusionnés, ET Snack/Goûter fusionnés (pour
+// Qassim, ce sont à chaque fois les mêmes plats), contrairement aux 5
+// créneaux fixes de la journée (Semaine) qui restent distincts (lunch ET
+// diner utilisent le même repas, smoko ET snack aussi — voir CRENEAU_INFOS
+// dans app.js).
+const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Snack/Goûter", "Déjeuner/Dîner"];
 
 function repasParDefaut() {
   const idsExistants = new Set();
@@ -73,7 +74,9 @@ function repasParDefaut() {
 // catégories Notion comme "Plaisir occasionnel" qui ne sont pas dans la
 // liste par défaut — rien n'est perdu, une catégorie est créée pour elles).
 function idRepasPourAncienneValeur(listeRepas, idsExistants, ancienneValeur) {
-  const nomCible = ancienneValeur === "Déjeuner" || ancienneValeur === "Dîner" ? "Déjeuner/Dîner" : ancienneValeur;
+  let nomCible = ancienneValeur;
+  if (ancienneValeur === "Déjeuner" || ancienneValeur === "Dîner") nomCible = "Déjeuner/Dîner";
+  if (ancienneValeur === "Smoko" || ancienneValeur === "Snack") nomCible = "Snack/Goûter";
   let repas = listeRepas.find((r) => r.nom === nomCible);
   if (!repas) {
     repas = { id: genererSlug(nomCible, idsExistants), nom: nomCible };
@@ -251,6 +254,37 @@ function migrer(etat) {
       })),
       version: 7,
     };
+  }
+
+  if (etat.version === 7) {
+    // v7 → v8 : vocabulaire en français partout ("Smoko" n'était pas
+    // français), ET Snack et Goûter fusionnés en une seule catégorie
+    // "Snack/Goûter" (même logique que Déjeuner/Dîner : pour Qassim, ce sont
+    // les mêmes plats). Les repas Smoko et Snack existaient déjà comme deux
+    // entrées séparées depuis la v7 : on les fusionne en gardant un seul id
+    // (celui de "Snack"), et on reroute les plats qui pointaient vers
+    // "Smoko" vers cet id survivant.
+    let repas = etat.repas ?? [];
+    const repasSmoko = repas.find((r) => r.nom === "Smoko");
+    const repasSnack = repas.find((r) => r.nom === "Snack");
+    let plats = etat.plats ?? [];
+
+    let idSurvivant = repasSnack?.id ?? repasSmoko?.id;
+
+    if (repasSmoko && repasSnack && repasSmoko.id !== repasSnack.id) {
+      repas = repas.filter((r) => r.id !== repasSmoko.id);
+      plats = plats.map((plat) => (plat.repas === repasSmoko.id ? { ...plat, repas: idSurvivant } : plat));
+    }
+
+    if (idSurvivant) {
+      repas = repas.map((r) => (r.id === idSurvivant ? { ...r, nom: "Snack/Goûter" } : r));
+    } else {
+      // Cas improbable : ni Smoko ni Snack n'existaient déjà.
+      const idsExistants = new Set(repas.map((r) => r.id));
+      repas = [...repas, { id: genererSlug("Snack/Goûter", idsExistants), nom: "Snack/Goûter" }];
+    }
+
+    etat = { ...etat, repas, plats, version: 8 };
   }
 
   return etat;

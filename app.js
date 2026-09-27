@@ -145,12 +145,14 @@ const MOIS_ABREGES = [
 // § Repas éditables) utilisé pour filtrer les plats proposés à ce créneau.
 // Ids déterministes (dérivés des noms par défaut dans storage.js), stables
 // même si Qassim renomme le repas ensuite (seul le nom change, pas l'id).
-// lunch ET diner partagent le même repas "Déjeuner/Dîner" fusionné.
+// lunch ET diner partagent le même repas "Déjeuner/Dîner" fusionné ; smoko
+// ET snack partagent le même repas "Snack/Goûter" fusionné. Vocabulaire en
+// français partout (Qassim : "Smoko" n'est pas français).
 const CRENEAU_INFOS = {
   "petit-dejeuner": { icone: "🌅", label: "Petit-déjeuner", repasId: "petit-dejeuner" },
-  smoko: { icone: "☕", label: "Smoko", repasId: "smoko" },
-  lunch: { icone: "🥗", label: "Lunch", repasId: "dejeuner-diner" },
-  snack: { icone: "🍎", label: "Snack", repasId: "snack" },
+  smoko: { icone: "☕", label: "Goûter", repasId: "snack-gouter" },
+  lunch: { icone: "🥗", label: "Déjeuner", repasId: "dejeuner-diner" },
+  snack: { icone: "🍎", label: "Snack", repasId: "snack-gouter" },
   diner: { icone: "🍽️", label: "Dîner", repasId: "dejeuner-diner" },
 };
 const ORDRE_CRENEAUX = ["petit-dejeuner", "smoko", "lunch", "snack", "diner"];
@@ -1242,13 +1244,20 @@ function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = ren
 // Écran Plats & repas
 // ============================================================
 
-let filtrePlats = "tous"; // "tous" | "favoris" | un id de repas
+let filtreRepas = "tous"; // "tous" | un id de repas (sélection UNIQUE)
+// Favoris est un filtre INDÉPENDANT du repas (une case à part, pas dans la
+// même rangée à choix unique) : on doit pouvoir combiner les deux en même
+// temps, ex. "Petit-déjeuner" + "Favoris" pour voir ses petits-déjeuners
+// favoris — demandé par Qassim (ce n'était pas possible avant, les deux
+// étaient dans le même groupe à choix unique).
+let filtreFavorisActif = false;
 // Étiquettes cochées en même temps (logique ET, décidée avec Qassim : un
 // plat doit porter TOUTES les étiquettes cochées pour apparaître).
 const etiquettesSelectionnees = new Set();
 let modeEditionEtiquettes = false;
 let modeEditionRepas = false;
 
+const filtreFavorisPlatsEl = document.getElementById("filtre-favoris-plats");
 const filtresPlatsEl = document.getElementById("filtres-plats");
 const editerRepasPlatsEl = document.getElementById("editer-repas-plats");
 const ajouterRepasPlatsEl = document.getElementById("ajouter-repas-plats");
@@ -1256,6 +1265,11 @@ const filtresEtiquettesPlatsEl = document.getElementById("filtres-etiquettes-pla
 const editerEtiquettesPlatsEl = document.getElementById("editer-etiquettes-plats");
 const ajouterEtiquettePlatsEl = document.getElementById("ajouter-etiquette-plats");
 const grillePlatsEl = document.getElementById("grille-plats");
+
+filtreFavorisPlatsEl.addEventListener("click", () => {
+  filtreFavorisActif = !filtreFavorisActif;
+  rendreEcranPlats();
+});
 
 editerRepasPlatsEl.addEventListener("click", () => {
   modeEditionRepas = !modeEditionRepas;
@@ -1278,10 +1292,9 @@ document.getElementById("ajouter-plat").addEventListener("click", () => {
 });
 
 function platsFiltres() {
-  let liste;
-  if (filtrePlats === "favoris") liste = etat.plats.filter((p) => p.favori);
-  else if (filtrePlats === "tous") liste = etat.plats;
-  else liste = etat.plats.filter((p) => p.repas === filtrePlats); // filtrePlats est un id de repas
+  let liste = filtreRepas === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepas);
+
+  if (filtreFavorisActif) liste = liste.filter((p) => p.favori);
 
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
@@ -1290,34 +1303,34 @@ function platsFiltres() {
 }
 
 function rendreEcranPlats() {
+  filtreFavorisPlatsEl.classList.toggle("selectionne", filtreFavorisActif);
+
   editerRepasPlatsEl.textContent = modeEditionRepas ? "✓ Terminé" : "✏️ Éditer les repas";
   ajouterRepasPlatsEl.hidden = !modeEditionRepas;
 
   filtresPlatsEl.innerHTML = "";
 
-  for (const [id, label] of [["tous", "Tous"], ["favoris", "⭐ Favoris"]]) {
-    const bouton = document.createElement("button");
-    bouton.className = "segmente-bouton";
-    if (filtrePlats === id) bouton.classList.add("selectionne");
-    bouton.textContent = label;
-    bouton.addEventListener("click", () => {
-      filtrePlats = id;
-      rendreEcranPlats();
-    });
-    filtresPlatsEl.appendChild(bouton);
-  }
+  const boutonTous = document.createElement("button");
+  boutonTous.className = "segmente-bouton";
+  if (filtreRepas === "tous") boutonTous.classList.add("selectionne");
+  boutonTous.textContent = "Tous";
+  boutonTous.addEventListener("click", () => {
+    filtreRepas = "tous";
+    rendreEcranPlats();
+  });
+  filtresPlatsEl.appendChild(boutonTous);
 
   for (const repas of etat.repas) {
     const bouton = document.createElement("button");
     bouton.className = "segmente-bouton";
-    if (filtrePlats === repas.id) bouton.classList.add("selectionne");
+    if (filtreRepas === repas.id) bouton.classList.add("selectionne");
     bouton.textContent = modeEditionRepas ? `${repas.nom} ✏️` : repas.nom;
     bouton.addEventListener("click", () => {
       if (modeEditionRepas) {
         ouvrirPanneauRepas(repas.id, fermerPanneau, rendreEcranPlats);
         return;
       }
-      filtrePlats = repas.id;
+      filtreRepas = repas.id;
       rendreEcranPlats();
     });
     filtresPlatsEl.appendChild(bouton);
@@ -1676,6 +1689,10 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       <button class="bouton-discret" id="plat-nouvelle-etiquette">+ Nouvelle étiquette</button>
 
       <div class="panneau-section-titre">Portions de référence</div>
+      <p class="panneau-note">Ex. si la recette qu'on t'a donnée est pour 4 personnes, mets 4 ici
+        AVANT d'ajouter les ingrédients : les quantités saisies ci-dessous seront comprises comme
+        "pour ${plat.portionsReference} portion${plat.portionsReference > 1 ? "s" : ""}" et
+        ramenées automatiquement à 1 portion.</p>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-portions-moins" aria-label="Moins">−</button>
         <input type="number" id="plat-portions-valeur" class="article-quantite-input" value="${plat.portionsReference}" min="1" step="1">
@@ -1685,7 +1702,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       <div class="panneau-section-titre">Étapes / recette</div>
       <textarea id="plat-etapes" class="article-quantite-input" style="width:100%; min-height:100px;" placeholder="Ex. Faire revenir l'oignon, ajouter le poulet...">${plat.etapes ?? ""}</textarea>
 
-      <div class="panneau-section-titre">Ingrédients (par portion)</div>
+      <div class="panneau-section-titre">Ingrédients (quantités pour ${plat.portionsReference} portion${plat.portionsReference > 1 ? "s" : ""})</div>
       <div id="plat-ingredients"></div>
       <button class="bouton-secondaire bouton-pleine-largeur" id="plat-ajouter-ingredient" style="margin-top:8px;">➕ Ajouter un ingrédient</button>
 
@@ -1751,6 +1768,10 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
     } else {
       for (const ligne of plat.ingredients) {
         const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+        // Affichée/saisie "pour N portions" (comme la recette d'origine),
+        // mais toujours STOCKÉE par portion (quantitePortion) — voir la note
+        // sous "Portions de référence" plus haut.
+        const quantitePourReference = ligne.quantitePortion * plat.portionsReference;
         const ligneEl = document.createElement("div");
         ligneEl.className = "element-prevu";
         ligneEl.innerHTML = `
@@ -1759,7 +1780,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
             <button class="element-retirer" aria-label="Retirer cet ingrédient">✕</button>
           </div>
           <div class="element-prevu-ligne2">
-            <input type="number" class="article-quantite-input" value="${formaterNombre(ligne.quantitePortion)}" min="0" step="any" style="width:100px;">
+            <input type="number" class="article-quantite-input" value="${formaterNombre(quantitePourReference)}" min="0" step="any" style="width:100px;">
             <span class="article-unite">${ligne.unite}</span>
           </div>
         `;
@@ -1769,9 +1790,8 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
           rendrePanneau();
         });
         ligneEl.querySelector("input").addEventListener("change", (evenement) => {
-          const nouvelleListe = plat.ingredients.map((l) =>
-            l === ligne ? { ...l, quantitePortion: clampPositif(evenement.target.value) } : l
-          );
+          const quantitePortion = clampPositif(evenement.target.value) / plat.portionsReference;
+          const nouvelleListe = plat.ingredients.map((l) => (l === ligne ? { ...l, quantitePortion } : l));
           modifierPlat(etat, platId, { ingredients: nouvelleListe });
           sauvegarder();
         });
@@ -1816,13 +1836,17 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
 
   function rendrePanneau() {
     const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
+    const plat = etat.plats.find((p) => p.id === platId);
+    const nbPortions = plat.portionsReference;
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">${ingredient.nom}</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
 
-      <div class="panneau-section-titre">Quantité par portion (${ingredient.unite})</div>
+      <div class="panneau-section-titre">Quantité pour ${nbPortions} portion${nbPortions > 1 ? "s" : ""} (${ingredient.unite})</div>
+      <p class="panneau-note">La quantité telle que donnée par la recette (pour ${nbPortions}
+        portion${nbPortions > 1 ? "s" : ""}) — ramenée automatiquement à 1 portion.</p>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-qte-moins" aria-label="Moins">−</button>
         <input type="number" id="plat-qte-valeur" class="article-quantite-input" value="${quantite}" min="0" step="any">
@@ -1846,9 +1870,9 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
       quantite = clampPositif(evenement.target.value);
     });
     panneauPlatEl.querySelector("#plat-qte-ajouter").addEventListener("click", () => {
-      const plat = etat.plats.find((p) => p.id === platId);
+      const quantitePortion = quantite / nbPortions;
       modifierPlat(etat, platId, {
-        ingredients: [...plat.ingredients, { ingredientId, quantitePortion: quantite, unite: ingredient.unite }],
+        ingredients: [...plat.ingredients, { ingredientId, quantitePortion, unite: ingredient.unite }],
       });
       sauvegarder();
       retour();

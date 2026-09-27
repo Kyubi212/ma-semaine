@@ -764,7 +764,7 @@ test("ajouterRepas : ajoute en fin de liste, avec un id dérivé du nom", () => 
 
 test("renommerRepas : change le nom sans toucher à l'id", () => {
   const etat = creerEtatInitial();
-  const repas = etat.repas.find((r) => r.nom === "Smoko");
+  const repas = etat.repas.find((r) => r.nom === "Snack/Goûter");
   const idAvant = repas.id;
 
   renommerRepas(etat, idAvant, "Goûter");
@@ -774,9 +774,9 @@ test("renommerRepas : change le nom sans toucher à l'id", () => {
 
 test("supprimerRepas : refuse si un plat l'utilise encore, en le nommant", () => {
   const etat = creerEtatInitial();
-  const repasSnack = etat.repas.find((r) => r.nom === "Snack");
+  const repasSnack = etat.repas.find((r) => r.nom === "Snack/Goûter");
   const platConcerne = etat.plats.find((p) => p.repas === repasSnack.id);
-  assert.ok(platConcerne, "au moins un plat importé doit être en Snack");
+  assert.ok(platConcerne, "au moins un plat importé doit être en Snack/Goûter");
 
   const resultat = supprimerRepas(etat, repasSnack.id);
   assert.equal(resultat.ok, false);
