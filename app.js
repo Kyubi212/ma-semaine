@@ -150,9 +150,9 @@ const MOIS_ABREGES = [
 // français partout (Qassim : "Smoko" n'est pas français).
 const CRENEAU_INFOS = {
   "petit-dejeuner": { icone: "🌅", label: "Petit-déjeuner", repasId: "petit-dejeuner" },
-  smoko: { icone: "☕", label: "Goûter", repasId: "snack-gouter" },
+  smoko: { icone: "☕", label: "Snack", repasId: "snack-gouter" },
   lunch: { icone: "🥗", label: "Déjeuner", repasId: "dejeuner-diner" },
-  snack: { icone: "🍎", label: "Snack", repasId: "snack-gouter" },
+  snack: { icone: "🍎", label: "Goûter", repasId: "snack-gouter" },
   diner: { icone: "🍽️", label: "Dîner", repasId: "dejeuner-diner" },
 };
 const ORDRE_CRENEAUX = ["petit-dejeuner", "smoko", "lunch", "snack", "diner"];
