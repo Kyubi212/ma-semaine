@@ -572,7 +572,7 @@ export function supprimerIngredient(etat, ingredientId) {
 // Ajoute un tout nouveau plat au catalogue (écran Plats & repas). `favori`
 // démarre toujours à false (à cocher ensuite depuis la liste). Rend le plat
 // créé.
-export function ajouterPlat(etat, { nom, repas, assemblage = true, portionsReference = 1, etapes = "", ingredients = [] }) {
+export function ajouterPlat(etat, { nom, repas, assemblage = true, portionsReference = 1, etapes = "", ingredients = [], etiquettes = [] }) {
   const idsExistants = new Set(etat.plats.map((p) => p.id));
   const plat = {
     id: genererSlug(nom, idsExistants),
@@ -582,6 +582,7 @@ export function ajouterPlat(etat, { nom, repas, assemblage = true, portionsRefer
     portionsReference: Math.max(1, Math.round(Number(portionsReference)) || 1),
     etapes,
     ingredients: ingredients.map((ligne) => ({ ...ligne })),
+    etiquettes: [...etiquettes],
     favori: false,
   };
   etat.plats.push(plat);
@@ -608,6 +609,7 @@ export function modifierPlat(etat, platId, changements) {
   if (changements.ingredients !== undefined) {
     plat.ingredients = changements.ingredients.map((ligne) => ({ ...ligne }));
   }
+  if (changements.etiquettes !== undefined) plat.etiquettes = [...changements.etiquettes];
   if (changements.favori !== undefined) plat.favori = Boolean(changements.favori);
 }
 
@@ -633,5 +635,36 @@ export function supprimerPlat(etat, platId) {
   }
 
   etat.plats = etat.plats.filter((p) => p.id !== platId);
+  return { ok: true };
+}
+
+// --- Étiquettes (écran Plats & repas, éditables — même principe que les
+// rayons). Un plat peut porter PLUSIEURS étiquettes à la fois. ---
+
+// Ajoute une nouvelle étiquette, en fin de liste. Rend l'étiquette créée.
+export function ajouterEtiquette(etat, nom) {
+  const idsExistants = new Set(etat.etiquettes.map((e) => e.id));
+  const etiquette = { id: genererSlug(nom, idsExistants), nom };
+  etat.etiquettes.push(etiquette);
+  return etiquette;
+}
+
+// Renomme une étiquette existante. Son id ne change pas : les plats qui la
+// référencent restent liés sans rien avoir à mettre à jour.
+export function renommerEtiquette(etat, etiquetteId, nouveauNom) {
+  const etiquette = etat.etiquettes.find((e) => e.id === etiquetteId);
+  if (!etiquette) return;
+  etiquette.nom = nouveauNom;
+}
+
+// Supprime une étiquette — SAUF si au moins un plat la porte encore (même
+// logique que supprimerRayon). Rend { ok: true } si supprimée,
+// { ok: false, plats: [...noms] } sinon.
+export function supprimerEtiquette(etat, etiquetteId) {
+  const platsConcernes = etat.plats.filter((p) => p.etiquettes.includes(etiquetteId));
+  if (platsConcernes.length > 0) {
+    return { ok: false, plats: platsConcernes.map((p) => p.nom) };
+  }
+  etat.etiquettes = etat.etiquettes.filter((e) => e.id !== etiquetteId);
   return { ok: true };
 }

@@ -22,7 +22,22 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 5;
+const VERSION_FORMAT = 6;
+
+// Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
+// éditables) : une liste de départ, modifiable ensuite comme les rayons.
+const ETIQUETTES_PAR_DEFAUT = [
+  "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Dessert/Gâteau", "Rapide à préparer",
+];
+
+function etiquettesParDefaut() {
+  const idsExistants = new Set();
+  return ETIQUETTES_PAR_DEFAUT.map((nom) => {
+    const id = genererSlug(nom, idsExistants);
+    idsExistants.add(id);
+    return { id, nom };
+  });
+}
 
 // Construit la liste de rayons par défaut { id, nom } à partir des noms
 // écrits dans constantes.js. Utilisé au tout premier lancement ET par la
@@ -59,6 +74,7 @@ export function creerEtatInitial() {
   return {
     version: VERSION_FORMAT,
     rayons,
+    etiquettes: etiquettesParDefaut(),
     ingredients: ingredientsParDefaut.map((ingredient) => ({
       ...ingredient,
       rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
@@ -66,6 +82,7 @@ export function creerEtatInitial() {
     plats: platsParDefaut.map((plat) => ({
       ...plat,
       favori: plat.favori ?? false,
+      etiquettes: plat.etiquettes ?? [],
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
     modele: [],
@@ -165,6 +182,18 @@ function migrer(etat) {
       ...etat,
       plats: (etat.plats ?? []).map((plat) => ({ ...plat, favori: plat.favori ?? false })),
       version: 5,
+    };
+  }
+
+  if (etat.version === 5) {
+    // v5 → v6 : les plats peuvent porter plusieurs étiquettes (Sucré, Salé,
+    // Sain, Sans porc... — voir CLAUDE.md § Étiquettes éditables). Comme les
+    // rayons : une liste éditable { id, nom }, référencée par id.
+    etat = {
+      ...etat,
+      etiquettes: etat.etiquettes ?? etiquettesParDefaut(),
+      plats: (etat.plats ?? []).map((plat) => ({ ...plat, etiquettes: plat.etiquettes ?? [] })),
+      version: 6,
     };
   }
 

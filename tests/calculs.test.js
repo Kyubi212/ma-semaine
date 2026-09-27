@@ -34,6 +34,9 @@ import {
   ajouterPlat,
   modifierPlat,
   supprimerPlat,
+  ajouterEtiquette,
+  renommerEtiquette,
+  supprimerEtiquette,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -230,8 +233,8 @@ function etatDeTest() {
   // Copies (pas les objets partagés platTest/platTest2) : certains tests
   // modifient le "nom" du plat, ça ne doit pas fuiter d'un test à l'autre.
   etat.plats = [
-    { ...platTest, ingredients: platTest.ingredients.map((l) => ({ ...l })) },
-    { ...platTest2, ingredients: platTest2.ingredients.map((l) => ({ ...l })) },
+    { ...platTest, ingredients: platTest.ingredients.map((l) => ({ ...l })), etiquettes: [] },
+    { ...platTest2, ingredients: platTest2.ingredients.map((l) => ({ ...l })), etiquettes: [] },
   ];
   etat.ingredients = [
     { ...riz, enStock: 200, rayon: "Épicerie", essentiel: false, minimum: 0, extra: 0 },
@@ -685,6 +688,62 @@ test("supprimerPlat : autorise si le plat n'est utilisé nulle part", () => {
   const resultat = supprimerPlat(etat, plat.id);
   assert.equal(resultat.ok, true);
   assert.ok(!etat.plats.some((p) => p.id === plat.id));
+});
+
+// --- Étiquettes éditables (ajouterEtiquette / renommerEtiquette / supprimerEtiquette) ---
+
+test("ajouterEtiquette : ajoute en fin de liste, avec un id dérivé du nom", () => {
+  const etat = creerEtatInitial();
+  const nbAvant = etat.etiquettes.length;
+  const etiquette = ajouterEtiquette(etat, "Sans gluten");
+
+  assert.equal(etat.etiquettes.length, nbAvant + 1);
+  assert.equal(etat.etiquettes[etat.etiquettes.length - 1], etiquette);
+  assert.equal(etiquette.nom, "Sans gluten");
+  assert.equal(etiquette.id, "sans-gluten");
+});
+
+test("renommerEtiquette : change le nom sans toucher à l'id", () => {
+  const etat = creerEtatInitial();
+  const etiquette = etat.etiquettes.find((e) => e.nom === "Sucré");
+  const idAvant = etiquette.id;
+
+  renommerEtiquette(etat, idAvant, "Sucré léger");
+  assert.equal(etiquette.id, idAvant);
+  assert.equal(etiquette.nom, "Sucré léger");
+});
+
+test("supprimerEtiquette : refuse si un plat la porte encore, en le nommant", () => {
+  const etat = etatDeTest();
+  const etiquette = ajouterEtiquette(etat, "Test étiquette");
+  etat.plats[0].nom = "Plat test étiquette";
+  etat.plats[0].etiquettes = [etiquette.id];
+
+  const resultat = supprimerEtiquette(etat, etiquette.id);
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.plats, ["Plat test étiquette"]);
+  assert.ok(etat.etiquettes.some((e) => e.id === etiquette.id), "l'étiquette ne doit pas être supprimée");
+});
+
+test("supprimerEtiquette : autorise si aucun plat ne la porte", () => {
+  const etat = creerEtatInitial();
+  const etiquette = ajouterEtiquette(etat, "Étiquette inutilisée");
+
+  const resultat = supprimerEtiquette(etat, etiquette.id);
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.etiquettes.some((e) => e.id === etiquette.id));
+});
+
+test("ajouterPlat / modifierPlat : gèrent les étiquettes (plusieurs à la fois)", () => {
+  const etat = creerEtatInitial();
+  const sucre = etat.etiquettes.find((e) => e.nom === "Sucré");
+  const sain = etat.etiquettes.find((e) => e.nom === "Sain");
+
+  const plat = ajouterPlat(etat, { nom: "Porridge test", repas: "Petit-déjeuner", ingredients: [], etiquettes: [sucre.id] });
+  assert.deepEqual(plat.etiquettes, [sucre.id]);
+
+  modifierPlat(etat, plat.id, { etiquettes: [sucre.id, sain.id] });
+  assert.deepEqual(plat.etiquettes, [sucre.id, sain.id]);
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---
