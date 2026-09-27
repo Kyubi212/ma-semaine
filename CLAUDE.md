@@ -308,10 +308,20 @@ l'app.
 
 ## Rayons et articles non-alimentaires
 
-Les rayons suivent le parcours d'un vrai supermarché, alimentaire d'abord (ceux déjà utilisés par
-les ingrédients importés de Notion), puis non-alimentaire — **"Hygiène"** (dentifrice,
-déodorant...) et **"Entretien maison"** (produits ménagers...), jamais mélangés entre eux ni avec
-l'alimentaire, comme dans un vrai magasin.
+Les rayons suivent le parcours d'un vrai supermarché, alimentaire d'abord, puis non-alimentaire —
+**"Hygiène"** (dentifrice, déodorant...), **"Entretien maison"** (produits ménagers...) et
+**"Emballage"** (film alimentaire, sacs congélation...), jamais mélangés entre eux ni avec
+l'alimentaire, comme dans un vrai magasin. **Décision clé (revue avec Qassim, en repartant d'une
+liste propre pour que l'app serve à n'importe qui, pas seulement à lui)** : la liste de départ
+(`RAYONS` dans `constantes.js`) reproduit les rayons d'un grand supermarché, avec des produits
+**génériques, jamais de marque** (ex. "Fromage de chèvre", pas une marque précise) — actuellement,
+dans l'ordre :
+Fruits et légumes, Boucherie, Poissonnerie, Crèmerie, Boulangerie, Épicerie salée, Épicerie
+sucrée, Épices et condiments, Surgelés, Boissons, Compléments alimentaires, Hygiène, Entretien
+maison, Emballage. "Épicerie" a été éclaté en salée/sucrée (miel et pâtes n'ont rien à voir), et
+"Conserves" fusionné dans "Épicerie salée" (une conserve de haricots, c'est de l'épicerie salée) —
+cette liste reste éditable comme n'importe quel rayon (voir "Rayons éditables" ci-dessous), ce
+n'est qu'un point de départ.
 
 **Un ingrédient n'a pas besoin d'être utilisé dans un plat pour exister.** Le mécanisme
 essentiel + minimum (déjà dans le modèle de données, voir "Règles de calcul") fonctionne pour
@@ -337,8 +347,9 @@ bouton discret "✏️ Éditer les rayons" — masqué par défaut (pas un geste
 le même ✏️ sur chaque rayon une fois activé. Sur Stock, l'activer montre exceptionnellement TOUS
 les rayons, même ceux vides sous le filtre courant (ex. Essentiels), sinon impossibles à
 retrouver pour les renommer ; sur Courses, seuls les rayons qui contiennent quelque chose à
-acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 13
-rayons).
+acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 14
+rayons, même ceux encore vides comme "Hygiène" au départ — utile pour y ajouter un premier
+ingrédient ou pour le renommer).
 
 ### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock, "+ Ajouter un extra"
 dans Courses, et "➕ Ajouter un ingrédient" dans l'éditeur d'un plat)
