@@ -96,7 +96,7 @@ test("chaque plat a un nom et un repas non vides", () => {
   }
 });
 
-test("il y a bien 6 plats et 168 ingrédients (catalogue de plats nettoyé avec Qassim)", () => {
-  assert.equal(plats.length, 6);
-  assert.equal(ingredients.length, 168);
+test("il y a bien 30 plats et 176 ingrédients (catalogue grand public voulu par Qassim)", () => {
+  assert.equal(plats.length, 30);
+  assert.equal(ingredients.length, 176);
 });

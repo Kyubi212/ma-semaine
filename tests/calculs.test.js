@@ -960,19 +960,19 @@ test("retirerRepasPret : supprime l'entrée entière, quel que soit le nombre de
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---
 
-test("bout-en-bout : 7 petits-déjeuners 'Œufs brouillés, guacamole & pain' planifiés → 21 œufs et 3,5 avocats", () => {
+test("bout-en-bout : 7 dîners 'Steak-frites' planifiés → 1400 g de bœuf et 1400 g de frites", () => {
   const etat = creerEtatInitial();
-  const idPlat = "oeufs-brouilles-guacamole-pain";
+  const idPlat = "steak-frites";
   assert.ok(etat.plats.some((p) => p.id === idPlat), "le plat de test doit exister dans data.js");
 
   for (const jour of JOURS) {
     etat.modele.push({
-      id: `regle-${jour}`, jour, creneau: "petit-dejeuner",
+      id: `regle-${jour}`, jour, creneau: "diner",
       platId: idPlat, portions: 1, preparation: "cuisine-ici",
     });
   }
 
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24)); // jeudi 24/09/2026
-  assert.equal(besoins.get("oeufs"), 21); // 3 œufs × 7 jours
-  assert.equal(besoins.get("avocat"), 3.5); // 0.5 avocat × 7 jours
+  assert.equal(besoins.get("boeuf-faux-filet"), 1400); // 200 g × 7 jours
+  assert.equal(besoins.get("frites-surgelees"), 1400); // 200 g × 7 jours
 });

@@ -314,6 +314,30 @@ recréer de zéro. Les unités en cuillères sont converties vers l'unité de st
 l'import (champ "Par c. à café" dans Notion) ; les cuillères ne sont pas une unité de stock dans
 l'app.
 
+## Catalogue de plats de départ (`data.js`)
+
+**Décision clé (demandée par Qassim, "rendre l'application grand public")** : les plats
+initialement repris de son Notion personnel (6 plats, orientés vers ses propres habitudes) ont
+été **entièrement remplacés** par un catalogue de **30 plats parmi les plus courants en France et
+dans le monde** (bœuf bourguignon, ratatouille, couscous, poulet rôti, curry, falafels, tarte aux
+pommes...), avec au moins un plat par repas éditable (Petit-déjeuner, Snack/Goûter, Déjeuner/
+Dîner, Dessert, Entrée, Accompagnement, Recette de base, Boisson) et par étiquette de départ —
+objectif : qu'un nouvel utilisateur, pas seulement Qassim, ouvre l'app avec un catalogue déjà
+utile plutôt que vide ou trop personnel. Chaque plat porte repas, portions de référence, matériel
+requis, temps de préparation/cuisson, étapes et ingrédients avec quantité par portion, comme
+n'importe quel plat créé depuis l'app. 8 ingrédients ont été ajoutés au catalogue pour ces
+recettes (aubergine, basilic, menthe fraîche, pruneaux, chocolat noir, lait de coco, bouillon de
+légumes, pâte brisée).
+
+**Cuillères pour l'assaisonnement courant** (demandé par Qassim, "faciliter le travail à ceux qui
+vont cuisiner") : les lignes d'huile d'olive, sel, poivre, miel... utilisent systématiquement
+"c. à café"/"c. à soupe" plutôt que des grammes quand la recette le permet — voir "Cuillères dans
+les recettes" plus haut, même mécanisme, appliqué plus largement ici qu'avant.
+
+**Remplacer, pas ajouter** : cette liste ne change RIEN à ce que Qassim a déjà sur son téléphone
+tant qu'il n'utilise pas "🗑️ Réinitialiser avec les données de base" (voir "Écrans" plus haut) —
+même règle que pour toute modification de `data.js`.
+
 ## Rayons et articles non-alimentaires
 
 Les rayons suivent le parcours d'un vrai supermarché, alimentaire d'abord, puis non-alimentaire —
