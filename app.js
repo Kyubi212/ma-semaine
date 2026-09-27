@@ -20,6 +20,9 @@ import {
   modifierIngredient,
   ajouterIngredient,
   supprimerIngredient,
+  ajouterRayon,
+  renommerRayon,
+  supprimerRayon,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -711,8 +714,6 @@ function ingredientsFiltres() {
   switch (filtreStock) {
     case "essentiels":
       return etat.ingredients.filter((i) => i.essentiel);
-    case "catalogue":
-      return etat.ingredients;
     default:
       // À 0, un ingrédient non essentiel n'est plus "en stock" : il disparaît.
       // Un essentiel à 0 reste affiché (vide) pour rappeler de le racheter.
@@ -774,19 +775,20 @@ function rendreEcranStock() {
 
 // --- Panneau "modifier un ingrédient" ---
 
-function ouvrirPanneauIngredient(ingredientId) {
+function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
   apresFermeturePanneau = rendreEcranStock;
 
   function rendrePanneau(messageErreur) {
     const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
     const pas = pasStock(ingredient.unite);
+    const rayon = etat.rayons.find((r) => r.id === ingredient.rayon);
 
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">${ingredient.nom}</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
-      <p class="panneau-note">${ingredient.rayon}</p>
+      <p class="panneau-note">${rayon ? rayon.nom : ""}</p>
 
       <div class="panneau-section-titre">Stock actuel (${ingredient.unite})</div>
       <div class="stepper">
@@ -843,9 +845,9 @@ function ouvrirPanneauIngredient(ingredientId) {
         return;
       }
       sauvegarder();
-      fermerPanneau();
+      retour();
     });
-    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
   rendrePanneau();
@@ -855,9 +857,9 @@ function ouvrirPanneauIngredient(ingredientId) {
 
 // --- Panneau "ajouter un ingrédient" ---
 
-document.getElementById("ajouter-ingredient").addEventListener("click", ouvrirPanneauNouvelIngredient);
+document.getElementById("ajouter-ingredient").addEventListener("click", ouvrirPanneauCatalogue);
 
-function ouvrirPanneauNouvelIngredient() {
+function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
   apresFermeturePanneau = rendreEcranStock;
   const nouveau = { nom: "", rayon: null, unite: null };
 
@@ -930,10 +932,217 @@ function ouvrirPanneauNouvelIngredient() {
       }
       ajouterIngredient(etat, { nom: nomSaisi, rayon: nouveau.rayon, unite: nouveau.unite });
       sauvegarder();
-      fermerPanneau();
+      retour();
     });
 
-    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "Catalogue" : chercher n'importe quel ingrédient (même à 0 g
+// ou non essentiel), gérer les rayons, ou créer un tout nouvel ingrédient ---
+
+let rechercheCatalogue = "";
+const rayonsRepliesCatalogue = new Set();
+
+// Ignore accents et ligatures (œ, æ) pour que taper "oeufs" trouve "Œufs".
+function normaliserRecherche(texte) {
+  return texte
+    .toLowerCase()
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+function ouvrirPanneauCatalogue() {
+  apresFermeturePanneau = rendreEcranStock;
+
+  function rendreListe() {
+    const recherche = normaliserRecherche(rechercheCatalogue.trim());
+    const ingredients = recherche
+      ? etat.ingredients.filter((i) => normaliserRecherche(i.nom).includes(recherche))
+      : etat.ingredients;
+
+    const listeEl = panneauPlatEl.querySelector("#catalogue-liste");
+    listeEl.innerHTML = "";
+
+    if (ingredients.length === 0) {
+      listeEl.innerHTML = `<p class="liste-vide">Aucun ingrédient ne correspond.</p>`;
+      return;
+    }
+
+    for (const rayon of etat.rayons) {
+      const ingredientsDuRayon = ingredients.filter((i) => i.rayon === rayon.id);
+      if (ingredientsDuRayon.length === 0) continue;
+
+      const groupe = document.createElement("details");
+      groupe.className = "rayon-groupe";
+      // Pendant une recherche, tout reste ouvert pour voir les résultats.
+      groupe.open = recherche !== "" || !rayonsRepliesCatalogue.has(rayon.id);
+      groupe.addEventListener("toggle", () => {
+        if (groupe.open) rayonsRepliesCatalogue.delete(rayon.id);
+        else rayonsRepliesCatalogue.add(rayon.id);
+      });
+
+      const summary = document.createElement("summary");
+      summary.className = "rayon-titre";
+      summary.innerHTML = `
+        <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredientsDuRayon.length}</span></span>
+        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
+      `;
+      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
+        evenement.preventDefault();
+        ouvrirPanneauRayon(rayon.id, ouvrirPanneauCatalogue);
+      });
+      groupe.appendChild(summary);
+
+      const articlesEl = document.createElement("div");
+      articlesEl.className = "rayon-articles";
+      for (const ingredient of ingredientsDuRayon) {
+        const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
+        const ligne = document.createElement("button");
+        ligne.className = "article-course";
+        ligne.innerHTML = `
+          <span aria-hidden="true">${infosEtat.icone}</span>
+          <div class="article-info">
+            <span class="article-nom">${ingredient.nom}</span>
+            <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
+          </div>
+          <div class="article-quantite">
+            <span class="article-unite">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+          </div>
+        `;
+        ligne.addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id, ouvrirPanneauCatalogue));
+        articlesEl.appendChild(ligne);
+      }
+      groupe.appendChild(articlesEl);
+      listeEl.appendChild(groupe);
+    }
+  }
+
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">📚 Catalogue</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+
+    <input type="text" id="catalogue-recherche" class="article-quantite-input" style="width:100%;" placeholder="Chercher un ingrédient..." value="${rechercheCatalogue}">
+
+    <div class="panneau-actions" style="margin: 12px 0;">
+      <button class="bouton-secondaire" id="catalogue-nouvel-ingredient">➕ Créer un nouvel ingrédient</button>
+      <button class="bouton-secondaire" id="catalogue-nouveau-rayon">➕ Ajouter un rayon</button>
+    </div>
+
+    <div id="catalogue-liste"></div>
+  `;
+
+  panneauPlatEl.querySelector("#catalogue-recherche").addEventListener("input", (evenement) => {
+    rechercheCatalogue = evenement.target.value;
+    rendreListe();
+  });
+  panneauPlatEl.querySelector("#catalogue-nouvel-ingredient").addEventListener("click", () => {
+    ouvrirPanneauNouvelIngredient(ouvrirPanneauCatalogue);
+  });
+  panneauPlatEl.querySelector("#catalogue-nouveau-rayon").addEventListener("click", () => {
+    ouvrirPanneauNouveauRayon(ouvrirPanneauCatalogue);
+  });
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+
+  rendreListe();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "modifier un rayon" (renommer / supprimer) ---
+
+function ouvrirPanneauRayon(rayonId, retour = fermerPanneau) {
+  apresFermeturePanneau = rendreEcranStock;
+
+  function rendrePanneau(messageErreur) {
+    const rayon = etat.rayons.find((r) => r.id === rayonId);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">✏️ Modifier le rayon</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="rayon-nom" class="article-quantite-input" style="width:100%;" value="${rayon.nom}">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="rayon-renommer">Enregistrer</button>
+        <button class="bouton-discret" id="rayon-supprimer">🗑️ Supprimer ce rayon</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#rayon-renommer").addEventListener("click", () => {
+      const nouveauNom = panneauPlatEl.querySelector("#rayon-nom").value.trim();
+      if (!nouveauNom) {
+        rendrePanneau("Donne un nom à ce rayon.");
+        return;
+      }
+      renommerRayon(etat, rayonId, nouveauNom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector("#rayon-supprimer").addEventListener("click", () => {
+      const resultat = supprimerRayon(etat, rayonId);
+      if (!resultat.ok) {
+        rendrePanneau(`Impossible : contient encore ${resultat.ingredients.join(", ")}.`);
+        return;
+      }
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "nouveau rayon" ---
+
+function ouvrirPanneauNouveauRayon(retour = fermerPanneau) {
+  apresFermeturePanneau = rendreEcranStock;
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouveau rayon</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="rayon-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Marché du dimanche">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="rayon-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#rayon-valider").addEventListener("click", () => {
+      const nom = panneauPlatEl.querySelector("#rayon-nom").value.trim();
+      if (!nom) {
+        rendrePanneau("Donne un nom à ce rayon.");
+        return;
+      }
+      ajouterRayon(etat, nom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
   rendrePanneau();

@@ -603,6 +603,18 @@ body {
   color: var(--couleur-texte-discret);
 }
 
+.rayon-titre-texte {
+  flex: 1;
+}
+
+.rayon-editer {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .rayon-articles {
   display: flex;
   flex-direction: column;
