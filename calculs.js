@@ -205,6 +205,22 @@ export function datesDeLaSemaine(dateReference) {
   return dates;
 }
 
+// Les 7 prochaines dates ("AAAA-MM-JJ") à partir de `dateReference` INCLUSE
+// (aujourd'hui + les 6 jours suivants), PAS "lundi → dimanche" comme
+// `datesDeLaSemaine` : sert au calcul des courses (voir calculerBesoinsSemaine),
+// où un jour déjà passé ne doit plus compter, même si le plat prévu n'a
+// jamais été coché "🍽️ Mangé" (décision de Qassim : un jour passé est clos,
+// plus la peine d'acheter pour lui).
+export function datesProchainsJours(dateReference) {
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(dateReference);
+    date.setDate(date.getDate() + i);
+    dates.push(dateEnISO(date));
+  }
+  return dates;
+}
+
 // Décale une date de N semaines (N négatif = en arrière). Sert à la
 // navigation "semaine précédente / suivante" de l'écran Semaine.
 export function decalerSemaine(dateReference, nombreDeSemaines) {
@@ -275,13 +291,14 @@ function obtenirOuCreerJourHistorique(etat, dateISO) {
   return etat.historique[dateISO];
 }
 
-// Calcule le besoin de la semaine (voir calculerBesoins) sur tous les plats
-// EFFECTIFS de la semaine réelle qui contient `dateReference` (par défaut
-// aujourd'hui). Ne modifie pas l'état : les jours pas encore consultés sont
-// lus depuis le modèle sans être enregistrés dans l'historique.
+// Calcule le besoin (voir calculerBesoins) sur tous les plats EFFECTIFS des
+// 7 PROCHAINS jours à partir de `dateReference` INCLUSE (par défaut
+// aujourd'hui) — jamais les jours déjà passés (voir datesProchainsJours).
+// Ne modifie pas l'état : les jours pas encore consultés sont lus depuis le
+// modèle sans être enregistrés dans l'historique.
 function elementsDeLaSemaine(etat, dateReference) {
   const elements = [];
-  for (const dateISO of datesDeLaSemaine(dateReference)) {
+  for (const dateISO of datesProchainsJours(dateReference)) {
     for (const creneau of CRENEAUX) {
       elements.push(...obtenirElementsEffectifs(etat, dateISO, creneau));
     }
@@ -289,6 +306,8 @@ function elementsDeLaSemaine(etat, dateReference) {
   return elements;
 }
 
+// Besoin sur les 7 prochains jours à partir de `dateReference` (aujourd'hui
+// par défaut) INCLUSE — jamais les jours déjà passés, voir elementsDeLaSemaine.
 export function calculerBesoinsSemaine(etat, dateReference = new Date()) {
   return calculerBesoins(elementsDeLaSemaine(etat, dateReference), etat.plats, etat.ingredients);
 }
@@ -334,7 +353,9 @@ export function calculerDetailBesoinsSemaine(etat, dateReference = new Date()) {
 
 // Construit la liste de courses complète : un article par ingrédient dont
 // la quantité "à acheter" est supérieure à 0 (CLAUDE.md § Écran Courses),
-// avec son rayon, son unité, et le détail d'où vient le besoin.
+// avec son rayon, son unité, et le détail d'où vient le besoin. Porte sur
+// les 7 prochains jours à partir d'aujourd'hui (voir calculerBesoinsSemaine),
+// jamais sur des jours déjà passés.
 export function construireListeCourses(etat, dateReference = new Date()) {
   const besoins = calculerBesoinsSemaine(etat, dateReference);
   const detail = calculerDetailBesoinsSemaine(etat, dateReference);

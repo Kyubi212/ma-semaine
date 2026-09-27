@@ -15,6 +15,7 @@ import {
   dateEnISO,
   jourDeLaSemaine,
   datesDeLaSemaine,
+  datesProchainsJours,
   decalerSemaine,
   obtenirElementsEffectifs,
   calculerBesoinsSemaine,
@@ -224,6 +225,14 @@ test("datesDeLaSemaine : un dimanche donne bien la semaine qui se termine ce jou
   assert.equal(dates[6], "2026-09-27");
 });
 
+test("datesProchainsJours : rend la référence incluse puis les 6 jours suivants (jamais avant)", () => {
+  const dates = datesProchainsJours(new Date(2026, 8, 24)); // jeudi 24/09/2026
+  assert.deepEqual(dates, [
+    "2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27",
+    "2026-09-28", "2026-09-29", "2026-09-30",
+  ]);
+});
+
 test("decalerSemaine : avance ou recule de 7 jours par semaine demandée", () => {
   const reference = new Date(2026, 8, 24);
   assert.equal(dateEnISO(decalerSemaine(reference, 1)), "2026-10-01");
@@ -402,8 +411,20 @@ test("calculerBesoinsSemaine : un plat déjà cuisiné cette semaine ne compte p
   const [element] = obtenirElementsEffectifs(etat, "2026-09-21", "lunch");
   definirCuisine(etat, "2026-09-21", "lunch", element.id, true);
 
-  const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24));
+  // Référence = lundi 21/09/2026 lui-même ("aujourd'hui"), pour que ce jour
+  // reste dans la fenêtre des 7 prochains jours (voir datesProchainsJours).
+  const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 21));
   assert.equal(besoins.get("riz") ?? 0, 0);
+});
+
+test("calculerBesoinsSemaine : un jour déjà passé ne compte plus, même sans avoir coché Mangé", () => {
+  const etat = etatDeTest();
+  // "Juste ce jour" (propager=false) : aucune règle récurrente, seulement
+  // l'historique de cette date précise — rien ne le fait réapparaître ailleurs.
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
+
+  const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24)); // jeudi 24/09, lundi 21 est passé
+  assert.equal(besoins.get("riz") ?? 0, 0, "un jour passé ne doit plus compter, décision de Qassim");
 });
 
 // --- calculerDetailBesoinsSemaine / construireListeCourses ---
@@ -413,7 +434,9 @@ test("calculerDetailBesoinsSemaine : indique quel plat contribue et pour combien
   etat.plats[0].nom = "Plat Test";
   ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 2 }, false);
 
-  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  // Référence = 21/09 lui-même, pour que ce jour précis reste dans la
+  // fenêtre des 7 prochains jours (voir datesProchainsJours).
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 21));
   const detailRiz = detail.get("riz");
   assert.equal(detailRiz.length, 1);
   assert.equal(detailRiz[0].platNom, "Plat Test");
@@ -426,7 +449,7 @@ test("calculerDetailBesoinsSemaine : additionne si le même plat apparaît plusi
   ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, false);
   ajouterPlatAuJour(etat, "2026-09-22", "diner", { platId: "plat-test", portions: 1 }, false);
 
-  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 21));
   const detailRiz = detail.get("riz");
   assert.equal(detailRiz.length, 1); // un seul plat nommé "Plat Test", quantités cumulées
   assert.equal(detailRiz[0].platNom, "Plat Test");
@@ -441,7 +464,7 @@ test("calculerDetailBesoinsSemaine : deux plats différents apparaissent sépar�
   ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test", portions: 1 }, false);
   ajouterPlatAuJour(etat, "2026-09-21", "petit-dejeuner", { platId: "plat-test-2", portions: 1 }, false);
 
-  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 24));
+  const detail = calculerDetailBesoinsSemaine(etat, new Date(2026, 8, 21));
   assert.equal(detail.get("riz").length, 1);
   assert.equal(detail.get("riz")[0].platNom, "Plat Riz");
   assert.equal(detail.get("huile").length, 1);
@@ -455,7 +478,7 @@ test("construireListeCourses : ne garde que les ingrédients à acheter > 0, ave
   // Riz : besoin 100g, stock 200g → rien à acheter. Baisse le stock pour en avoir besoin.
   etat.ingredients.find((i) => i.id === "riz").enStock = 20;
 
-  const liste = construireListeCourses(etat, new Date(2026, 8, 24));
+  const liste = construireListeCourses(etat, new Date(2026, 8, 21));
   assert.equal(liste.length, 1);
   assert.equal(liste[0].ingredientId, "riz");
   assert.equal(liste[0].rayon, "Épicerie");
