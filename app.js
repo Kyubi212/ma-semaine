@@ -301,7 +301,7 @@ function ouvrirPanneauNouveauRepasPret() {
 
     if (montrerListePlats) {
       const listePlatsEl = panneauPlatEl.querySelector("#repas-pret-liste-plats");
-      for (const plat of etat.plats) {
+      for (const plat of trierParNom(etat.plats)) {
         const item = document.createElement("button");
         item.className = "plat-choix";
         if (plat.id === platId) item.classList.add("selectionne");
@@ -483,7 +483,7 @@ function ouvrirPanneau(dateISO, creneau) {
     if (etiquettesSelectionneesPanneau.size > 0) {
       liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
     }
-    return liste;
+    return trierParNom(liste);
   }
 
   function rendrePanneau() {
@@ -724,6 +724,16 @@ function formaterNombre(n) {
   return String(arrondi);
 }
 
+// Trie une copie de la liste par nom (ordre alphabétique français, insensible
+// à la casse et aux accents) — sert à retrouver plus vite quelque chose dans
+// une grande liste (ingrédients d'un rayon, plats...), sans modifier
+// l'original (Qassim peut toujours réordonner ses rayons eux-mêmes, voir
+// CLAUDE.md § Rayons et articles non-alimentaires : cet ordre-là, lui, est
+// volontaire et ne doit jamais être alphabétisé).
+function trierParNom(liste) {
+  return [...liste].sort((a, b) => a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" }));
+}
+
 function formaterDetail(article) {
   if (article.detail.length > 0) {
     return article.detail
@@ -769,10 +779,11 @@ function rendreEcranCourses() {
   }
 
   for (const rayon of etat.rayons) {
-    const articles = liste.filter((a) => a.rayon === rayon.id);
+    const articles = trierParNom(liste.filter((a) => a.rayon === rayon.id));
     if (articles.length === 0) continue;
 
-    // Pas encore achetés d'abord, achetés (cette session) en bas.
+    // Pas encore achetés d'abord, achetés (cette session) en bas — le tri
+    // par nom juste au-dessus reste stable à l'intérieur de chaque groupe.
     articles.sort((a, b) => {
       const aAchete = achetesSession.has(a.ingredientId) ? 1 : 0;
       const bAchete = achetesSession.has(b.ingredientId) ? 1 : 0;
@@ -968,7 +979,7 @@ function rendreEcranStock() {
   }
 
   for (const rayon of etat.rayons) {
-    const ingredients = liste.filter((i) => i.rayon === rayon.id);
+    const ingredients = trierParNom(liste.filter((i) => i.rayon === rayon.id));
     if (ingredients.length === 0 && !modeEditionRayonsStock) continue;
 
     const groupe = document.createElement("details");
@@ -1283,7 +1294,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
     }
 
     for (const rayon of etat.rayons) {
-      const ingredientsDuRayon = ingredients.filter((i) => i.rayon === rayon.id);
+      const ingredientsDuRayon = trierParNom(ingredients.filter((i) => i.rayon === rayon.id));
       if (ingredientsDuRayon.length === 0) continue;
 
       const groupe = document.createElement("details");
@@ -1518,7 +1529,7 @@ function platsFiltres() {
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
   }
-  return liste;
+  return trierParNom(liste);
 }
 
 function rendreEcranPlats() {
