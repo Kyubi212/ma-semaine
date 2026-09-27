@@ -389,7 +389,9 @@ panneau, pas directement depuis un écran).
 ## Repas éditables (écran Plats & repas)
 
 Même principe que les rayons/étiquettes : les repas (Petit-déjeuner, Snack/Goûter, Déjeuner/Dîner,
-Dessert au départ — voir "Modèle de données") sont des objets `{ id, nom }` stockés dans l'état
+Dessert, Entrée, Accompagnement, Recette de base, Boisson au départ — "Recette de base" reprend
+l'idée de l'ancien "Plat de base"/"Préparation de base" de Notion, avec une dénomination plus
+parlante — voir "Modèle de données") sont des objets `{ id, nom }` stockés dans l'état
 (`etat.repas`), pas figés dans le code. **Vocabulaire 100% en français** ("Smoko" a disparu, y
 compris comme libellé de créneau sur l'écran Semaine — voir ci-dessous). **Déjeuner/Dîner ET
 Snack/Goûter sont fusionnés en une seule catégorie chacun dès le départ** (décision de Qassim :
@@ -423,7 +425,8 @@ manquante sans interrompre la saisie d'une recette, avec retour automatique à l
 ## Étiquettes éditables (écran Plats & repas)
 
 Même principe que les rayons éditables ci-dessus, appliqué aux plats : les étiquettes (Sucré,
-Salé, Sain, Sans porc, Végétarien, Gâteau, Rapide à préparer au départ) sont des objets
+Salé, Sain, Sans porc, Végétarien, Végétalien, Sans gluten, Sans lactose, Gâteau, Rapide à
+préparer, Économique au départ) sont des objets
 `{ id, nom }` stockés dans l'état (`etat.etiquettes`), pas figées dans le code. **Un plat peut
 porter plusieurs étiquettes à la fois** (contrairement au rayon d'un ingrédient, qui est unique) —
 `plat.etiquettes` est une liste d'ids, pas un id seul.
@@ -437,9 +440,9 @@ revoir si le nombre d'étiquettes grossit beaucoup.
 
 Une étiquette peut être renommée (l'id ne change jamais, les plats restent liés) ou supprimée,
 **sauf** si au moins un plat la porte encore (suppression refusée, avec la liste de ces plats —
-même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un ✏️ **toujours
-visible** à côté de chaque étiquette, partout où la liste apparaît (panneau Filtres, éditeur d'un
-plat), plus "+ Ajouter une étiquette" toujours accessible — voir "Panneau Filtres" ci-dessous.
+même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un bouton "⚙️ Gérer les
+étiquettes", partout où la liste apparaît (panneau Filtres, éditeur d'un plat) — voir "Panneau
+Filtres" ci-dessous.
 
 ## Panneau Filtres (écran Plats & repas)
 
@@ -458,14 +461,25 @@ candidat "Ajouter juste ce jour"/"...et en faire le défaut"...) met ses boutons
 retour à la ligne automatique si ça ne tient pas, au lieu de toujours les empiler — même retour de
 Qassim, appliqué à tout l'app d'un coup.
 
-**✏️ toujours visible, jamais de mode "édition" à activer** : dans ce panneau (Repas, Étiquettes,
-Matériel) comme dans l'éditeur d'un plat, chaque option est accompagnée d'un ✏️ **toujours
-affiché** à côté (fonction `construireListeEditableEl` dans `app.js`, réutilisée partout où une de
-ces listes apparaît) — retour de Qassim : demander d'activer un mode avant de voir le crayon
-n'était "pas assez visible". Un tap dessus ouvre directement le panneau renommer/supprimer ; un
-tap sur l'option elle-même la sélectionne (filtre) ou la bascule (repas à choix unique, étiquettes/
-matériel à choix multiple). Même principe pour les rayons (Stock, Courses, Catalogue) — voir
-"Rayons éditables".
+**Un seul bouton "⚙️ Gérer..." par catégorie, pas un ✏️ à côté de chaque option** : première
+version testée par Qassim (un ✏️ toujours visible à côté de chaque repas/étiquette/matériel) jugée
+"moche" et encombrante ("tous ces crayons à côté de chaque case, ça fait beaucoup"). Remplacée par
+un bouton "⚙️ Gérer les repas"/"⚙️ Gérer les étiquettes"/"⚙️ Gérer le matériel" sous chaque liste de
+choix (fonction `construireListeChoixEl` pour la liste de choix simple, `ouvrirPanneauGererListe`
+pour le panneau de gestion, dans `app.js`) : un tap sur ce bouton ouvre un panneau listant toutes
+les options existantes (chacune ouvrant directement son panneau renommer/supprimer) plus
+"+ Ajouter un repas/une étiquette/un matériel" en bas — un seul endroit pour éditer ET ajouter,
+plutôt que deux affordances séparées. Fermer ce panneau de gestion revient au panneau Filtres (pas
+à l'écran principal), pour pouvoir enchaîner plusieurs réglages sans perdre le fil. Un tap sur
+l'option elle-même (dans la liste de choix, pas dans le panneau de gestion) la sélectionne
+(filtre) ou la bascule (repas à choix unique, étiquettes/matériel à choix multiple). Même principe
+pour les rayons (Stock, Courses, Catalogue) — voir "Rayons éditables".
+
+**Même panneau Filtres réutilisé sur l'écran Semaine** : le panneau "choisir un plat" ouvert en
+tapant un créneau (ex. "Petit-déjeuner") applique le même traitement — ses filtres Repas/Favoris/
+Étiquettes (mêmes filtres qu'ici, voir "Choisir un plat pour un créneau") sont regroupés derrière
+un bouton "🔧 Filtres" propre à ce panneau (avec badge de comptage), plutôt qu'empilés directement
+sous la recherche — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
 
 ## Matériel requis et temps de préparation/cuisson (écran Plats & repas)
 
@@ -473,7 +487,8 @@ matériel à choix multiple). Même principe pour les rayons (Stock, Courses, Ca
 recette")** : il manquait le matériel nécessaire (poêle, air fryer...) pour reproduire une
 recette. Même principe que les étiquettes éditables ci-dessus, appliqué au matériel : objets
 `{ id, nom }` stockés dans l'état (`etat.materiel`, liste de départ éditable — Poêle, Casserole,
-Four, Air fryer, Mixeur, Cuiseur à riz, Bol), pas figés dans le code. **Un plat peut demander
+Four, Air fryer, Micro-ondes, Mixeur, Cuiseur à riz, Cuiseur vapeur, Grille-pain, Bol, Balance de
+cuisine), pas figés dans le code. **Un plat peut demander
 plusieurs matériels à la fois** — `plat.materiel` est une liste d'ids. Même logique de filtre ET
 que les étiquettes (voir "Panneau Filtres" ci-dessus), même protection à la suppression (refusée
 si un plat le demande encore, avec la liste de ces plats).
