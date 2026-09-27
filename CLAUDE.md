@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Bibliothèque de plats, filtrable par repas, ajout/modification par Qassim |
+| **Plats & repas** | Filtres **Tous / ⭐ Favoris / Petit-déjeuner / Smoko / Déjeuner / Snack / Dîner**, favori basculable sur la carte. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue (quantité par portion), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
@@ -212,8 +212,8 @@ retrouver pour les renommer ; sur Courses, seuls les rayons qui contiennent quel
 acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 13
 rayons).
 
-### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock, et "+ Ajouter un
-extra" dans Courses)
+### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock, "+ Ajouter un extra"
+dans Courses, et "➕ Ajouter un ingrédient" dans l'éditeur d'un plat)
 
 Contrairement à l'écran Stock (qui ne montre que ce que Qassim a réellement — voir "Règles de
 calcul" pour la logique vide/bas/ok), le Catalogue montre **tous** les ingrédients, y compris ceux
@@ -222,17 +222,20 @@ nom (insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), u
 (blocs repliables comme Courses/Stock), un bouton pour créer un tout nouvel ingrédient, et un
 bouton pour gérer les rayons (renommer/supprimer/ajouter — voir "Rayons éditables" ci-dessus).
 
-Le Catalogue s'adapte à l'endroit d'où il est ouvert (même écran, deux comportements) :
+Le Catalogue s'adapte à l'endroit d'où il est ouvert (même écran, trois comportements) :
 - depuis **Stock** ("+ Ajouter un ingrédient") : toucher un ingrédient ouvre son panneau d'édition
   habituel (stock, essentiel, minimum, suppression), pour lui redonner du stock (sinon un
   ingrédient à 0 g et pas essentiel deviendrait injoignable) ;
 - depuis **Courses** ("+ Ajouter un extra") : toucher un ingrédient ouvre une étape quantité +
   "Ajouter cet extra", pour un ingrédient qu'on n'a pas à la maison mais qu'on sait exister dans le
-  catalogue.
+  catalogue ;
+- depuis l'éditeur d'un **plat** ("➕ Ajouter un ingrédient", écran Plats & repas) : toucher un
+  ingrédient ouvre une étape "quantité par portion", puis ajoute la ligne à la recette.
 
-Dans les deux cas, fermer ce panneau d'action revient au Catalogue (pas à l'écran de départ), pour
-en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ
-(Stock ou Courses selon le cas).
+Dans tous les cas, fermer ce panneau d'action revient au Catalogue (pas à l'écran de départ), pour
+en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ (ou,
+depuis l'éditeur de plat, à l'éditeur lui-même — le Catalogue y est ouvert PAR-DESSUS un autre
+panneau, pas directement depuis un écran).
 
 ## Sécurité et vie privée
 
