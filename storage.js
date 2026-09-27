@@ -28,7 +28,7 @@ const VERSION_FORMAT = 10;
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
 const ETIQUETTES_PAR_DEFAUT = [
   "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Végétalien", "Sans gluten", "Sans lactose",
-  "Gâteau", "Rapide à préparer", "Économique",
+  "Gâteau", "Rapide à préparer", "Économique", "Riche en protéines",
 ];
 
 function etiquettesParDefaut() {
