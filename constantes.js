@@ -39,3 +39,24 @@ export const UNITES = [
   "g", "ml", "pièce", "gousse", "bouquet", "boîte", "tranche", "poignée",
   "cube", "dose",
 ];
+
+// Un identifiant simple et stable dérivé d'un nom (minuscules, sans accents,
+// tirets) — utilisé pour les rayons, qui ont un nom éditable par Qassim
+// (renommer un rayon) mais un id qui ne change jamais (ce que les
+// ingrédients référencent). En cas de collision, un compteur est ajouté.
+export function genererSlug(nom, idsExistants) {
+  const base = nom
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // enlève les accents (é → e, etc.)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+
+  let id = base || "rayon";
+  let compteur = 2;
+  while (idsExistants.has(id)) {
+    id = `${base}-${compteur}`;
+    compteur += 1;
+  }
+  return id;
+}

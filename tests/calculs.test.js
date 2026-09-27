@@ -28,6 +28,9 @@ import {
   modifierIngredient,
   ajouterIngredient,
   supprimerIngredient,
+  ajouterRayon,
+  renommerRayon,
+  supprimerRayon,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -534,6 +537,58 @@ test("supprimerIngredient : autorise si aucun plat ne l'utilise", () => {
 
   assert.equal(resultat.ok, true);
   assert.ok(!etat.ingredients.some((i) => i.id === nouveau.id));
+});
+
+// --- Rayons éditables (ajouterRayon / renommerRayon / supprimerRayon) ---
+
+test("ajouterRayon : ajoute un rayon en fin de liste, avec un id dérivé du nom", () => {
+  const etat = creerEtatInitial();
+  const nbAvant = etat.rayons.length;
+  const rayon = ajouterRayon(etat, "Marché du dimanche");
+
+  assert.equal(etat.rayons.length, nbAvant + 1);
+  assert.equal(etat.rayons[etat.rayons.length - 1], rayon);
+  assert.equal(rayon.nom, "Marché du dimanche");
+  assert.equal(rayon.id, "marche-du-dimanche");
+});
+
+test("ajouterRayon : deux noms proches n'entrent jamais en collision d'id", () => {
+  const etat = creerEtatInitial();
+  const premier = ajouterRayon(etat, "Local");
+  const second = ajouterRayon(etat, "Local");
+  assert.notEqual(premier.id, second.id);
+});
+
+test("renommerRayon : change le nom sans toucher à l'id, donc les ingrédients restent liés", () => {
+  const etat = creerEtatInitial();
+  const rayon = etat.rayons.find((r) => r.nom === "Fruits et légumes");
+  const idAvant = rayon.id;
+  const ingredientLie = etat.ingredients.find((i) => i.rayon === idAvant);
+
+  renommerRayon(etat, idAvant, "Marché du dimanche");
+
+  assert.equal(rayon.id, idAvant);
+  assert.equal(rayon.nom, "Marché du dimanche");
+  assert.equal(ingredientLie.rayon, idAvant);
+});
+
+test("supprimerRayon : refuse si des ingrédients y sont encore rangés, en les nommant", () => {
+  const etat = creerEtatInitial();
+  const rayon = etat.rayons.find((r) => r.nom === "Compléments alimentaires");
+  const resultat = supprimerRayon(etat, rayon.id);
+
+  assert.equal(resultat.ok, false);
+  assert.ok(resultat.ingredients.length > 0);
+  assert.ok(etat.rayons.some((r) => r.id === rayon.id), "le rayon ne doit pas être supprimé");
+});
+
+test("supprimerRayon : autorise si aucun ingrédient ne l'utilise", () => {
+  const etat = creerEtatInitial();
+  const rayon = ajouterRayon(etat, "Rayon vide");
+  const resultat = supprimerRayon(etat, rayon.id);
+
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.rayons.some((r) => r.id === rayon.id));
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

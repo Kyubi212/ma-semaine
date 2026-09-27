@@ -18,7 +18,7 @@
 //   créée à la demande, qui porte l'état "cuisiné" — jamais réinitialisée
 //   toute seule : on peut toujours revenir corriger un jour passé.
 
-import { JOURS, CRENEAUX } from "./constantes.js";
+import { JOURS, CRENEAUX, genererSlug } from "./constantes.js";
 
 const UNITES_CUILLERE_EN_C_A_CAFE = {
   "c. à café": 1,
@@ -511,6 +511,38 @@ export function ajouterIngredient(etat, { nom, rayon, unite, enStock = 0 }) {
   };
   etat.ingredients.push(ingredient);
   return ingredient;
+}
+
+// --- Rayons (catégories de courses, éditables par Qassim — voir CLAUDE.md
+// § Rayons éditables) ---
+
+// Ajoute un nouveau rayon, en fin de liste. Rend le rayon créé.
+export function ajouterRayon(etat, nom) {
+  const idsExistants = new Set(etat.rayons.map((r) => r.id));
+  const rayon = { id: genererSlug(nom, idsExistants), nom };
+  etat.rayons.push(rayon);
+  return rayon;
+}
+
+// Renomme un rayon existant. Son id ne change pas : les ingrédients qui le
+// référencent restent liés sans rien avoir à mettre à jour.
+export function renommerRayon(etat, rayonId, nouveauNom) {
+  const rayon = etat.rayons.find((r) => r.id === rayonId);
+  if (!rayon) return;
+  rayon.nom = nouveauNom;
+}
+
+// Supprime un rayon — SAUF s'il contient encore au moins un ingrédient
+// (même logique que supprimerIngredient ci-dessous : refuser plutôt que de
+// laisser des ingrédients sans rayon valide). Rend { ok: true } si
+// supprimé, { ok: false, ingredients: [...noms] } sinon.
+export function supprimerRayon(etat, rayonId) {
+  const ingredientsConcernes = etat.ingredients.filter((i) => i.rayon === rayonId);
+  if (ingredientsConcernes.length > 0) {
+    return { ok: false, ingredients: ingredientsConcernes.map((i) => i.nom) };
+  }
+  etat.rayons = etat.rayons.filter((r) => r.id !== rayonId);
+  return { ok: true };
 }
 
 // Supprime un ingrédient — SAUF s'il est utilisé par au moins un plat

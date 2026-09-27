@@ -11,6 +11,7 @@
 // stockage du téléphone, de ne changer QUE ce fichier.
 
 import { ingredients as ingredientsParDefaut, plats as platsParDefaut } from "./data.js";
+import { RAYONS, genererSlug } from "./constantes.js";
 
 // Une seule clé, un seul objet JSON dedans : plus simple à inspecter
 // (Outils de développement → Application → Local Storage) et à sauvegarder
@@ -21,7 +22,20 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 3;
+const VERSION_FORMAT = 4;
+
+// Construit la liste de rayons par défaut { id, nom } à partir des noms
+// écrits dans constantes.js. Utilisé au tout premier lancement ET par la
+// migration v3 → v4 (les rayons n'existaient pas encore comme donnée
+// éditable avant cette version — voir CLAUDE.md § Rayons éditables).
+function rayonsParDefaut() {
+  const idsExistants = new Set();
+  return RAYONS.map((nom) => {
+    const id = genererSlug(nom, idsExistants);
+    idsExistants.add(id);
+    return { id, nom };
+  });
+}
 
 // Construit un état de départ propre, à partir du catalogue de data.js.
 // Utilisé au tout premier lancement de l'app, et chaque fois que les
@@ -39,9 +53,16 @@ const VERSION_FORMAT = 3;
 //   vit l'état "cuisiné", propre à chaque date, jamais réinitialisé tout
 //   seul : Qassim peut toujours revenir corriger un jour passé.
 export function creerEtatInitial() {
+  const rayons = rayonsParDefaut();
+  const idRayonParNom = new Map(rayons.map((r) => [r.nom, r.id]));
+
   return {
     version: VERSION_FORMAT,
-    ingredients: ingredientsParDefaut.map((ingredient) => ({ ...ingredient })),
+    rayons,
+    ingredients: ingredientsParDefaut.map((ingredient) => ({
+      ...ingredient,
+      rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
+    })),
     plats: platsParDefaut.map((plat) => ({
       ...plat,
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
@@ -113,6 +134,27 @@ function migrer(etat) {
         ])
       ),
       version: 3,
+    };
+  }
+
+  if (etat.version === 3) {
+    // v3 → v4 : les rayons deviennent une donnée éditable par Qassim
+    // (renommer, supprimer — voir CLAUDE.md § Rayons éditables), au lieu
+    // d'une liste figée dans constantes.js. Chaque rayon obtient un id
+    // stable ; les ingrédients, qui stockaient jusqu'ici le NOM du rayon
+    // directement, référencent maintenant cet id (le nom reste éditable
+    // sans casser le lien).
+    const rayons = rayonsParDefaut();
+    const idRayonParNom = new Map(rayons.map((r) => [r.nom, r.id]));
+
+    etat = {
+      ...etat,
+      rayons,
+      ingredients: (etat.ingredients ?? []).map((ingredient) => ({
+        ...ingredient,
+        rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
+      })),
+      version: 4,
     };
   }
 

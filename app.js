@@ -21,7 +21,7 @@ import {
   ajouterIngredient,
   supprimerIngredient,
 } from "./calculs.js";
-import { JOURS, RAYONS, UNITES } from "./constantes.js";
+import { JOURS, UNITES } from "./constantes.js";
 
 // --- Bandeau d'avertissement (EN PREMIER, avant tout le reste : le code
 // plus bas peut avoir besoin de l'afficher dès la toute première ligne) ---
@@ -535,8 +535,8 @@ function rendreEcranCourses() {
     return;
   }
 
-  for (const rayon of RAYONS) {
-    const articles = liste.filter((a) => a.rayon === rayon);
+  for (const rayon of etat.rayons) {
+    const articles = liste.filter((a) => a.rayon === rayon.id);
     if (articles.length === 0) continue;
 
     // Pas encore achetés d'abord, achetés (cette session) en bas.
@@ -550,12 +550,12 @@ function rendreEcranCourses() {
     // Le nombre d'articles reste visible dans le titre même replié.
     const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
-    groupe.open = !rayonsReplies.has(rayon);
+    groupe.open = !rayonsReplies.has(rayon.id);
     groupe.addEventListener("toggle", () => {
-      if (groupe.open) rayonsReplies.delete(rayon);
-      else rayonsReplies.add(rayon);
+      if (groupe.open) rayonsReplies.delete(rayon.id);
+      else rayonsReplies.add(rayon.id);
     });
-    groupe.innerHTML = `<summary class="rayon-titre">${rayon} <span class="rayon-compte">${articles.length}</span></summary>`;
+    groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${articles.length}</span></summary>`;
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -733,18 +733,18 @@ function rendreEcranStock() {
     return;
   }
 
-  for (const rayon of RAYONS) {
-    const ingredients = liste.filter((i) => i.rayon === rayon);
+  for (const rayon of etat.rayons) {
+    const ingredients = liste.filter((i) => i.rayon === rayon.id);
     if (ingredients.length === 0) continue;
 
     const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
-    groupe.open = !rayonsRepliesStock.has(rayon);
+    groupe.open = !rayonsRepliesStock.has(rayon.id);
     groupe.addEventListener("toggle", () => {
-      if (groupe.open) rayonsRepliesStock.delete(rayon);
-      else rayonsRepliesStock.add(rayon);
+      if (groupe.open) rayonsRepliesStock.delete(rayon.id);
+      else rayonsRepliesStock.add(rayon.id);
     });
-    groupe.innerHTML = `<summary class="rayon-titre">${rayon} <span class="rayon-compte">${ingredients.length}</span></summary>`;
+    groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></summary>`;
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -889,13 +889,13 @@ function ouvrirPanneauNouvelIngredient() {
     });
 
     const listeRayonsEl = panneauPlatEl.querySelector("#liste-rayons");
-    for (const rayon of RAYONS) {
+    for (const rayon of etat.rayons) {
       const item = document.createElement("button");
       item.className = "plat-choix";
-      if (rayon === nouveau.rayon) item.classList.add("selectionne");
-      item.textContent = rayon;
+      if (rayon.id === nouveau.rayon) item.classList.add("selectionne");
+      item.textContent = rayon.nom;
       item.addEventListener("click", () => {
-        nouveau.rayon = rayon;
+        nouveau.rayon = rayon.id;
         rendrePanneau();
       });
       listeRayonsEl.appendChild(item);

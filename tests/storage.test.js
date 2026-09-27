@@ -41,7 +41,20 @@ test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
   assert.equal(etat.plats.length, 25);
   assert.equal(etat.ingredients.length, 68);
-  assert.equal(etat.version, 3);
+  assert.equal(etat.version, 4);
+});
+
+test("creerEtatInitial : les rayons sont des objets {id, nom}, référencés par les ingrédients via leur id", () => {
+  const etat = creerEtatInitial();
+  assert.ok(etat.rayons.length > 0);
+  for (const rayon of etat.rayons) {
+    assert.ok(rayon.id);
+    assert.ok(rayon.nom);
+  }
+  const idsRayons = new Set(etat.rayons.map((r) => r.id));
+  for (const ingredient of etat.ingredients) {
+    assert.ok(idsRayons.has(ingredient.rayon), `rayon inconnu pour ${ingredient.nom} : ${ingredient.rayon}`);
+  }
 });
 
 test("creerEtatInitial : modèle et historique vides au départ", () => {
@@ -92,7 +105,8 @@ test("chargerEtat : migre un ancien format v2 (un seul plat par case) vers v3 (l
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 3);
+  assert.equal(etat.version, 4);
+  assert.ok(etat.rayons.length > 0, "la migration v3 → v4 doit créer les rayons par défaut");
 
   // Une case vide (platId: null) disparaît (liste vide), une case avec un
   // plat devient une liste à un seul élément.
@@ -120,12 +134,34 @@ test("chargerEtat : migre un très ancien format v1 jusqu'à v3, en chaîne", ()
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 3);
+  assert.equal(etat.version, 4);
+  assert.ok(etat.rayons.length > 0, "la migration en chaîne doit aussi créer les rayons par défaut");
   assert.equal(etat.modele.length, 1);
   assert.equal(etat.modele[0].platId, "x");
   assert.deepEqual(etat.historique, {});
   assert.equal(etat.planning, undefined);
   assert.equal(etat.dernierePassageDate, undefined);
+});
+
+test("chargerEtat : migre v3 → v4, un ingrédient dont le rayon était un nom retrouve le bon id", () => {
+  const ancienEtat = {
+    version: 3,
+    ingredients: [
+      { id: "dentifrice", nom: "Dentifrice", rayon: "Hygiène", unite: "pièce", enStock: 1, essentiel: true, minimum: 1, extra: 0, parCuillereACafe: null },
+    ],
+    plats: [],
+    modele: [],
+    historique: {},
+  };
+  globalThis.localStorage.setItem("ma-semaine", JSON.stringify(ancienEtat));
+
+  const { etat, erreurLecture } = chargerEtat();
+  assert.equal(erreurLecture, false);
+  assert.equal(etat.version, 4);
+
+  const rayonHygiene = etat.rayons.find((r) => r.nom === "Hygiène");
+  assert.ok(rayonHygiene, "le rayon Hygiène doit exister par défaut");
+  assert.equal(etat.ingredients[0].rayon, rayonHygiene.id);
 });
 
 test("chargerEtat : données corrompues → repart sur un état propre, avec erreurLecture", () => {
