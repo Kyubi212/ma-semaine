@@ -1563,39 +1563,126 @@ let modeEditionRepas = false;
 let recherchePlats = "";
 
 const recherchePlatsEl = document.getElementById("recherche-plats");
-const filtreFavorisPlatsEl = document.getElementById("filtre-favoris-plats");
-const filtresPlatsEl = document.getElementById("filtres-plats");
-const editerRepasPlatsEl = document.getElementById("editer-repas-plats");
-const ajouterRepasPlatsEl = document.getElementById("ajouter-repas-plats");
-const filtresEtiquettesPlatsEl = document.getElementById("filtres-etiquettes-plats");
-const editerEtiquettesPlatsEl = document.getElementById("editer-etiquettes-plats");
-const ajouterEtiquettePlatsEl = document.getElementById("ajouter-etiquette-plats");
+const ouvrirFiltresPlatsEl = document.getElementById("ouvrir-filtres-plats");
+const filtresPlatsCompteEl = document.getElementById("filtres-plats-compte");
 const grillePlatsEl = document.getElementById("grille-plats");
 
-filtreFavorisPlatsEl.addEventListener("click", () => {
-  filtreFavorisActif = !filtreFavorisActif;
-  rendreEcranPlats();
-});
-
-editerRepasPlatsEl.addEventListener("click", () => {
-  modeEditionRepas = !modeEditionRepas;
-  rendreEcranPlats();
-});
-ajouterRepasPlatsEl.addEventListener("click", () => {
-  ouvrirPanneauNouveauRepas(fermerPanneau, rendreEcranPlats);
-});
-
-editerEtiquettesPlatsEl.addEventListener("click", () => {
-  modeEditionEtiquettes = !modeEditionEtiquettes;
-  rendreEcranPlats();
-});
-ajouterEtiquettePlatsEl.addEventListener("click", () => {
-  ouvrirPanneauNouvelleEtiquette(fermerPanneau, rendreEcranPlats);
-});
+ouvrirFiltresPlatsEl.addEventListener("click", () => ouvrirPanneauFiltresPlats());
 
 document.getElementById("ajouter-plat").addEventListener("click", () => {
   ouvrirPanneauNouveauPlat();
 });
+
+// --- Panneau "Filtres" (repas + favoris + étiquettes) : regroupés dans un
+// panneau à part plutôt qu'empilés sur l'écran principal (trop de place
+// prise à l'écran, retour de Qassim) — l'écran Plats & repas reste compact,
+// avec juste un bouton "Filtres" (compteur si des filtres sont actifs). ---
+
+function ouvrirPanneauFiltresPlats() {
+  apresFermeturePanneau = rendreEcranPlats;
+
+  function rendrePanneau() {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">🔧 Filtres</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <button class="segmente-bouton" id="panneau-filtre-favoris" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
+
+      <div class="panneau-section-titre">Repas</div>
+      <div class="segmente" id="panneau-filtres-repas"></div>
+      <button class="bouton-discret" id="panneau-editer-repas">✏️ Éditer les repas</button>
+      <button class="bouton-discret" id="panneau-ajouter-repas" hidden>+ Ajouter un repas</button>
+
+      <div class="panneau-section-titre">Étiquettes</div>
+      <div class="segmente" id="panneau-filtres-etiquettes"></div>
+      <button class="bouton-discret" id="panneau-editer-etiquettes">✏️ Éditer les étiquettes</button>
+      <button class="bouton-discret" id="panneau-ajouter-etiquette" hidden>+ Ajouter une étiquette</button>
+    `;
+
+    const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris");
+    favorisEl.classList.toggle("selectionne", filtreFavorisActif);
+    favorisEl.addEventListener("click", () => {
+      filtreFavorisActif = !filtreFavorisActif;
+      rendrePanneau();
+    });
+
+    const editerRepasEl = panneauPlatEl.querySelector("#panneau-editer-repas");
+    const ajouterRepasEl = panneauPlatEl.querySelector("#panneau-ajouter-repas");
+    editerRepasEl.textContent = modeEditionRepas ? "✓ Terminé" : "✏️ Éditer les repas";
+    ajouterRepasEl.hidden = !modeEditionRepas;
+    editerRepasEl.addEventListener("click", () => {
+      modeEditionRepas = !modeEditionRepas;
+      rendrePanneau();
+    });
+    ajouterRepasEl.addEventListener("click", () => {
+      ouvrirPanneauNouveauRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    });
+
+    const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas");
+    const boutonTous = document.createElement("button");
+    boutonTous.className = "segmente-bouton";
+    if (filtreRepas === "tous") boutonTous.classList.add("selectionne");
+    boutonTous.textContent = "Tous";
+    boutonTous.addEventListener("click", () => {
+      filtreRepas = "tous";
+      rendrePanneau();
+    });
+    filtresRepasEl.appendChild(boutonTous);
+    for (const repas of etat.repas) {
+      const bouton = document.createElement("button");
+      bouton.className = "segmente-bouton";
+      if (filtreRepas === repas.id) bouton.classList.add("selectionne");
+      bouton.textContent = modeEditionRepas ? `${repas.nom} ✏️` : repas.nom;
+      bouton.addEventListener("click", () => {
+        if (modeEditionRepas) {
+          ouvrirPanneauRepas(repas.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+          return;
+        }
+        filtreRepas = repas.id;
+        rendrePanneau();
+      });
+      filtresRepasEl.appendChild(bouton);
+    }
+
+    const editerEtiquettesEl = panneauPlatEl.querySelector("#panneau-editer-etiquettes");
+    const ajouterEtiquetteEl = panneauPlatEl.querySelector("#panneau-ajouter-etiquette");
+    editerEtiquettesEl.textContent = modeEditionEtiquettes ? "✓ Terminé" : "✏️ Éditer les étiquettes";
+    ajouterEtiquetteEl.hidden = !modeEditionEtiquettes;
+    editerEtiquettesEl.addEventListener("click", () => {
+      modeEditionEtiquettes = !modeEditionEtiquettes;
+      rendrePanneau();
+    });
+    ajouterEtiquetteEl.addEventListener("click", () => {
+      ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    });
+
+    const filtresEtiquettesEl = panneauPlatEl.querySelector("#panneau-filtres-etiquettes");
+    for (const etiquette of etat.etiquettes) {
+      const bouton = document.createElement("button");
+      bouton.className = "segmente-bouton";
+      if (etiquettesSelectionnees.has(etiquette.id)) bouton.classList.add("selectionne");
+      bouton.textContent = modeEditionEtiquettes ? `${etiquette.nom} ✏️` : etiquette.nom;
+      bouton.addEventListener("click", () => {
+        if (modeEditionEtiquettes) {
+          ouvrirPanneauEtiquette(etiquette.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+          return;
+        }
+        if (etiquettesSelectionnees.has(etiquette.id)) etiquettesSelectionnees.delete(etiquette.id);
+        else etiquettesSelectionnees.add(etiquette.id);
+        rendrePanneau();
+      });
+      filtresEtiquettesEl.appendChild(bouton);
+    }
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
 
 function platsFiltres() {
   let liste = filtreRepas === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepas);
@@ -1655,59 +1742,11 @@ recherchePlatsEl.addEventListener("input", (evenement) => {
 });
 
 function rendreEcranPlats() {
-  filtreFavorisPlatsEl.classList.toggle("selectionne", filtreFavorisActif);
-
-  editerRepasPlatsEl.textContent = modeEditionRepas ? "✓ Terminé" : "✏️ Éditer les repas";
-  ajouterRepasPlatsEl.hidden = !modeEditionRepas;
-
-  filtresPlatsEl.innerHTML = "";
-
-  const boutonTous = document.createElement("button");
-  boutonTous.className = "segmente-bouton";
-  if (filtreRepas === "tous") boutonTous.classList.add("selectionne");
-  boutonTous.textContent = "Tous";
-  boutonTous.addEventListener("click", () => {
-    filtreRepas = "tous";
-    rendreEcranPlats();
-  });
-  filtresPlatsEl.appendChild(boutonTous);
-
-  for (const repas of etat.repas) {
-    const bouton = document.createElement("button");
-    bouton.className = "segmente-bouton";
-    if (filtreRepas === repas.id) bouton.classList.add("selectionne");
-    bouton.textContent = modeEditionRepas ? `${repas.nom} ✏️` : repas.nom;
-    bouton.addEventListener("click", () => {
-      if (modeEditionRepas) {
-        ouvrirPanneauRepas(repas.id, fermerPanneau, rendreEcranPlats);
-        return;
-      }
-      filtreRepas = repas.id;
-      rendreEcranPlats();
-    });
-    filtresPlatsEl.appendChild(bouton);
-  }
-
-  editerEtiquettesPlatsEl.textContent = modeEditionEtiquettes ? "✓ Terminé" : "✏️ Éditer les étiquettes";
-  ajouterEtiquettePlatsEl.hidden = !modeEditionEtiquettes;
-
-  filtresEtiquettesPlatsEl.innerHTML = "";
-  for (const etiquette of etat.etiquettes) {
-    const bouton = document.createElement("button");
-    bouton.className = "segmente-bouton";
-    if (etiquettesSelectionnees.has(etiquette.id)) bouton.classList.add("selectionne");
-    bouton.textContent = modeEditionEtiquettes ? `${etiquette.nom} ✏️` : etiquette.nom;
-    bouton.addEventListener("click", () => {
-      if (modeEditionEtiquettes) {
-        ouvrirPanneauEtiquette(etiquette.id, fermerPanneau, rendreEcranPlats);
-        return;
-      }
-      if (etiquettesSelectionnees.has(etiquette.id)) etiquettesSelectionnees.delete(etiquette.id);
-      else etiquettesSelectionnees.add(etiquette.id);
-      rendreEcranPlats();
-    });
-    filtresEtiquettesPlatsEl.appendChild(bouton);
-  }
+  const nbFiltresActifs =
+    (filtreFavorisActif ? 1 : 0) +
+    (filtreRepas !== "tous" ? 1 : 0) +
+    etiquettesSelectionnees.size;
+  filtresPlatsCompteEl.textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
 
   rendreGrillePlats();
 }
