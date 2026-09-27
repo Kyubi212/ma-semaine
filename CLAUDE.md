@@ -185,9 +185,18 @@ Cette liste ne fait **jamais** partie du calcul des besoins de la semaine (elle 
 planning) ; elle sert uniquement de pense-bête + suivi de portions pour des repas déjà là,
 consommables au fur et à mesure.
 
-**La liste de courses (besoin) porte sur la semaine réelle en cours uniquement** (celle qui
-contient aujourd'hui), pas sur les semaines passées (de l'historique consultable, pas des achats à
-faire) ni sur les semaines futures (à remplir au fur et à mesure).
+**La liste de courses (besoin) porte sur les 7 PROCHAINS jours à partir d'aujourd'hui** (aujourd'hui
+inclus), pas sur "la semaine réelle lundi → dimanche" affichée sur l'écran Semaine. **Historique de
+la décision** : une première version comptait toute la semaine réelle en cours (lundi → dimanche),
+y compris les jours déjà passés tant qu'un plat n'était pas coché "🍽️ Mangé" — Qassim a testé ce
+cas concret et trouvé ça illogique : *"si un jour est passé, ça veut dire que c'est fini, t'as plus
+besoin de l'acheter, de le manger, de le cuisiner."* Décision : un jour strictement avant aujourd'hui
+ne compte **plus jamais** dans les courses, même si rien n'a été coché dessus (ni "🍽️ Mangé", ni
+retiré) — seul aujourd'hui et les 6 jours suivants comptent (`datesProchainsJours` dans
+`calculs.js`). Ça ne touche ni le **stock** (toujours déduit uniquement par une case "🍽️ Mangé"
+cochée ou un achat, quelle que soit la date) ni l'**affichage** de l'écran Semaine (qui reste
+toujours lundi → dimanche, y compris pour naviguer et corriger un jour passé) — seul le calcul
+"combien acheter" change de fenêtre.
 
 Conséquence : il n'y a **pas** de bouton "Nouvelle semaine" ni de notion de "graver le stock" —
 c'était une contrainte propre à l'ancien système Notion, qui ne s'applique plus ici.
@@ -228,8 +237,9 @@ donnée, ça change juste le nombre affiché (mathématiquement cohérent).
 
 ## Règles de calcul
 
-- **Besoin** (par ingrédient) = somme, sur les créneaux des 7 jours de la semaine réelle en cours
-  (cases effectives : historique si déjà consulté, sinon aperçu du modèle) avec un plat choisi et
+- **Besoin** (par ingrédient) = somme, sur les créneaux des 7 PROCHAINS jours à partir d'aujourd'hui
+  inclus (jamais les jours déjà passés — voir "Semaines réelles et modèle" § liste de courses ;
+  cases effectives : historique si déjà consulté, sinon aperçu du modèle) avec un plat choisi et
   pas déjà mangés, de *portions × quantité par portion* (convertie en unité de base).
 - **À acheter** = maximum(0, besoin + minimum essentiel + extra − stock actuel). Arrondi au
   supérieur pour les unités "pièce", inchangé pour les grammes/ml.
