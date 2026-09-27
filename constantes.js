@@ -17,19 +17,20 @@ export const CRENEAUX = ["petit-dejeuner", "smoko", "lunch", "snack", "diner"];
 // ingrédients importés de Notion), puis les rayons non-alimentaires — jamais
 // mélangés au même endroit dans un vrai supermarché, donc jamais mélangés ici.
 export const RAYONS = [
-  "Boucherie halal",
+  "Fruits et légumes",
+  "Boucherie",
   "Poissonnerie",
   "Crèmerie",
-  "Fruits et légumes",
-  "Épicerie",
-  "Épices",
-  "Conserves",
-  "Surgelés ou frais",
   "Boulangerie",
-  "Emballage",
+  "Épicerie salée",
+  "Épicerie sucrée",
+  "Épices et condiments",
+  "Surgelés",
+  "Boissons",
+  "Compléments alimentaires",
   "Hygiène",
   "Entretien maison",
-  "Compléments alimentaires",
+  "Emballage",
 ];
 
 // Unités de stock valides (pas les cuillères — voir CLAUDE.md § Données

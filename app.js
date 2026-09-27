@@ -1310,7 +1310,12 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
 
     for (const rayon of etat.rayons) {
       const ingredientsDuRayon = trierParNom(ingredients.filter((i) => i.rayon === rayon.id));
-      if (ingredientsDuRayon.length === 0) continue;
+      // Un rayon vide reste affiché HORS recherche (CLAUDE.md § Écran
+      // Catalogue : seul endroit qui montre systématiquement TOUS les
+      // rayons, même vides, sinon impossible d'y ajouter un premier
+      // ingrédient ou de le renommer). Pendant une recherche, un rayon sans
+      // résultat n'a rien à montrer : on le masque.
+      if (recherche !== "" && ingredientsDuRayon.length === 0) continue;
 
       const groupe = document.createElement("details");
       groupe.className = "rayon-groupe";

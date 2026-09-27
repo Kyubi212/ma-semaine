@@ -17,7 +17,7 @@ export const ingredients = [
   {
     id: "paprika",
     nom: "Paprika",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -39,7 +39,7 @@ export const ingredients = [
   {
     id: "huile-d-olive",
     nom: "Huile d'olive",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "ml",
     enStock: 0,
     essentiel: false,
@@ -61,7 +61,7 @@ export const ingredients = [
   {
     id: "pois-chiches",
     nom: "Pois chiches",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -72,7 +72,7 @@ export const ingredients = [
   {
     id: "boeuf-ou-agneau-hache",
     nom: "Bœuf ou agneau haché",
-    rayon: "Boucherie halal",
+    rayon: "Boucherie",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -83,7 +83,7 @@ export const ingredients = [
   {
     id: "bouillon-de-volaille-halal",
     nom: "Bouillon de volaille halal",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "cube",
     enStock: 0,
     essentiel: false,
@@ -127,7 +127,7 @@ export const ingredients = [
   {
     id: "epinards",
     nom: "Épinards",
-    rayon: "Surgelés ou frais",
+    rayon: "Surgelés",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -160,7 +160,7 @@ export const ingredients = [
   {
     id: "dattes",
     nom: "Dattes",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "pièce",
     enStock: 0,
     essentiel: false,
@@ -204,7 +204,7 @@ export const ingredients = [
   {
     id: "beurre-de-cacahuete-100-arachide",
     nom: "Beurre de cacahuète 100% arachide",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -226,7 +226,7 @@ export const ingredients = [
   {
     id: "riz",
     nom: "Riz",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -237,7 +237,7 @@ export const ingredients = [
   {
     id: "graines-de-chia",
     nom: "Graines de chia",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -259,7 +259,7 @@ export const ingredients = [
   {
     id: "pates-spaghetti",
     nom: "Pâtes (spaghetti)",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -270,7 +270,7 @@ export const ingredients = [
   {
     id: "orge-perle",
     nom: "Orge perlé",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -281,7 +281,7 @@ export const ingredients = [
   {
     id: "bacon-de-boeuf-ou-de-dinde",
     nom: "Bacon de bœuf ou de dinde",
-    rayon: "Boucherie halal",
+    rayon: "Boucherie",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -303,7 +303,7 @@ export const ingredients = [
   {
     id: "fruits-rouges",
     nom: "Fruits rouges",
-    rayon: "Surgelés ou frais",
+    rayon: "Surgelés",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -325,7 +325,7 @@ export const ingredients = [
   {
     id: "wraps-complets-ou-pitas",
     nom: "Wraps complets ou pitas",
-    rayon: "Épicerie",
+    rayon: "Épicerie salée",
     unite: "pièce",
     enStock: 0,
     essentiel: false,
@@ -336,7 +336,7 @@ export const ingredients = [
   {
     id: "boeuf-faux-filet-ou-cubes",
     nom: "Bœuf (faux-filet ou cubes)",
-    rayon: "Boucherie halal",
+    rayon: "Boucherie",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -347,7 +347,7 @@ export const ingredients = [
   {
     id: "poivre",
     nom: "Poivre",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -358,7 +358,7 @@ export const ingredients = [
   {
     id: "cafe",
     nom: "Café",
-    rayon: "Épicerie",
+    rayon: "Boissons",
     unite: "dose",
     enStock: 0,
     essentiel: false,
@@ -402,7 +402,7 @@ export const ingredients = [
   {
     id: "poulet-hache",
     nom: "Poulet haché",
-    rayon: "Boucherie halal",
+    rayon: "Boucherie",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -413,7 +413,7 @@ export const ingredients = [
   {
     id: "cumin",
     nom: "Cumin",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -435,7 +435,7 @@ export const ingredients = [
   {
     id: "lentilles",
     nom: "Lentilles",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -446,7 +446,7 @@ export const ingredients = [
   {
     id: "chili-ou-piment-doux",
     nom: "Chili ou piment doux",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -479,7 +479,7 @@ export const ingredients = [
   {
     id: "concentre-de-tomate",
     nom: "Concentré de tomate",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -490,7 +490,7 @@ export const ingredients = [
   {
     id: "sel",
     nom: "Sel",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -501,7 +501,7 @@ export const ingredients = [
   {
     id: "tomates-concassees",
     nom: "Tomates concassées",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -512,7 +512,7 @@ export const ingredients = [
   {
     id: "poulet-morceaux-filet-cuisse-pilon",
     nom: "Poulet (morceaux : filet/cuisse/pilon)",
-    rayon: "Boucherie halal",
+    rayon: "Boucherie",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -567,7 +567,7 @@ export const ingredients = [
   {
     id: "miel",
     nom: "Miel",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -578,7 +578,7 @@ export const ingredients = [
   {
     id: "haricots-rouges-ou-noirs",
     nom: "Haricots rouges (ou noirs)",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -589,7 +589,7 @@ export const ingredients = [
   {
     id: "flocons-d-avoine",
     nom: "Flocons d'avoine",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -611,7 +611,7 @@ export const ingredients = [
   {
     id: "noix-et-amandes",
     nom: "Noix et amandes",
-    rayon: "Épicerie",
+    rayon: "Épicerie sucrée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -633,7 +633,7 @@ export const ingredients = [
   {
     id: "poisson-en-boite-thon-sardines-maquereau",
     nom: "Poisson en boîte (thon/sardines/maquereau)",
-    rayon: "Conserves",
+    rayon: "Épicerie salée",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -666,7 +666,7 @@ export const ingredients = [
   {
     id: "ail-en-poudre",
     nom: "Ail en poudre",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -680,7 +680,7 @@ export const ingredients = [
   {
     id: "curcuma",
     nom: "Curcuma",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -691,7 +691,7 @@ export const ingredients = [
   {
     id: "gingembre-moulu",
     nom: "Gingembre moulu",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
@@ -702,7 +702,7 @@ export const ingredients = [
   {
     id: "graines-de-nigelle",
     nom: "Graines de nigelle (Black seed)",
-    rayon: "Épices",
+    rayon: "Épices et condiments",
     unite: "g",
     enStock: 0,
     essentiel: false,
