@@ -40,6 +40,10 @@ import {
   ajouterRepas,
   renommerRepas,
   supprimerRepas,
+  ingredientsManquantsPourPlat,
+  ajouterRepasPret,
+  mangerRepasPret,
+  retirerRepasPret,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -90,11 +94,10 @@ test("convertirVersUniteStock : cuillère sans parCuillereACafe → erreur", () 
 
 // --- caseCompte ---
 
-test("caseCompte : vrai seulement avec un plat, pas 'reste', et des portions > 0", () => {
-  assert.equal(caseCompte({ platId: "p1", preparation: "cuisine-ici", portions: 1 }), true);
-  assert.equal(caseCompte({ platId: null, preparation: "cuisine-ici", portions: 1 }), false);
-  assert.equal(caseCompte({ platId: "p1", preparation: "reste", portions: 1 }), false);
-  assert.equal(caseCompte({ platId: "p1", preparation: "cuisine-ici", portions: 0 }), false);
+test("caseCompte : vrai seulement avec un plat et des portions > 0", () => {
+  assert.equal(caseCompte({ platId: "p1", portions: 1 }), true);
+  assert.equal(caseCompte({ platId: null, portions: 1 }), false);
+  assert.equal(caseCompte({ platId: "p1", portions: 0 }), false);
 });
 
 // --- calculerBesoins (avec un plat et un ingrédient fabriqués, pour un calcul exact) ---
@@ -133,12 +136,11 @@ test("calculerBesoins : additionne plusieurs plats différents d'une même case"
   assert.equal(besoins.get("huile"), 10);
 });
 
-test("calculerBesoins : ignore les cases 'reste', déjà cuisinées, à 0 portion ou vides", () => {
+test("calculerBesoins : ignore les cases déjà mangées, à 0 portion ou vides", () => {
   const cases = [
-    { platId: "plat-test", portions: 2, preparation: "reste", cuisine: false },
-    { platId: "plat-test", portions: 2, preparation: "cuisine-ici", cuisine: true },
-    { platId: "plat-test", portions: 0, preparation: "cuisine-ici", cuisine: false },
-    { platId: null, portions: 1, preparation: "cuisine-ici", cuisine: false },
+    { platId: "plat-test", portions: 2, cuisine: true },
+    { platId: "plat-test", portions: 0, cuisine: false },
+    { platId: null, portions: 1, cuisine: false },
   ];
   const besoins = calculerBesoins(cases, [platTest], ingredientsTest);
   assert.equal(besoins.size, 0);
@@ -799,6 +801,65 @@ test("creerEtatInitial : Déjeuner et Dîner sont fusionnés en un seul repas", 
 
   const platsDejeunerOuDiner = etat.plats.filter((p) => p.repas === dejeunerDiner.id);
   assert.ok(platsDejeunerOuDiner.length > 0, "des plats importés (Déjeuner ou Dîner) doivent y être rattachés");
+});
+
+// --- ingredientsManquantsPourPlat (avertissement stock insuffisant, écran Semaine) ---
+
+test("ingredientsManquantsPourPlat : liste les ingrédients dont le stock actuel ne suffit pas", () => {
+  const etat = etatDeTest();
+  // plat-test a besoin de 100 g de riz par portion ; le riz de etatDeTest a 200 g en stock.
+  const manquants2Portions = ingredientsManquantsPourPlat(etat, "plat-test", 2); // besoin 200g, stock 200g
+  assert.deepEqual(manquants2Portions, []);
+
+  const manquants3Portions = ingredientsManquantsPourPlat(etat, "plat-test", 3); // besoin 300g, stock 200g
+  assert.equal(manquants3Portions.length, 1);
+  assert.equal(manquants3Portions[0].nom, riz.nom);
+  assert.equal(manquants3Portions[0].manque, 100);
+});
+
+test("ingredientsManquantsPourPlat : rend un tableau vide si le plat n'existe pas (pas de plantage)", () => {
+  const etat = etatDeTest();
+  assert.deepEqual(ingredientsManquantsPourPlat(etat, "plat-inconnu", 1), []);
+});
+
+// --- Repas prêts (ajouterRepasPret / mangerRepasPret / retirerRepasPret) ---
+
+test("ajouterRepasPret : avec un plat connu, déduit le stock d'ingrédients immédiatement", () => {
+  const etat = etatDeTest();
+  const rizAvant = etat.ingredients.find((i) => i.id === "riz").enStock;
+
+  const repasPret = ajouterRepasPret(etat, { nom: "Riz sauté (batch)", platId: "plat-test", portions: 2 });
+  assert.equal(repasPret.portions, 2);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, rizAvant - 200); // 2 × 100g
+  assert.ok(etat.repasPrets.some((r) => r.id === repasPret.id));
+});
+
+test("ajouterRepasPret : sans plat (recette inconnue), ne touche jamais le stock", () => {
+  const etat = etatDeTest();
+  const rizAvant = etat.ingredients.find((i) => i.id === "riz").enStock;
+
+  const repasPret = ajouterRepasPret(etat, { nom: "Plat mongol du voisin", portions: 3 });
+  assert.equal(repasPret.platId, null);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, rizAvant);
+});
+
+test("mangerRepasPret : décrémente d'une portion, retire l'entrée à 0", () => {
+  const etat = etatDeTest();
+  const repasPret = ajouterRepasPret(etat, { nom: "Plat mongol du voisin", portions: 2 });
+
+  mangerRepasPret(etat, repasPret.id);
+  assert.equal(etat.repasPrets.find((r) => r.id === repasPret.id).portions, 1);
+
+  mangerRepasPret(etat, repasPret.id);
+  assert.ok(!etat.repasPrets.some((r) => r.id === repasPret.id), "l'entrée doit disparaître à 0 portion");
+});
+
+test("retirerRepasPret : supprime l'entrée entière, quel que soit le nombre de portions restantes", () => {
+  const etat = etatDeTest();
+  const repasPret = ajouterRepasPret(etat, { nom: "Plat mongol du voisin", portions: 5 });
+
+  retirerRepasPret(etat, repasPret.id);
+  assert.ok(!etat.repasPrets.some((r) => r.id === repasPret.id));
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

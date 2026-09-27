@@ -65,16 +65,17 @@ export function convertirVersUniteStock(quantite, uniteLigne, ingredient) {
 
 // Une case (qu'elle vienne du modèle ou de l'historique) compte-t-elle dans
 // les calculs (besoin, déduction du stock) ? Non si : aucun plat choisi
-// (case volontairement vide, ex. "je sors au restaurant"), "reste" (pas une
-// nouvelle cuisson), ou 0 portion (CLAUDE.md § Cas limites : équivalent à
-// un créneau vide).
+// (case volontairement vide, ex. "je sors au restaurant"), ou 0 portion
+// (CLAUDE.md § Cas limites : équivalent à un créneau vide). Un repas déjà
+// prêt (voir "Repas prêts" plus bas) ne passe jamais par ici : il vit à
+// part, hors du planning jour par jour.
 export function caseCompte(caseP) {
-  return Boolean(caseP.platId) && caseP.preparation !== "reste" && caseP.portions > 0;
+  return Boolean(caseP.platId) && caseP.portions > 0;
 }
 
 // Calcule, pour chaque ingrédient, la quantité nécessaire sur une liste de
-// cases qui ne sont ni "reste" ni déjà cuisinées (celles-ci ont déjà déduit
-// le stock au moment où on les a cochées, voir definirCuisine). Rend une
+// cases pas encore marquées mangées (celles-ci ont déjà déduit le stock au
+// moment où on les a cochées, voir definirCuisine). Rend une
 // Map<ingredientId, quantité en unité de stock>.
 export function calculerBesoins(cases, plats, ingredients) {
   const platsParId = new Map(plats.map((plat) => [plat.id, plat]));
@@ -244,7 +245,6 @@ export function obtenirElementsEffectifs(etat, dateISO, creneau) {
     id: regle.id,
     platId: regle.platId,
     portions: regle.portions,
-    preparation: regle.preparation,
     cuisine: false,
   }));
 }
@@ -380,13 +380,11 @@ export function definirCuisine(etat, dateISO, creneau, elementId, cuisine) {
 export function ajouterPlatAuJour(etat, dateISO, creneau, choix, propager = false) {
   const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
   const portions = clampPositif(choix.portions) || 1;
-  const preparation = choix.preparation ?? "cuisine-ici";
 
   jourEntree[creneau].push({
     id: genererId(),
     platId: choix.platId,
     portions,
-    preparation,
     cuisine: false,
   });
 
@@ -397,17 +395,15 @@ export function ajouterPlatAuJour(etat, dateISO, creneau, choix, propager = fals
       creneau,
       platId: choix.platId,
       portions,
-      preparation,
     });
   }
 }
 
-// Modifie les portions et/ou la préparation d'un plat déjà présent à une
-// date + créneau (toujours "juste ce jour" : pour changer la règle
-// récurrente, retirer puis rajouter avec "à partir d'aujourd'hui"). Si le
-// plat était déjà cuisiné, restitue d'abord son ancien stock avant
-// d'appliquer le changement (sécurité : on ne modifie jamais silencieusement
-// un plat déjà "consommé").
+// Modifie les portions d'un plat déjà présent à une date + créneau (toujours
+// "juste ce jour" : pour changer la règle récurrente, retirer puis rajouter
+// avec "à partir d'aujourd'hui"). Si le plat était déjà marqué mangé,
+// restitue d'abord son ancien stock avant d'appliquer le changement
+// (sécurité : on ne modifie jamais silencieusement un plat déjà "consommé").
 export function modifierElementDuJour(etat, dateISO, creneau, elementId, changements) {
   const jourEntree = obtenirOuCreerJourHistorique(etat, dateISO);
   const element = jourEntree[creneau].find((e) => e.id === elementId);
@@ -420,9 +416,6 @@ export function modifierElementDuJour(etat, dateISO, creneau, elementId, changem
 
   if (changements.portions !== undefined) {
     element.portions = clampPositif(changements.portions) || 1;
-  }
-  if (changements.preparation !== undefined) {
-    element.preparation = changements.preparation;
   }
 }
 
@@ -699,4 +692,67 @@ export function supprimerRepas(etat, repasId) {
   }
   etat.repas = etat.repas.filter((r) => r.id !== repasId);
   return { ok: true };
+}
+
+// --- Avertissement stock insuffisant (écran Semaine, choix "À cuisiner") ---
+
+// Pour un plat et un nombre de portions donnés, rend la liste des
+// ingrédients dont le stock actuel ne suffit pas (nom, quantité manquante,
+// unité). Purement informatif : n'AJUSTE rien, ne bloque rien (voir CLAUDE.md
+// § Cas limites — l'app prévient plutôt que d'empêcher).
+export function ingredientsManquantsPourPlat(etat, platId, portions) {
+  const plat = etat.plats.find((p) => p.id === platId);
+  if (!plat) return [];
+
+  const manquants = [];
+  for (const ligne of plat.ingredients) {
+    const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+    if (!ingredient) continue;
+
+    const besoin = portions * convertirVersUniteStock(ligne.quantitePortion, ligne.unite, ingredient);
+    if (besoin > ingredient.enStock) {
+      manquants.push({ nom: ingredient.nom, manque: besoin - ingredient.enStock, unite: ingredient.unite });
+    }
+  }
+  return manquants;
+}
+
+// --- Repas prêts (écran Semaine) ---
+//
+// Des portions déjà prêtes à manger, SANS lien avec un jour précis du
+// planning (modele/historique) — un plat offert par un voisin (recette
+// inconnue), un batch-cook fait à l'avance... Qassim les consulte et les
+// mange au fur et à mesure, sans devoir les caser dans un jour.
+
+// Ajoute des portions au stock de repas prêts. Si `platId` est fourni (un
+// vrai plat du catalogue, ex. un batch-cook), déduit IMMÉDIATEMENT le stock
+// d'ingrédients pour ces portions (on considère qu'elles viennent d'être
+// cuisinées) — sans `platId` (recette inconnue, ex. le plat du voisin),
+// aucun ingrédient n'est déduit, faute de savoir ce qu'il contient. Rend le
+// repas prêt créé.
+export function ajouterRepasPret(etat, { nom, platId = null, portions }) {
+  const quantite = clampPositif(portions) || 1;
+  if (platId) {
+    ajusterStockPourCase({ platId, portions: quantite }, etat.plats, etat.ingredients, -1);
+  }
+  const repasPret = { id: genererId(), nom, platId, portions: quantite };
+  etat.repasPrets.push(repasPret);
+  return repasPret;
+}
+
+// Marque une portion comme mangée : décrémente de 1. Rien d'autre à
+// cocher — si ça tombe à 0, l'entrée disparaît toute seule (CLAUDE.md
+// § Méthode : pas de case en trop pour un repas déjà à 0 portion).
+export function mangerRepasPret(etat, repasPretId) {
+  const repasPret = etat.repasPrets.find((r) => r.id === repasPretId);
+  if (!repasPret) return;
+  repasPret.portions -= 1;
+  if (repasPret.portions <= 0) {
+    etat.repasPrets = etat.repasPrets.filter((r) => r.id !== repasPretId);
+  }
+}
+
+// Retire un repas prêt en entier (ex. erreur de saisie, ou périmé/jeté).
+export function retirerRepasPret(etat, repasPretId) {
+  etat.repasPrets = etat.repasPrets.filter((r) => r.id !== repasPretId);
 }

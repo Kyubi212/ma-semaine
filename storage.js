@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 8;
+const VERSION_FORMAT = 9;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -126,6 +126,7 @@ export function creerEtatInitial() {
     })),
     modele: [],
     historique: {},
+    repasPrets: [],
   };
 }
 
@@ -285,6 +286,17 @@ function migrer(etat) {
     }
 
     etat = { ...etat, repas, plats, version: 8 };
+  }
+
+  if (etat.version === 8) {
+    // v8 → v9 : les "repas prêts" (portions déjà prêtes à manger, sans lien
+    // avec un jour précis — un plat offert, un batch-cook à l'avance...) —
+    // voir CLAUDE.md § Repas prêts. Le champ "preparation" (cuisine-ici/
+    // reste) des règles/éléments existants n'est plus utilisé (le choix
+    // cuisiner/manger sans cuisiner disparaît, remplacé par ce nouveau
+    // concept) ; on le laisse tel quel dans les données déjà sauvegardées,
+    // simplement ignoré par le code désormais.
+    etat = { ...etat, repasPrets: etat.repasPrets ?? [], version: 9 };
   }
 
   return etat;
