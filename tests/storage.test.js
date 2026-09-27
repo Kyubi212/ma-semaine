@@ -40,7 +40,7 @@ beforeEach(() => {
 test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
   assert.equal(etat.plats.length, 25);
-  assert.equal(etat.ingredients.length, 68);
+  assert.equal(etat.ingredients.length, 168);
   assert.equal(etat.version, 9);
   assert.deepEqual(etat.repasPrets, []);
 });
@@ -325,7 +325,7 @@ test("chargerEtat : stockage inaccessible (ex. mode privé) → ne plante pas", 
   };
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, true);
-  assert.equal(etat.ingredients.length, 68);
+  assert.equal(etat.ingredients.length, 168);
 });
 
 test("sauvegarderEtat : stockage plein → rend false, ne plante pas", () => {

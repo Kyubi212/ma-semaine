@@ -96,7 +96,7 @@ test("chaque plat a un nom et un repas non vides", () => {
   }
 });
 
-test("il y a bien 25 plats et 68 ingrédients (données Notion + ajouts manuels de Qassim)", () => {
+test("il y a bien 25 plats et 168 ingrédients (données Notion + ajouts manuels de Qassim)", () => {
   assert.equal(plats.length, 25);
-  assert.equal(ingredients.length, 68);
+  assert.equal(ingredients.length, 168);
 });
