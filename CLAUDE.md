@@ -199,7 +199,10 @@ refusée, avec la liste des ingrédients concernés — même logique que la sup
 ingrédient utilisé par un plat).
 
 Accès à cette gestion (renommer/supprimer/ajouter un rayon) : dans l'écran **Catalogue** (voir
-ci-dessous), pas dans l'écran Stock lui-même.
+ci-dessous), et aussi dans l'écran **Courses** via un bouton discret "✏️ Éditer les rayons" —
+masqué par défaut (pas un geste du quotidien), il révèle le même ✏️ sur chaque rayon une fois
+activé. Pas d'accès direct depuis l'écran Stock lui-même (il redirige déjà vers le Catalogue via
+"+ Ajouter un ingrédient").
 
 ### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock)
 
