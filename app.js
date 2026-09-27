@@ -32,6 +32,10 @@ import {
   ajouterRepas,
   renommerRepas,
   supprimerRepas,
+  ingredientsManquantsPourPlat,
+  ajouterRepasPret,
+  mangerRepasPret,
+  retirerRepasPret,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -192,7 +196,156 @@ const cartesCreneauxEl = document.getElementById("cartes-creneaux");
 boutonSemainePrecedente.addEventListener("click", () => changerSemaine(decalageSemaine - 1));
 boutonSemaineSuivante.addEventListener("click", () => changerSemaine(decalageSemaine + 1));
 
+// --- Repas prêts : des portions déjà prêtes à manger, sans lien avec un
+// jour précis (un plat offert, un batch-cook à l'avance...) — voir
+// CLAUDE.md § Repas prêts. Une section à part, au-dessus du planning. ---
+
+const listeRepasPretsEl = document.getElementById("liste-repas-prets");
+const repasPretsCompteEl = document.getElementById("repas-prets-compte");
+
+document.getElementById("ajouter-repas-pret").addEventListener("click", () => {
+  ouvrirPanneauNouveauRepasPret();
+});
+
+function rendreRepasPrets() {
+  repasPretsCompteEl.textContent = etat.repasPrets.length;
+  listeRepasPretsEl.innerHTML = "";
+
+  if (etat.repasPrets.length === 0) {
+    listeRepasPretsEl.innerHTML = `<p class="panneau-vide">Rien en stock pour l'instant.</p>`;
+    return;
+  }
+
+  for (const repasPret of etat.repasPrets) {
+    const ligne = document.createElement("div");
+    ligne.className = "element-prevu";
+    ligne.innerHTML = `
+      <div class="element-prevu-ligne1">
+        <span class="element-nom">${repasPret.nom}</span>
+        <button class="element-retirer" aria-label="Retirer">✕</button>
+      </div>
+      <div class="element-prevu-ligne2">
+        <span class="article-detail">${repasPret.portions} portion${repasPret.portions > 1 ? "s" : ""} restante${repasPret.portions > 1 ? "s" : ""}</span>
+        <button class="bouton-secondaire" data-action="manger">🍽️ Manger</button>
+      </div>
+    `;
+    ligne.querySelector(".element-retirer").addEventListener("click", () => {
+      retirerRepasPret(etat, repasPret.id);
+      sauvegarder();
+      rendreRepasPrets();
+    });
+    ligne.querySelector('[data-action="manger"]').addEventListener("click", () => {
+      mangerRepasPret(etat, repasPret.id);
+      sauvegarder();
+      rendreRepasPrets();
+    });
+    listeRepasPretsEl.appendChild(ligne);
+  }
+}
+
+// --- Panneau "ajouter un repas prêt" : soit depuis un plat déjà connu (ex.
+// un batch-cook — déduit son stock d'ingrédients immédiatement), soit un nom
+// libre pour une recette inconnue (ex. offerte par quelqu'un — ne touche
+// jamais le stock d'ingrédients). ---
+
+function ouvrirPanneauNouveauRepasPret() {
+  apresFermeturePanneau = rendreRepasPrets;
+  let platId = null; // null = recette inconnue (ne touche jamais le stock)
+  let montrerListePlats = false;
+  const nouveau = { nom: "", portions: 1 };
+
+  function rendrePanneau(messageErreur) {
+    const platChoisi = platId ? etat.plats.find((p) => p.id === platId) : null;
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">🍱 Nouveau repas prêt</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="repas-pret-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Plat mongol (offert par le voisin)">
+
+      <button class="bouton-discret" id="repas-pret-toggle-plat">
+        ${platChoisi ? `Lié à : ${platChoisi.nom} (toucher pour changer)` : "Lier à un plat déjà connu (ex. un batch-cook — déduit son stock d'ingrédients)"}
+      </button>
+      <div class="liste-plats" id="repas-pret-liste-plats" ${montrerListePlats ? "" : "hidden"}></div>
+      <p class="panneau-note">
+        Sans lien à un plat, aucun ingrédient n'est déduit (recette inconnue, ex. offerte par
+        quelqu'un). Avec un plat, le stock d'ingrédients est déduit tout de suite, pour ces
+        portions.
+      </p>
+
+      <div class="panneau-section-titre">Portions</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="repas-pret-moins" aria-label="Moins">−</button>
+        <span class="stepper-valeur">${nouveau.portions}</span>
+        <button class="stepper-bouton" id="repas-pret-plus" aria-label="Plus">+</button>
+      </div>
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="repas-pret-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#repas-pret-nom").addEventListener("change", (evenement) => {
+      nouveau.nom = evenement.target.value;
+    });
+
+    panneauPlatEl.querySelector("#repas-pret-toggle-plat").addEventListener("click", () => {
+      montrerListePlats = !montrerListePlats;
+      rendrePanneau();
+    });
+
+    if (montrerListePlats) {
+      const listePlatsEl = panneauPlatEl.querySelector("#repas-pret-liste-plats");
+      for (const plat of etat.plats) {
+        const item = document.createElement("button");
+        item.className = "plat-choix";
+        if (plat.id === platId) item.classList.add("selectionne");
+        item.textContent = plat.nom;
+        item.addEventListener("click", () => {
+          platId = plat.id;
+          if (!nouveau.nom) nouveau.nom = plat.nom;
+          montrerListePlats = false;
+          rendrePanneau();
+        });
+        listePlatsEl.appendChild(item);
+      }
+    }
+
+    panneauPlatEl.querySelector("#repas-pret-moins").addEventListener("click", () => {
+      nouveau.portions = Math.max(1, nouveau.portions - 1);
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#repas-pret-plus").addEventListener("click", () => {
+      nouveau.portions += 1;
+      rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#repas-pret-valider").addEventListener("click", () => {
+      const nomSaisi = panneauPlatEl.querySelector("#repas-pret-nom").value.trim() || platChoisi?.nom;
+      if (!nomSaisi) {
+        rendrePanneau("Donne un nom à ce repas.");
+        return;
+      }
+      ajouterRepasPret(etat, { nom: nomSaisi, platId, portions: nouveau.portions });
+      sauvegarder();
+      fermerPanneau();
+    });
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
 function rendreEcranSemaine() {
+  rendreRepasPrets();
   const dates = datesDeLaSemaine(referenceSemaineAffichee());
   const aujourdhuiISO = dateEnISO(new Date());
 
@@ -251,17 +404,14 @@ function construireCarteCreneau(dateISO, creneau) {
     `;
   } else if (elements.length === 1) {
     const [element] = elements;
-    const detailMorceaux = [];
-    if (element.preparation === "reste") detailMorceaux.push("🍽️ Sans cuisiner");
-    detailMorceaux.push(`${element.portions} portion${element.portions > 1 ? "s" : ""}`);
     infoBouton.innerHTML = `
       <span class="carte-creneau-entete">${infos.icone} ${infos.label}</span>
       <span class="carte-creneau-plat">${nomPlat(element.platId)}</span>
-      <span class="carte-creneau-detail">${detailMorceaux.join(" · ")}</span>
+      <span class="carte-creneau-detail">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
     `;
   } else {
     // Plusieurs plats pour ce créneau (voir CLAUDE.md § Plusieurs plats par
-    // créneau) : la carte résume, le détail (portions, Cuisiné par plat) se
+    // créneau) : la carte résume, le détail (portions, Mangé par plat) se
     // gère dans le panneau.
     infoBouton.innerHTML = `
       <span class="carte-creneau-entete">${infos.icone} ${infos.label}</span>
@@ -271,16 +421,15 @@ function construireCarteCreneau(dateISO, creneau) {
   }
   carte.appendChild(infoBouton);
 
-  // La case "Cuisiné" directement sur la carte n'a de sens que pour UN seul
-  // plat, pas "reste" (voir calculs.js → caseCompte). Avec plusieurs plats,
-  // chacun a sa propre case, gérée dans le panneau.
-  if (elements.length === 1 && elements[0].preparation !== "reste") {
+  // La case "Mangé" directement sur la carte n'a de sens que pour UN seul
+  // plat. Avec plusieurs plats, chacun a sa propre case, gérée dans le panneau.
+  if (elements.length === 1) {
     const [element] = elements;
     const caseACocher = document.createElement("input");
     caseACocher.type = "checkbox";
     caseACocher.className = "carte-creneau-cuisine";
     caseACocher.checked = element.cuisine;
-    caseACocher.setAttribute("aria-label", "Préparé (déduit le stock)");
+    caseACocher.setAttribute("aria-label", "Mangé (déduit le stock)");
     caseACocher.addEventListener("change", () => {
       definirCuisine(etat, dateISO, creneau, element.id, caseACocher.checked);
       sauvegarder();
@@ -349,10 +498,10 @@ function ouvrirPanneau(dateISO, creneau) {
 
       <div class="panneau-section-titre">Plats prévus</div>
       <p class="panneau-note">
-        Portions : par personne. "👨‍🍳 Cuisiner" = préparé maintenant (coche ensuite
-        "✅ Préparé" une fois fait, pour déduire le stock) — "🍽️ Manger, sans cuisiner" =
-        ex. un reste déjà cuisiné avant, ne touche jamais le stock. Rien à manger ici ? Ne
-        choisis aucun plat, ou retire celui déjà là avec ✕.
+        Portions : par personne. Coche "🍽️ Mangé" une fois préparé et mangé, pour déduire le
+        stock. Un repas déjà prêt à l'avance (offert, batch-cook...) ? Utilise plutôt
+        "🍱 Repas prêts" en haut de l'écran Semaine, pas besoin de le caser ici. Rien à manger
+        à ce repas ? Ne choisis aucun plat, ou retire celui déjà là avec ✕.
       </p>
       <div class="liste-elements" id="liste-elements"></div>
       ${elements.length === 0 ? `<p class="panneau-vide">Rien de prévu pour l'instant.</p>` : ""}
@@ -419,7 +568,11 @@ function ouvrirPanneau(dateISO, creneau) {
       const ligne = document.createElement("div");
       ligne.className = "element-prevu";
 
-      const peutCuisiner = element.preparation !== "reste";
+      const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
+      const texteManquants = manquants.length > 0
+        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        : "";
+
       ligne.innerHTML = `
         <div class="element-prevu-ligne1">
           <span class="element-nom">${nomPlat(element.platId)}</span>
@@ -431,24 +584,19 @@ function ouvrirPanneau(dateISO, creneau) {
             <span class="stepper-valeur">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
             <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
           </div>
-          <button class="pastille-prep" data-action="prep">${element.preparation === "reste" ? "🍽️ Manger, sans cuisiner" : "👨‍🍳 Cuisiner"}</button>
         </div>
-        ${peutCuisiner ? `
-          <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start; margin-top:8px;">
-            <input type="checkbox" class="element-cuisine" ${element.cuisine ? "checked" : ""}>
-            ✅ Préparé (déduit le stock)
-          </label>
-        ` : ""}
+        ${texteManquants ? `<p class="panneau-note" style="color:#c0392b;">${texteManquants}</p>` : ""}
+        <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start; margin-top:8px;">
+          <input type="checkbox" class="element-cuisine" ${element.cuisine ? "checked" : ""}>
+          🍽️ Mangé (déduit le stock)
+        </label>
       `;
 
-      const caseACocher = ligne.querySelector(".element-cuisine");
-      if (caseACocher) {
-        caseACocher.addEventListener("change", () => {
-          definirCuisine(etat, dateISO, creneau, element.id, caseACocher.checked);
-          sauvegarder();
-          rendrePanneau();
-        });
-      }
+      ligne.querySelector(".element-cuisine").addEventListener("change", (evenement) => {
+        definirCuisine(etat, dateISO, creneau, element.id, evenement.target.checked);
+        sauvegarder();
+        rendrePanneau();
+      });
       ligne.querySelector(".element-retirer").addEventListener("click", () => {
         retirerElementDuJour(etat, dateISO, creneau, element.id);
         sauvegarder();
@@ -464,13 +612,6 @@ function ouvrirPanneau(dateISO, creneau) {
         sauvegarder();
         rendrePanneau();
       });
-      ligne.querySelector('[data-action="prep"]').addEventListener("click", () => {
-        modifierElementDuJour(etat, dateISO, creneau, element.id, {
-          preparation: element.preparation === "reste" ? "cuisine-ici" : "reste",
-        });
-        sauvegarder();
-        rendrePanneau();
-      });
 
       listeElementsEl.appendChild(ligne);
     }
@@ -483,15 +624,20 @@ function ouvrirPanneau(dateISO, creneau) {
       if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
       item.textContent = plat.nom;
       item.addEventListener("click", () => {
-        candidat = { platId: plat.id, portions: 1, preparation: "cuisine-ici" };
+        candidat = { platId: plat.id, portions: 1 };
         rendrePanneau();
       });
       listePlatsEl.appendChild(item);
     }
 
-    // --- Zone du candidat sélectionné (portions, préparation, boutons d'ajout) ---
+    // --- Zone du candidat sélectionné (portions, avertissement stock, boutons d'ajout) ---
     const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat");
     if (candidat) {
+      const manquants = ingredientsManquantsPourPlat(etat, candidat.platId, candidat.portions);
+      const texteManquants = manquants.length > 0
+        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        : "";
+
       zoneCandidatEl.innerHTML = `
         <div class="panneau-section-titre">${nomPlat(candidat.platId)}</div>
         <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
@@ -500,10 +646,7 @@ function ouvrirPanneau(dateISO, creneau) {
           <span class="stepper-valeur">${candidat.portions}</span>
           <button class="stepper-bouton" id="candidat-plus" aria-label="Plus de portions">+</button>
         </div>
-        <div class="segmente">
-          <button class="segmente-bouton" id="candidat-prep-cuisine" type="button">👨‍🍳 Cuisiner</button>
-          <button class="segmente-bouton" id="candidat-prep-reste" type="button">🍽️ Manger, sans cuisiner</button>
-        </div>
+        ${texteManquants ? `<p class="panneau-note" style="color:#c0392b;">${texteManquants}</p>` : ""}
         <div class="panneau-actions">
           <button class="bouton-principal" id="ajouter-jour">Ajouter juste ce jour</button>
           <button class="bouton-secondaire" id="ajouter-propager">Ajouter et en faire le défaut du ${jourLabel}</button>
@@ -520,18 +663,6 @@ function ouvrirPanneau(dateISO, creneau) {
       });
       zoneCandidatEl.querySelector("#candidat-plus").addEventListener("click", () => {
         candidat.portions += 1;
-        rendrePanneau();
-      });
-      const boutonPrepCuisine = zoneCandidatEl.querySelector("#candidat-prep-cuisine");
-      const boutonPrepReste = zoneCandidatEl.querySelector("#candidat-prep-reste");
-      boutonPrepCuisine.classList.toggle("selectionne", candidat.preparation === "cuisine-ici");
-      boutonPrepReste.classList.toggle("selectionne", candidat.preparation === "reste");
-      boutonPrepCuisine.addEventListener("click", () => {
-        candidat.preparation = "cuisine-ici";
-        rendrePanneau();
-      });
-      boutonPrepReste.addEventListener("click", () => {
-        candidat.preparation = "reste";
         rendrePanneau();
       });
 

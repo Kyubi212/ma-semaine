@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20260927k">
+  <link rel="stylesheet" href="style.css?v=20260928a">
 </head>
 <body>
   <header class="app-header">
@@ -19,6 +19,12 @@
   <main id="contenu">
     <!-- Le contenu de l'écran actif est affiché ici par app.js -->
     <section id="ecran-semaine" class="ecran">
+      <details id="repas-prets-groupe" class="rayon-groupe">
+        <summary class="rayon-titre">🍱 Repas prêts <span class="rayon-compte" id="repas-prets-compte"></span></summary>
+        <div id="liste-repas-prets"></div>
+        <button id="ajouter-repas-pret" class="bouton-discret">+ Ajouter un repas prêt</button>
+      </details>
+
       <div class="semaine-nav">
         <button id="semaine-precedente" class="semaine-nav-fleche" aria-label="Semaine précédente">←</button>
         <span id="semaine-label" class="semaine-label"></span>
@@ -81,6 +87,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260927k"></script>
+  <script type="module" src="app.js?v=20260928a"></script>
 </body>
 </html>
