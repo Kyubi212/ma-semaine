@@ -41,9 +41,9 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | Écran | Rôle |
 |---|---|
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
-| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock |
+| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 | **Plats & repas** | Bibliothèque de plats, filtrable par repas, ajout/modification par Qassim |
-| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" ouvre l'écran **Catalogue** (recherche par nom + parcours par rayon, montrant TOUS les ingrédients y compris à 0 g / non essentiels) plutôt qu'un simple formulaire de création — voir "Rayons éditables" ci-dessous |
+| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
 import de sauvegarde" est dans un menu ⋯ en haut (pas un 5e onglet). Écran d'ouverture : Semaine,
@@ -199,22 +199,35 @@ refusée, avec la liste des ingrédients concernés — même logique que la sup
 ingrédient utilisé par un plat).
 
 Accès à cette gestion (renommer/supprimer/ajouter un rayon) : dans l'écran **Catalogue** (voir
-ci-dessous), et aussi dans l'écran **Courses** via un bouton discret "✏️ Éditer les rayons" —
-masqué par défaut (pas un geste du quotidien), il révèle le même ✏️ sur chaque rayon une fois
-activé. Pas d'accès direct depuis l'écran Stock lui-même (il redirige déjà vers le Catalogue via
-"+ Ajouter un ingrédient").
+ci-dessous), où chaque rayon a toujours son ✏️. Aussi depuis **Stock** et **Courses**, via un
+bouton discret "✏️ Éditer les rayons" — masqué par défaut (pas un geste du quotidien), il révèle
+le même ✏️ sur chaque rayon une fois activé. Sur Stock, l'activer montre exceptionnellement TOUS
+les rayons, même ceux vides sous le filtre courant (ex. Essentiels), sinon impossibles à
+retrouver pour les renommer ; sur Courses, seuls les rayons qui contiennent quelque chose à
+acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 13
+rayons).
 
-### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock)
+### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock, et "+ Ajouter un
+extra" dans Courses)
 
 Contrairement à l'écran Stock (qui ne montre que ce que Qassim a réellement — voir "Règles de
 calcul" pour la logique vide/bas/ok), le Catalogue montre **tous** les ingrédients, y compris ceux
-à 0 g et non essentiels, pour pouvoir retrouver n'importe lequel et lui redonner du stock (sinon
-un ingrédient à 0 g et pas essentiel deviendrait injoignable). Il propose : une recherche par nom
-(insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), un parcours par rayon
+à 0 g et non essentiels, pour pouvoir retrouver n'importe lequel. Il propose : une recherche par
+nom (insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), un parcours par rayon
 (blocs repliables comme Courses/Stock), un bouton pour créer un tout nouvel ingrédient, et un
 bouton pour gérer les rayons (renommer/supprimer/ajouter — voir "Rayons éditables" ci-dessus).
-Toucher un ingrédient ouvre son panneau d'édition habituel (stock, essentiel, minimum,
-suppression), avec un retour vers le Catalogue à la fermeture (pas vers Stock).
+
+Le Catalogue s'adapte à l'endroit d'où il est ouvert (même écran, deux comportements) :
+- depuis **Stock** ("+ Ajouter un ingrédient") : toucher un ingrédient ouvre son panneau d'édition
+  habituel (stock, essentiel, minimum, suppression), pour lui redonner du stock (sinon un
+  ingrédient à 0 g et pas essentiel deviendrait injoignable) ;
+- depuis **Courses** ("+ Ajouter un extra") : toucher un ingrédient ouvre une étape quantité +
+  "Ajouter cet extra", pour un ingrédient qu'on n'a pas à la maison mais qu'on sait exister dans le
+  catalogue.
+
+Dans les deux cas, fermer ce panneau d'action revient au Catalogue (pas à l'écran de départ), pour
+en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ
+(Stock ou Courses selon le cas).
 
 ## Sécurité et vie privée
 
