@@ -638,73 +638,50 @@ function rendreEcranCourses() {
   }
 }
 
-// --- Panneau "ajouter un extra" ---
+// --- Panneau "ajouter un extra" : passe par le Catalogue (recherche +
+// rayons, voir CLAUDE.md § Écran Catalogue) pour retrouver un ingrédient
+// qu'on n'a pas à la maison, puis une étape quantité dédiée. ---
 
-document.getElementById("ajouter-extra").addEventListener("click", ouvrirPanneauExtra);
+document.getElementById("ajouter-extra").addEventListener("click", () => {
+  ouvrirPanneauCatalogue(rendreEcranCourses, ouvrirPanneauExtraPourIngredient);
+});
 
-function ouvrirPanneauExtra() {
-  apresFermeturePanneau = rendreEcranCourses;
-  let candidat = null; // { ingredientId, quantite }
+function ouvrirPanneauExtraPourIngredient(ingredientId, retour = fermerPanneau) {
+  let quantite = 1;
 
   function rendrePanneau() {
+    const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">🛒 Ajouter un extra</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
 
-      <div class="panneau-section-titre">Ingrédient</div>
-      <div class="liste-plats" id="liste-ingredients"></div>
-
-      <div id="zone-candidat-extra"></div>
+      <div class="panneau-section-titre">${ingredient.nom} (${ingredient.unite})</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="extra-moins" aria-label="Moins">−</button>
+        <span class="stepper-valeur">${quantite}</span>
+        <button class="stepper-bouton" id="extra-plus" aria-label="Plus">+</button>
+      </div>
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="extra-ajouter">Ajouter cet extra</button>
+      </div>
     `;
 
-    const listeEl = panneauPlatEl.querySelector("#liste-ingredients");
-    for (const ingredient of etat.ingredients) {
-      const item = document.createElement("button");
-      item.className = "plat-choix";
-      if (candidat && candidat.ingredientId === ingredient.id) item.classList.add("selectionne");
-      item.textContent = ingredient.nom;
-      item.addEventListener("click", () => {
-        candidat = { ingredientId: ingredient.id, quantite: 1 };
-        rendrePanneau();
-      });
-      listeEl.appendChild(item);
-    }
-
-    const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat-extra");
-    if (candidat) {
-      const ingredient = etat.ingredients.find((i) => i.id === candidat.ingredientId);
-      zoneCandidatEl.innerHTML = `
-        <div class="panneau-section-titre">${ingredient.nom} (${ingredient.unite})</div>
-        <div class="stepper">
-          <button class="stepper-bouton" id="extra-moins" aria-label="Moins">−</button>
-          <span class="stepper-valeur">${candidat.quantite}</span>
-          <button class="stepper-bouton" id="extra-plus" aria-label="Plus">+</button>
-        </div>
-        <div class="panneau-actions">
-          <button class="bouton-principal" id="extra-ajouter">Ajouter cet extra</button>
-        </div>
-      `;
-      zoneCandidatEl.querySelector("#extra-moins").addEventListener("click", () => {
-        candidat.quantite = Math.max(0, candidat.quantite - 1);
-        rendrePanneau();
-      });
-      zoneCandidatEl.querySelector("#extra-plus").addEventListener("click", () => {
-        candidat.quantite += 1;
-        rendrePanneau();
-      });
-      zoneCandidatEl.querySelector("#extra-ajouter").addEventListener("click", () => {
-        ingredient.extra = clampPositif(ingredient.extra) + candidat.quantite;
-        sauvegarder();
-        candidat = null;
-        rendrePanneau();
-      });
-    } else {
-      zoneCandidatEl.innerHTML = "";
-    }
-
-    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+    panneauPlatEl.querySelector("#extra-moins").addEventListener("click", () => {
+      quantite = Math.max(0, quantite - 1);
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#extra-plus").addEventListener("click", () => {
+      quantite += 1;
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#extra-ajouter").addEventListener("click", () => {
+      ingredient.extra = clampPositif(ingredient.extra) + quantite;
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
   rendrePanneau();
@@ -741,6 +718,17 @@ filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
   });
 });
 
+// Mode "Éditer les rayons" : masqué par défaut (voir CLAUDE.md § Rayons
+// éditables). Une fois activé, montre TOUS les rayons (même ceux vides sous
+// le filtre courant, sinon impossible de les retrouver pour les renommer),
+// chacun avec un ✏️.
+let modeEditionRayonsStock = false;
+const editerRayonsStockEl = document.getElementById("editer-rayons-stock");
+editerRayonsStockEl.addEventListener("click", () => {
+  modeEditionRayonsStock = !modeEditionRayonsStock;
+  rendreEcranStock();
+});
+
 function ingredientsFiltres() {
   switch (filtreStock) {
     case "essentiels":
@@ -756,18 +744,19 @@ function rendreEcranStock() {
   filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
     bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtreStock);
   });
+  editerRayonsStockEl.textContent = modeEditionRayonsStock ? "✓ Terminé" : "✏️ Éditer les rayons";
 
   const liste = ingredientsFiltres();
   listeStockEl.innerHTML = "";
 
-  if (liste.length === 0) {
+  if (liste.length === 0 && !modeEditionRayonsStock) {
     listeStockEl.innerHTML = `<p class="liste-vide">Rien à afficher pour ce filtre.</p>`;
     return;
   }
 
   for (const rayon of etat.rayons) {
     const ingredients = liste.filter((i) => i.rayon === rayon.id);
-    if (ingredients.length === 0) continue;
+    if (ingredients.length === 0 && !modeEditionRayonsStock) continue;
 
     const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
@@ -776,7 +765,22 @@ function rendreEcranStock() {
       if (groupe.open) rayonsRepliesStock.delete(rayon.id);
       else rayonsRepliesStock.add(rayon.id);
     });
-    groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></summary>`;
+
+    if (modeEditionRayonsStock) {
+      const summary = document.createElement("summary");
+      summary.className = "rayon-titre";
+      summary.innerHTML = `
+        <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></span>
+        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
+      `;
+      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
+        evenement.preventDefault();
+        ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranStock);
+      });
+      groupe.appendChild(summary);
+    } else {
+      groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></summary>`;
+    }
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -912,7 +916,7 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
 
 // --- Panneau "ajouter un ingrédient" ---
 
-document.getElementById("ajouter-ingredient").addEventListener("click", ouvrirPanneauCatalogue);
+document.getElementById("ajouter-ingredient").addEventListener("click", () => ouvrirPanneauCatalogue());
 
 function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
   apresFermeturePanneau = rendreEcranStock;
@@ -1014,8 +1018,15 @@ function normaliserRecherche(texte) {
     .replace(/[̀-ͯ]/g, "");
 }
 
-function ouvrirPanneauCatalogue() {
-  apresFermeturePanneau = rendreEcranStock;
+// ecranSousJacent : l'écran à re-afficher quand tout le panneau se ferme
+// (Stock par défaut, ou Courses depuis "+ Ajouter un extra").
+// onChoisirIngredient(id, retourVersCatalogue) : par défaut, toucher un
+// ingrédient ouvre son panneau d'édition habituel (stock/essentiel/minimum).
+// Depuis "+ Ajouter un extra", on passe une fonction différente (quantité +
+// "Ajouter cet extra") — voir ouvrirPanneauExtraPourIngredient.
+function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIngredient = null) {
+  apresFermeturePanneau = ecranSousJacent;
+  const retourVersCatalogue = () => ouvrirPanneauCatalogue(ecranSousJacent, onChoisirIngredient);
 
   function rendreListe() {
     const recherche = normaliserRecherche(rechercheCatalogue.trim());
@@ -1052,7 +1063,7 @@ function ouvrirPanneauCatalogue() {
       `;
       summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
         evenement.preventDefault();
-        ouvrirPanneauRayon(rayon.id, ouvrirPanneauCatalogue);
+        ouvrirPanneauRayon(rayon.id, retourVersCatalogue, ecranSousJacent);
       });
       groupe.appendChild(summary);
 
@@ -1072,7 +1083,10 @@ function ouvrirPanneauCatalogue() {
             <span class="article-unite">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
           </div>
         `;
-        ligne.addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id, ouvrirPanneauCatalogue));
+        ligne.addEventListener("click", () => {
+          if (onChoisirIngredient) onChoisirIngredient(ingredient.id, retourVersCatalogue);
+          else ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue);
+        });
         articlesEl.appendChild(ligne);
       }
       groupe.appendChild(articlesEl);
@@ -1101,10 +1115,10 @@ function ouvrirPanneauCatalogue() {
     rendreListe();
   });
   panneauPlatEl.querySelector("#catalogue-nouvel-ingredient").addEventListener("click", () => {
-    ouvrirPanneauNouvelIngredient(ouvrirPanneauCatalogue);
+    ouvrirPanneauNouvelIngredient(retourVersCatalogue);
   });
   panneauPlatEl.querySelector("#catalogue-nouveau-rayon").addEventListener("click", () => {
-    ouvrirPanneauNouveauRayon(ouvrirPanneauCatalogue);
+    ouvrirPanneauNouveauRayon(retourVersCatalogue, ecranSousJacent);
   });
   panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
 
