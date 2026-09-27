@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 4;
+const VERSION_FORMAT = 5;
 
 // Construit la liste de rayons par défaut { id, nom } à partir des noms
 // écrits dans constantes.js. Utilisé au tout premier lancement ET par la
@@ -65,6 +65,7 @@ export function creerEtatInitial() {
     })),
     plats: platsParDefaut.map((plat) => ({
       ...plat,
+      favori: plat.favori ?? false,
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
     modele: [],
@@ -155,6 +156,15 @@ function migrer(etat) {
         rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
       })),
       version: 4,
+    };
+  }
+
+  if (etat.version === 4) {
+    // v4 → v5 : les plats peuvent être marqués favoris (écran Plats & repas).
+    etat = {
+      ...etat,
+      plats: (etat.plats ?? []).map((plat) => ({ ...plat, favori: plat.favori ?? false })),
+      version: 5,
     };
   }
 

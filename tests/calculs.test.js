@@ -31,6 +31,9 @@ import {
   ajouterRayon,
   renommerRayon,
   supprimerRayon,
+  ajouterPlat,
+  modifierPlat,
+  supprimerPlat,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -607,6 +610,81 @@ test("supprimerRayon : autorise si aucun ingrédient ne l'utilise", () => {
 
   assert.equal(resultat.ok, true);
   assert.ok(!etat.rayons.some((r) => r.id === rayon.id));
+});
+
+// --- Écran Plats & repas (ajouterPlat / modifierPlat / supprimerPlat) ---
+
+test("ajouterPlat : crée un plat avec favori à false, portions minimum 1", () => {
+  const etat = etatDeTest();
+  const plat = ajouterPlat(etat, {
+    nom: "Riz sauté aux légumes",
+    repas: "Déjeuner",
+    etapes: "Faire revenir le riz avec les légumes.",
+    ingredients: [{ ingredientId: "riz", quantitePortion: 150, unite: "g" }],
+  });
+
+  assert.equal(plat.nom, "Riz sauté aux légumes");
+  assert.equal(plat.favori, false);
+  assert.equal(plat.portionsReference, 1);
+  assert.ok(etat.plats.some((p) => p.id === plat.id));
+});
+
+test("ajouterPlat : deux noms proches n'entrent jamais en collision d'id", () => {
+  const etat = etatDeTest();
+  const premier = ajouterPlat(etat, { nom: "Salade", repas: "Snack", ingredients: [] });
+  const second = ajouterPlat(etat, { nom: "Salade", repas: "Snack", ingredients: [] });
+  assert.notEqual(premier.id, second.id);
+});
+
+test("modifierPlat : change nom, repas, étapes, ingrédients et favori indépendamment, sans changer l'id", () => {
+  const etat = etatDeTest();
+  const plat = ajouterPlat(etat, { nom: "Bowl", repas: "Snack", ingredients: [] });
+
+  modifierPlat(etat, plat.id, { favori: true });
+  assert.equal(plat.favori, true);
+  assert.equal(plat.nom, "Bowl"); // inchangé
+
+  modifierPlat(etat, plat.id, {
+    nom: "Bowl protéiné",
+    repas: "Lunch",
+    etapes: "Mélanger.",
+    ingredients: [{ ingredientId: "riz", quantitePortion: 80, unite: "g" }],
+  });
+  assert.equal(plat.id, "bowl", "l'id ne change jamais (le modèle et l'historique le référencent)");
+  assert.equal(plat.nom, "Bowl protéiné");
+  assert.equal(plat.repas, "Lunch");
+  assert.equal(plat.ingredients.length, 1);
+  assert.equal(plat.favori, true); // inchangé
+});
+
+test("supprimerPlat : refuse si utilisé dans le modèle, en nommant les jours", () => {
+  const etat = etatDeTest();
+  etat.modele.push({ id: "r1", jour: "lundi", creneau: "lunch", platId: "plat-test", portions: 2, preparation: "cuisine-ici" });
+
+  const resultat = supprimerPlat(etat, "plat-test");
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.joursModele, ["lundi"]);
+  assert.ok(etat.plats.some((p) => p.id === "plat-test"), "le plat ne doit pas être supprimé");
+});
+
+test("supprimerPlat : refuse si utilisé dans l'historique, en nommant les dates", () => {
+  const etat = etatDeTest();
+  etat.historique["2026-09-21"] = {
+    lunch: [{ id: "e1", platId: "plat-test", portions: 1, preparation: "cuisine-ici", cuisine: true }],
+  };
+
+  const resultat = supprimerPlat(etat, "plat-test");
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.datesHistorique, ["2026-09-21"]);
+});
+
+test("supprimerPlat : autorise si le plat n'est utilisé nulle part", () => {
+  const etat = etatDeTest();
+  const plat = ajouterPlat(etat, { nom: "Plat jamais planifié", repas: "Snack", ingredients: [] });
+
+  const resultat = supprimerPlat(etat, plat.id);
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.plats.some((p) => p.id === plat.id));
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

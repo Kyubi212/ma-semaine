@@ -128,8 +128,9 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
-- **Plat** (MVP allégé) : id, nom, repas, étapes, liste d'ingrédients avec quantité **par
-  portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
+- **Plat** (MVP allégé) : id, nom, repas, étapes, portions de référence, favori (oui/non), liste
+  d'ingrédients avec quantité **par portion**. (Temps, matériel, protéine principale : reportés
+  après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions, préparation
   (cuisiné ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle"). Plusieurs
   règles peuvent partager le même jour + créneau.
@@ -137,7 +138,8 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 3 ; migrations en chaîne v1 → v2 → v3 dans `storage.js` → `migrer`).
+du format (actuellement 5 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 dans `storage.js` →
+`migrer`).
 
 ## Règles de calcul
 
@@ -154,6 +156,9 @@ du format (actuellement 3 ; migrations en chaîne v1 → v2 → v3 dans `storage
   0 avec un avertissement, jamais bloqué.
 - Un ingrédient utilisé par au moins un plat ne peut pas être supprimé (la suppression est
   refusée, avec la liste des plats concernés affichée).
+- Un plat utilisé dans le modèle (règles de la semaine type) ou dans l'historique (n'importe
+  quelle date, passée ou future) ne peut pas être supprimé, même logique (suppression refusée,
+  avec le détail des jours/dates concernés).
 
 ## Cas limites à gérer
 

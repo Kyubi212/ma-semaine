@@ -566,3 +566,72 @@ export function supprimerIngredient(etat, ingredientId) {
   etat.ingredients = etat.ingredients.filter((i) => i.id !== ingredientId);
   return { ok: true };
 }
+
+// --- Écran Plats & repas ---
+
+// Ajoute un tout nouveau plat au catalogue (écran Plats & repas). `favori`
+// démarre toujours à false (à cocher ensuite depuis la liste). Rend le plat
+// créé.
+export function ajouterPlat(etat, { nom, repas, assemblage = true, portionsReference = 1, etapes = "", ingredients = [] }) {
+  const idsExistants = new Set(etat.plats.map((p) => p.id));
+  const plat = {
+    id: genererSlug(nom, idsExistants),
+    nom,
+    repas,
+    assemblage,
+    portionsReference: Math.max(1, Math.round(Number(portionsReference)) || 1),
+    etapes,
+    ingredients: ingredients.map((ligne) => ({ ...ligne })),
+    favori: false,
+  };
+  etat.plats.push(plat);
+  return plat;
+}
+
+// Modifie un plat existant. L'id ne change jamais (les règles du modèle et
+// l'historique le référencent). `ingredients`, si fourni, REMPLACE toute la
+// liste (pas de fusion partielle).
+export function modifierPlat(etat, platId, changements) {
+  const plat = etat.plats.find((p) => p.id === platId);
+  if (!plat) return;
+
+  if (changements.nom !== undefined) {
+    const nom = changements.nom.trim();
+    if (nom) plat.nom = nom;
+  }
+  if (changements.repas !== undefined) plat.repas = changements.repas;
+  if (changements.assemblage !== undefined) plat.assemblage = Boolean(changements.assemblage);
+  if (changements.portionsReference !== undefined) {
+    plat.portionsReference = Math.max(1, Math.round(Number(changements.portionsReference)) || 1);
+  }
+  if (changements.etapes !== undefined) plat.etapes = changements.etapes;
+  if (changements.ingredients !== undefined) {
+    plat.ingredients = changements.ingredients.map((ligne) => ({ ...ligne }));
+  }
+  if (changements.favori !== undefined) plat.favori = Boolean(changements.favori);
+}
+
+// Supprime un plat — SAUF s'il est encore utilisé, dans le modèle (règles de
+// la semaine type) OU dans l'historique (n'importe quelle date, passée ou
+// future) : la suppression est alors refusée, avec le détail de ces
+// utilisations, plutôt que de laisser une référence orpheline (un jour déjà
+// planifié qui pointerait vers un plat qui n'existe plus). Rend { ok: true }
+// si supprimé, { ok: false, joursModele, datesHistorique } sinon.
+export function supprimerPlat(etat, platId) {
+  const joursModele = etat.modele.filter((regle) => regle.platId === platId).map((regle) => regle.jour);
+
+  const datesHistorique = [];
+  for (const [dateISO, jourEntree] of Object.entries(etat.historique)) {
+    const utiliseCeJour = Object.values(jourEntree).some((elements) =>
+      elements.some((element) => element.platId === platId)
+    );
+    if (utiliseCeJour) datesHistorique.push(dateISO);
+  }
+
+  if (joursModele.length > 0 || datesHistorique.length > 0) {
+    return { ok: false, joursModele, datesHistorique };
+  }
+
+  etat.plats = etat.plats.filter((p) => p.id !== platId);
+  return { ok: true };
+}
