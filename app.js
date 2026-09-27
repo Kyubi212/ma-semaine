@@ -777,15 +777,10 @@ const achetesSession = new Map();
 const rayonsReplies = new Set();
 
 // Mode "Éditer les rayons" : masqué par défaut (pas un geste du quotidien —
-// voir CLAUDE.md § Rayons éditables), affiche un ✏️ sur chaque titre de
-// rayon pour le renommer/supprimer une fois activé.
-let modeEditionRayonsCourses = false;
-const editerRayonsCoursesEl = document.getElementById("editer-rayons-courses");
+// voir CLAUDE.md § Rayons éditables) : un ✏️ TOUJOURS visible sur chaque
+// titre de rayon permet de le renommer/supprimer (plus de mode "édition" à
+// activer au préalable — retour de Qassim : plus ergonomique, plus visible).
 const nouveauRayonCoursesEl = document.getElementById("nouveau-rayon-courses");
-editerRayonsCoursesEl.addEventListener("click", () => {
-  modeEditionRayonsCourses = !modeEditionRayonsCourses;
-  rendreEcranCourses();
-});
 nouveauRayonCoursesEl.addEventListener("click", () => {
   ouvrirPanneauNouveauRayon(fermerPanneau, rendreEcranCourses);
 });
@@ -819,9 +814,6 @@ function formaterDetail(article) {
 const listeCoursesEl = document.getElementById("liste-courses");
 
 function rendreEcranCourses() {
-  editerRayonsCoursesEl.textContent = modeEditionRayonsCourses ? "✓ Terminé" : "✏️ Éditer les rayons";
-  nouveauRayonCoursesEl.hidden = !modeEditionRayonsCourses;
-
   const liste = construireListeCourses(etat, new Date());
 
   // On ajoute les articles achetés pendant cette session mais qui ont
@@ -870,21 +862,17 @@ function rendreEcranCourses() {
       if (groupe.open) rayonsReplies.delete(rayon.id);
       else rayonsReplies.add(rayon.id);
     });
-    if (modeEditionRayonsCourses) {
-      const summary = document.createElement("summary");
-      summary.className = "rayon-titre";
-      summary.innerHTML = `
-        <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span></span>
-        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
-      `;
-      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
-        evenement.preventDefault();
-        ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranCourses);
-      });
-      groupe.appendChild(summary);
-    } else {
-      groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${articles.length}</span></summary>`;
-    }
+    const summary = document.createElement("summary");
+    summary.className = "rayon-titre";
+    summary.innerHTML = `
+      <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span></span>
+      <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
+    `;
+    summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
+      evenement.preventDefault();
+      ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranCourses);
+    });
+    groupe.appendChild(summary);
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -1013,14 +1001,15 @@ filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
   });
 });
 
-// Mode "Éditer les rayons" : masqué par défaut (voir CLAUDE.md § Rayons
-// éditables). Une fois activé, montre TOUS les rayons (même ceux vides sous
-// le filtre courant, sinon impossible de les retrouver pour les renommer),
-// chacun avec un ✏️.
-let modeEditionRayonsStock = false;
-const editerRayonsStockEl = document.getElementById("editer-rayons-stock");
-editerRayonsStockEl.addEventListener("click", () => {
-  modeEditionRayonsStock = !modeEditionRayonsStock;
+// "Voir les rayons vides" : masqué par défaut (voir CLAUDE.md § Rayons
+// éditables). Une fois activé, montre TOUS les rayons, même ceux vides sous
+// le filtre courant (le ✏️ pour renommer/supprimer un rayon, lui, est
+// TOUJOURS visible sur chaque rayon affiché — plus de mode "édition" séparé
+// à activer, retour de Qassim : plus ergonomique, plus visible).
+let voirRayonsVidesStock = false;
+const voirRayonsVidesStockEl = document.getElementById("voir-rayons-vides-stock");
+voirRayonsVidesStockEl.addEventListener("click", () => {
+  voirRayonsVidesStock = !voirRayonsVidesStock;
   rendreEcranStock();
 });
 
@@ -1039,19 +1028,19 @@ function rendreEcranStock() {
   filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
     bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtreStock);
   });
-  editerRayonsStockEl.textContent = modeEditionRayonsStock ? "✓ Terminé" : "✏️ Éditer les rayons";
+  voirRayonsVidesStockEl.textContent = voirRayonsVidesStock ? "✓ Terminé" : "👁️ Voir les rayons vides";
 
   const liste = ingredientsFiltres();
   listeStockEl.innerHTML = "";
 
-  if (liste.length === 0 && !modeEditionRayonsStock) {
+  if (liste.length === 0 && !voirRayonsVidesStock) {
     listeStockEl.innerHTML = `<p class="liste-vide">Rien à afficher pour ce filtre.</p>`;
     return;
   }
 
   for (const rayon of etat.rayons) {
     const ingredients = trierParNom(liste.filter((i) => i.rayon === rayon.id));
-    if (ingredients.length === 0 && !modeEditionRayonsStock) continue;
+    if (ingredients.length === 0 && !voirRayonsVidesStock) continue;
 
     const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
@@ -1061,21 +1050,17 @@ function rendreEcranStock() {
       else rayonsRepliesStock.add(rayon.id);
     });
 
-    if (modeEditionRayonsStock) {
-      const summary = document.createElement("summary");
-      summary.className = "rayon-titre";
-      summary.innerHTML = `
-        <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></span>
-        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
-      `;
-      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
-        evenement.preventDefault();
-        ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranStock);
-      });
-      groupe.appendChild(summary);
-    } else {
-      groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></summary>`;
-    }
+    const summary = document.createElement("summary");
+    summary.className = "rayon-titre";
+    summary.innerHTML = `
+      <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></span>
+      <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
+    `;
+    summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
+      evenement.preventDefault();
+      ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranStock);
+    });
+    groupe.appendChild(summary);
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -1560,12 +1545,9 @@ let filtreFavorisActif = false;
 // Étiquettes cochées en même temps (logique ET, décidée avec Qassim : un
 // plat doit porter TOUTES les étiquettes cochées pour apparaître).
 const etiquettesSelectionnees = new Set();
-let modeEditionEtiquettes = false;
-let modeEditionRepas = false;
 // Matériel coché en même temps (même logique ET que les étiquettes : un
 // plat doit demander TOUT le matériel coché pour apparaître).
 const materielSelectionnes = new Set();
-let modeEditionMateriel = false;
 
 let recherchePlats = "";
 
@@ -1599,18 +1581,15 @@ function ouvrirPanneauFiltresPlats() {
 
       <div class="panneau-section-titre">Repas</div>
       <div class="segmente" id="panneau-filtres-repas"></div>
-      <button class="bouton-discret" id="panneau-editer-repas">✏️ Éditer les repas</button>
-      <button class="bouton-discret" id="panneau-ajouter-repas" hidden>+ Ajouter un repas</button>
+      <button class="bouton-discret" id="panneau-ajouter-repas">+ Ajouter un repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
       <div class="segmente" id="panneau-filtres-etiquettes"></div>
-      <button class="bouton-discret" id="panneau-editer-etiquettes">✏️ Éditer les étiquettes</button>
-      <button class="bouton-discret" id="panneau-ajouter-etiquette" hidden>+ Ajouter une étiquette</button>
+      <button class="bouton-discret" id="panneau-ajouter-etiquette">+ Ajouter une étiquette</button>
 
       <div class="panneau-section-titre">Matériel</div>
       <div class="segmente" id="panneau-filtres-materiel"></div>
-      <button class="bouton-discret" id="panneau-editer-materiel">✏️ Éditer le matériel</button>
-      <button class="bouton-discret" id="panneau-ajouter-materiel" hidden>+ Ajouter un matériel</button>
+      <button class="bouton-discret" id="panneau-ajouter-materiel">+ Ajouter un matériel</button>
     `;
 
     const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris");
@@ -1620,19 +1599,23 @@ function ouvrirPanneauFiltresPlats() {
       rendrePanneau();
     });
 
-    const editerRepasEl = panneauPlatEl.querySelector("#panneau-editer-repas");
-    const ajouterRepasEl = panneauPlatEl.querySelector("#panneau-ajouter-repas");
-    editerRepasEl.textContent = modeEditionRepas ? "✓ Terminé" : "✏️ Éditer les repas";
-    ajouterRepasEl.hidden = !modeEditionRepas;
-    editerRepasEl.addEventListener("click", () => {
-      modeEditionRepas = !modeEditionRepas;
-      rendrePanneau();
-    });
-    ajouterRepasEl.addEventListener("click", () => {
+    panneauPlatEl.querySelector("#panneau-ajouter-repas").addEventListener("click", () => {
       ouvrirPanneauNouveauRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
 
     const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas");
+    construireListeEditableEl(
+      filtresRepasEl,
+      "segmente-bouton",
+      etat.repas,
+      (id) => id === filtreRepas,
+      (repasId) => {
+        filtreRepas = repasId;
+        rendrePanneau();
+      },
+      (repasId) => ouvrirPanneauRepas(repasId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
+    );
+    // "Tous" n'est pas un vrai repas éditable : ajouté à part, en tête.
     const boutonTous = document.createElement("button");
     boutonTous.className = "segmente-bouton";
     if (filtreRepas === "tous") boutonTous.classList.add("selectionne");
@@ -1641,82 +1624,39 @@ function ouvrirPanneauFiltresPlats() {
       filtreRepas = "tous";
       rendrePanneau();
     });
-    filtresRepasEl.appendChild(boutonTous);
-    for (const repas of etat.repas) {
-      const bouton = document.createElement("button");
-      bouton.className = "segmente-bouton";
-      if (filtreRepas === repas.id) bouton.classList.add("selectionne");
-      bouton.textContent = modeEditionRepas ? `${repas.nom} ✏️` : repas.nom;
-      bouton.addEventListener("click", () => {
-        if (modeEditionRepas) {
-          ouvrirPanneauRepas(repas.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
-          return;
-        }
-        filtreRepas = repas.id;
-        rendrePanneau();
-      });
-      filtresRepasEl.appendChild(bouton);
-    }
+    filtresRepasEl.prepend(boutonTous);
 
-    const editerEtiquettesEl = panneauPlatEl.querySelector("#panneau-editer-etiquettes");
-    const ajouterEtiquetteEl = panneauPlatEl.querySelector("#panneau-ajouter-etiquette");
-    editerEtiquettesEl.textContent = modeEditionEtiquettes ? "✓ Terminé" : "✏️ Éditer les étiquettes";
-    ajouterEtiquetteEl.hidden = !modeEditionEtiquettes;
-    editerEtiquettesEl.addEventListener("click", () => {
-      modeEditionEtiquettes = !modeEditionEtiquettes;
-      rendrePanneau();
-    });
-    ajouterEtiquetteEl.addEventListener("click", () => {
+    panneauPlatEl.querySelector("#panneau-ajouter-etiquette").addEventListener("click", () => {
       ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
-
-    const filtresEtiquettesEl = panneauPlatEl.querySelector("#panneau-filtres-etiquettes");
-    for (const etiquette of etat.etiquettes) {
-      const bouton = document.createElement("button");
-      bouton.className = "segmente-bouton";
-      if (etiquettesSelectionnees.has(etiquette.id)) bouton.classList.add("selectionne");
-      bouton.textContent = modeEditionEtiquettes ? `${etiquette.nom} ✏️` : etiquette.nom;
-      bouton.addEventListener("click", () => {
-        if (modeEditionEtiquettes) {
-          ouvrirPanneauEtiquette(etiquette.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
-          return;
-        }
-        if (etiquettesSelectionnees.has(etiquette.id)) etiquettesSelectionnees.delete(etiquette.id);
-        else etiquettesSelectionnees.add(etiquette.id);
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#panneau-filtres-etiquettes"),
+      "segmente-bouton",
+      etat.etiquettes,
+      (id) => etiquettesSelectionnees.has(id),
+      (etiquetteId) => {
+        if (etiquettesSelectionnees.has(etiquetteId)) etiquettesSelectionnees.delete(etiquetteId);
+        else etiquettesSelectionnees.add(etiquetteId);
         rendrePanneau();
-      });
-      filtresEtiquettesEl.appendChild(bouton);
-    }
+      },
+      (etiquetteId) => ouvrirPanneauEtiquette(etiquetteId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
+    );
 
-    const editerMaterielEl = panneauPlatEl.querySelector("#panneau-editer-materiel");
-    const ajouterMaterielEl = panneauPlatEl.querySelector("#panneau-ajouter-materiel");
-    editerMaterielEl.textContent = modeEditionMateriel ? "✓ Terminé" : "✏️ Éditer le matériel";
-    ajouterMaterielEl.hidden = !modeEditionMateriel;
-    editerMaterielEl.addEventListener("click", () => {
-      modeEditionMateriel = !modeEditionMateriel;
-      rendrePanneau();
-    });
-    ajouterMaterielEl.addEventListener("click", () => {
+    panneauPlatEl.querySelector("#panneau-ajouter-materiel").addEventListener("click", () => {
       ouvrirPanneauNouveauMateriel(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
-
-    const filtresMaterielEl = panneauPlatEl.querySelector("#panneau-filtres-materiel");
-    for (const materiel of etat.materiel) {
-      const bouton = document.createElement("button");
-      bouton.className = "segmente-bouton";
-      if (materielSelectionnes.has(materiel.id)) bouton.classList.add("selectionne");
-      bouton.textContent = modeEditionMateriel ? `${materiel.nom} ✏️` : materiel.nom;
-      bouton.addEventListener("click", () => {
-        if (modeEditionMateriel) {
-          ouvrirPanneauMateriel(materiel.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
-          return;
-        }
-        if (materielSelectionnes.has(materiel.id)) materielSelectionnes.delete(materiel.id);
-        else materielSelectionnes.add(materiel.id);
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#panneau-filtres-materiel"),
+      "segmente-bouton",
+      etat.materiel,
+      (id) => materielSelectionnes.has(id),
+      (materielId) => {
+        if (materielSelectionnes.has(materielId)) materielSelectionnes.delete(materielId);
+        else materielSelectionnes.add(materielId);
         rendrePanneau();
-      });
-      filtresMaterielEl.appendChild(bouton);
-    }
+      },
+      (materielId) => ouvrirPanneauMateriel(materielId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
+    );
 
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
   }
@@ -1808,30 +1748,36 @@ function rendreEcranPlats() {
   rendreGrillePlats();
 }
 
-function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
-  conteneurEl.innerHTML = "";
-  for (const repas of etat.repas) {
-    const item = document.createElement("button");
-    item.className = "plat-choix";
-    if (repas.id === valeurActuelle) item.classList.add("selectionne");
-    item.textContent = repas.nom;
-    item.addEventListener("click", () => onChoisir(repas.id));
-    conteneurEl.appendChild(item);
-  }
-}
-
-// Sélecteur à PLUSIEURS choix générique (étiquettes ET matériel : un plat
-// peut en porter/demander plusieurs à la fois) : chaque bouton bascule
-// individuellement dans `idsActuels` (un tableau d'ids).
-function construireListeMultiEl(conteneurEl, liste, idsActuels, onBasculer) {
+// Construit une liste d'options (repas à choix unique, ou étiquettes/
+// matériel à choix multiple selon `estSelectionne`), chaque option
+// accompagnée d'un ✏️ TOUJOURS visible à côté pour la modifier
+// (renommer/supprimer) — jamais caché derrière un mode "édition" à activer
+// au préalable (retour de Qassim : plus ergonomique, plus visible).
+// `classeChoix` : "plat-choix" (liste verticale) ou "segmente-bouton"
+// (rangée de pastilles) selon le contexte d'appel.
+function construireListeEditableEl(conteneurEl, classeChoix, liste, estSelectionne, onChoisir, onEditer) {
   conteneurEl.innerHTML = "";
   for (const item of liste) {
+    const ligne = document.createElement("div");
+    ligne.className = "item-editable";
+
     const bouton = document.createElement("button");
-    bouton.className = "plat-choix";
-    if (idsActuels.includes(item.id)) bouton.classList.add("selectionne");
+    bouton.className = classeChoix;
+    bouton.type = "button";
+    if (estSelectionne(item.id)) bouton.classList.add("selectionne");
     bouton.textContent = item.nom;
-    bouton.addEventListener("click", () => onBasculer(item.id));
-    conteneurEl.appendChild(bouton);
+    bouton.addEventListener("click", () => onChoisir(item.id));
+    ligne.appendChild(bouton);
+
+    const editerBtn = document.createElement("button");
+    editerBtn.className = "bouton-editer-inline";
+    editerBtn.type = "button";
+    editerBtn.setAttribute("aria-label", `Modifier ${item.nom}`);
+    editerBtn.textContent = "✏️";
+    editerBtn.addEventListener("click", () => onEditer(item.id));
+    ligne.appendChild(editerBtn);
+
+    conteneurEl.appendChild(ligne);
   }
 }
 
@@ -2142,10 +2088,17 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
       nouveau.nom = evenement.target.value;
     });
 
-    construireListeRepasEl(panneauPlatEl.querySelector("#nouveau-plat-repas"), nouveau.repas, (repas) => {
-      nouveau.repas = repas;
-      rendrePanneau();
-    });
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#nouveau-plat-repas"),
+      "plat-choix",
+      etat.repas,
+      (id) => id === nouveau.repas,
+      (repas) => {
+        nouveau.repas = repas;
+        rendrePanneau();
+      },
+      (repasId) => ouvrirPanneauRepas(repasId, () => rendrePanneau(), ecranSousJacent)
+    );
 
     panneauPlatEl.querySelector("#nouveau-plat-valider").addEventListener("click", () => {
       const nomSaisi = panneauPlatEl.querySelector("#nouveau-plat-nom").value.trim();
@@ -2247,29 +2200,50 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       rendrePanneau();
     });
 
-    construireListeRepasEl(panneauPlatEl.querySelector("#plat-repas"), plat.repas, (repas) => {
-      modifierPlat(etat, platId, { repas });
-      sauvegarder();
-      rendrePanneau();
-    });
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#plat-repas"),
+      "plat-choix",
+      etat.repas,
+      (id) => id === plat.repas,
+      (repas) => {
+        modifierPlat(etat, platId, { repas });
+        sauvegarder();
+        rendrePanneau();
+      },
+      (repasId) => ouvrirPanneauRepas(repasId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+    );
 
-    construireListeMultiEl(panneauPlatEl.querySelector("#plat-etiquettes"), etat.etiquettes, plat.etiquettes, (etiquetteId) => {
-      const nouvellesEtiquettes = plat.etiquettes.includes(etiquetteId)
-        ? plat.etiquettes.filter((id) => id !== etiquetteId)
-        : [...plat.etiquettes, etiquetteId];
-      modifierPlat(etat, platId, { etiquettes: nouvellesEtiquettes });
-      sauvegarder();
-      rendrePanneau();
-    });
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#plat-etiquettes"),
+      "plat-choix",
+      etat.etiquettes,
+      (id) => plat.etiquettes.includes(id),
+      (etiquetteId) => {
+        const nouvellesEtiquettes = plat.etiquettes.includes(etiquetteId)
+          ? plat.etiquettes.filter((id) => id !== etiquetteId)
+          : [...plat.etiquettes, etiquetteId];
+        modifierPlat(etat, platId, { etiquettes: nouvellesEtiquettes });
+        sauvegarder();
+        rendrePanneau();
+      },
+      (etiquetteId) => ouvrirPanneauEtiquette(etiquetteId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+    );
 
-    construireListeMultiEl(panneauPlatEl.querySelector("#plat-materiel"), etat.materiel, plat.materiel, (materielId) => {
-      const nouveauMateriel = plat.materiel.includes(materielId)
-        ? plat.materiel.filter((id) => id !== materielId)
-        : [...plat.materiel, materielId];
-      modifierPlat(etat, platId, { materiel: nouveauMateriel });
-      sauvegarder();
-      rendrePanneau();
-    });
+    construireListeEditableEl(
+      panneauPlatEl.querySelector("#plat-materiel"),
+      "plat-choix",
+      etat.materiel,
+      (id) => plat.materiel.includes(id),
+      (materielId) => {
+        const nouveauMateriel = plat.materiel.includes(materielId)
+          ? plat.materiel.filter((id) => id !== materielId)
+          : [...plat.materiel, materielId];
+        modifierPlat(etat, platId, { materiel: nouveauMateriel });
+        sauvegarder();
+        rendrePanneau();
+      },
+      (materielId) => ouvrirPanneauMateriel(materielId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+    );
 
     panneauPlatEl.querySelector("#plat-nouveau-repas").addEventListener("click", () => {
       ouvrirPanneauNouveauRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);

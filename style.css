@@ -401,6 +401,29 @@ body {
   background: color-mix(in srgb, var(--couleur-accent) 12%, var(--couleur-carte));
 }
 
+/* Une option (repas/étiquette/matériel...) + son ✏️ TOUJOURS visible à côté
+   (jamais caché derrière un mode "édition" à activer — retour de Qassim :
+   plus ergonomique, plus visible). */
+.item-editable {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.item-editable > .plat-choix,
+.item-editable > .segmente-bouton {
+  flex: 1;
+}
+
+.bouton-editer-inline {
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  font-size: 0.95rem;
+}
+
 .lien-voir-tous {
   background: none;
   border: none;
