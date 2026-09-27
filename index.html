@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20260929b">
+  <link rel="stylesheet" href="style.css?v=20260930a">
 </head>
 <body>
   <header class="app-header">
@@ -42,6 +42,7 @@
     </section>
 
     <section id="ecran-plats" class="ecran" hidden>
+      <input type="text" id="recherche-plats" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat...">
       <button id="filtre-favoris-plats" class="segmente-bouton" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
       <div class="segmente" id="filtres-plats"></div>
       <button id="editer-repas-plats" class="bouton-discret">✏️ Éditer les repas</button>
@@ -50,7 +51,7 @@
       <button id="editer-etiquettes-plats" class="bouton-discret">✏️ Éditer les étiquettes</button>
       <button id="ajouter-etiquette-plats" class="bouton-discret" hidden>+ Ajouter une étiquette</button>
       <button id="ajouter-plat" class="bouton-secondaire bouton-pleine-largeur">+ Nouveau plat</button>
-      <div id="grille-plats"></div>
+      <div id="grille-plats" class="liste-resultats"></div>
     </section>
 
     <section id="ecran-stock" class="ecran" hidden>
@@ -87,6 +88,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260929b"></script>
+  <script type="module" src="app.js?v=20260930a"></script>
 </body>
 </html>

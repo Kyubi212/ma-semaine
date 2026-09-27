@@ -363,6 +363,17 @@ body {
   overflow-y: auto;
 }
 
+/* Sépare visuellement la liste de résultats des filtres juste au-dessus
+   (sinon boutons de filtre et cartes de résultat se ressemblent trop). */
+.liste-resultats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--couleur-bordure);
+}
+
 .plat-choix {
   display: flex;
   align-items: center;

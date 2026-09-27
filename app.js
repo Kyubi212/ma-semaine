@@ -476,6 +476,7 @@ function ouvrirPanneau(dateISO, creneau) {
   let filtreRepasPanneau = infos.repasId;
   let filtreFavorisPanneau = false;
   const etiquettesSelectionneesPanneau = new Set();
+  let recherchePlatsPanneau = "";
 
   function platsAffiches() {
     let liste = filtreRepasPanneau === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepasPanneau);
@@ -483,12 +484,31 @@ function ouvrirPanneau(dateISO, creneau) {
     if (etiquettesSelectionneesPanneau.size > 0) {
       liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
     }
+    const recherche = normaliserRecherche(recherchePlatsPanneau.trim());
+    if (recherche) {
+      liste = liste.filter((p) => normaliserRecherche(p.nom).includes(recherche));
+    }
     return trierParNom(liste);
+  }
+
+  function rendreListePlatsPanneau() {
+    const listePlatsEl = panneauPlatEl.querySelector("#liste-plats");
+    listePlatsEl.innerHTML = "";
+    for (const plat of platsAffiches()) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
+      item.textContent = plat.nom;
+      item.addEventListener("click", () => {
+        candidat = { platId: plat.id, portions: 1 };
+        rendrePanneau();
+      });
+      listePlatsEl.appendChild(item);
+    }
   }
 
   function rendrePanneau() {
     const elements = obtenirElementsEffectifs(etat, dateISO, creneau);
-    const plats = platsAffiches();
 
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
@@ -497,23 +517,27 @@ function ouvrirPanneau(dateISO, creneau) {
       </div>
 
       <div class="panneau-section-titre">Plats prévus</div>
-      <p class="panneau-note">
-        Portions : par personne. Coche "🍽️ Mangé" une fois préparé et mangé, pour déduire le
-        stock. Un repas déjà prêt à l'avance (offert, batch-cook...) ? Utilise plutôt
-        "🍱 Repas prêts" en haut de l'écran Semaine, pas besoin de le caser ici. Rien à manger
-        à ce repas ? Ne choisis aucun plat, ou retire celui déjà là avec ✕.
-      </p>
       <div class="liste-elements" id="liste-elements"></div>
       ${elements.length === 0 ? `<p class="panneau-vide">Rien de prévu pour l'instant.</p>` : ""}
+      <p class="panneau-note">Un repas déjà prêt (offert, batch-cook...) ? Vois plutôt
+        "🍱 Repas prêts" en haut de l'écran Semaine.</p>
 
       <div class="panneau-section-titre">Ajouter un plat</div>
+      <input type="text" id="recherche-plats-panneau" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat..." value="${recherchePlatsPanneau}">
       <div class="segmente" id="filtres-repas-panneau"></div>
       <button class="segmente-bouton" id="filtre-favoris-panneau" type="button">⭐ Favoris</button>
       <div class="segmente" id="filtres-etiquettes-panneau"></div>
-      <div class="liste-plats" id="liste-plats"></div>
+      <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
     `;
+
+    // Ne reconstruit QUE la liste de résultats (pas tout le panneau) à
+    // chaque lettre tapée, sinon le champ perdrait le focus en boucle.
+    panneauPlatEl.querySelector("#recherche-plats-panneau").addEventListener("input", (evenement) => {
+      recherchePlatsPanneau = evenement.target.value;
+      rendreListePlatsPanneau();
+    });
 
     // --- Filtres de la liste "Ajouter un plat" (repas à choix unique,
     // favoris indépendant, étiquettes à choix multiple ET — mêmes filtres
@@ -616,19 +640,10 @@ function ouvrirPanneau(dateISO, creneau) {
       listeElementsEl.appendChild(ligne);
     }
 
-    // --- Liste des plats à ajouter ---
-    const listePlatsEl = panneauPlatEl.querySelector("#liste-plats");
-    for (const plat of plats) {
-      const item = document.createElement("button");
-      item.className = "plat-choix";
-      if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
-      item.textContent = plat.nom;
-      item.addEventListener("click", () => {
-        candidat = { platId: plat.id, portions: 1 };
-        rendrePanneau();
-      });
-      listePlatsEl.appendChild(item);
-    }
+    // --- Liste des plats à ajouter --- (fonction à part : appelée seule
+    // depuis la recherche, pour ne pas reconstruire tout le panneau à
+    // chaque lettre tapée et perdre le focus du champ de recherche)
+    rendreListePlatsPanneau();
 
     // --- Zone du candidat sélectionné (portions, avertissement stock, boutons d'ajout) ---
     const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat");
@@ -1487,6 +1502,9 @@ const etiquettesSelectionnees = new Set();
 let modeEditionEtiquettes = false;
 let modeEditionRepas = false;
 
+let recherchePlats = "";
+
+const recherchePlatsEl = document.getElementById("recherche-plats");
 const filtreFavorisPlatsEl = document.getElementById("filtre-favoris-plats");
 const filtresPlatsEl = document.getElementById("filtres-plats");
 const editerRepasPlatsEl = document.getElementById("editer-repas-plats");
@@ -1529,8 +1547,54 @@ function platsFiltres() {
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
   }
+  const recherche = normaliserRecherche(recherchePlats.trim());
+  if (recherche) {
+    liste = liste.filter((p) => normaliserRecherche(p.nom).includes(recherche));
+  }
   return trierParNom(liste);
 }
+
+// Ne reconstruit QUE la grille (pas les filtres) — appelée seule depuis la
+// recherche, sinon le champ perdrait le focus à chaque lettre tapée.
+function rendreGrillePlats() {
+  const liste = platsFiltres();
+  grillePlatsEl.innerHTML = "";
+
+  if (liste.length === 0) {
+    grillePlatsEl.innerHTML = `<p class="liste-vide">Aucun plat pour ce filtre.</p>`;
+    return;
+  }
+
+  for (const plat of liste) {
+    const nbIngredients = plat.ingredients.length;
+    const nomRepas = etat.repas.find((r) => r.id === plat.repas)?.nom ?? plat.repas;
+    const nomsEtiquettes = plat.etiquettes
+      .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
+      .filter(Boolean);
+    const carte = document.createElement("div");
+    carte.className = "article-course";
+    carte.innerHTML = `
+      <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
+      <div class="article-info">
+        <span class="article-nom">${plat.nom}</span>
+        <span class="article-detail">${nomRepas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
+      </div>
+    `;
+    carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
+      evenement.stopPropagation();
+      modifierPlat(etat, plat.id, { favori: !plat.favori });
+      sauvegarder();
+      rendreGrillePlats();
+    });
+    carte.addEventListener("click", () => ouvrirPanneauPlat(plat.id));
+    grillePlatsEl.appendChild(carte);
+  }
+}
+
+recherchePlatsEl.addEventListener("input", (evenement) => {
+  recherchePlats = evenement.target.value;
+  rendreGrillePlats();
+});
 
 function rendreEcranPlats() {
   filtreFavorisPlatsEl.classList.toggle("selectionne", filtreFavorisActif);
@@ -1587,38 +1651,7 @@ function rendreEcranPlats() {
     filtresEtiquettesPlatsEl.appendChild(bouton);
   }
 
-  const liste = platsFiltres();
-  grillePlatsEl.innerHTML = "";
-
-  if (liste.length === 0) {
-    grillePlatsEl.innerHTML = `<p class="liste-vide">Aucun plat pour ce filtre.</p>`;
-    return;
-  }
-
-  for (const plat of liste) {
-    const nbIngredients = plat.ingredients.length;
-    const nomRepas = etat.repas.find((r) => r.id === plat.repas)?.nom ?? plat.repas;
-    const nomsEtiquettes = plat.etiquettes
-      .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
-      .filter(Boolean);
-    const carte = document.createElement("div");
-    carte.className = "article-course";
-    carte.innerHTML = `
-      <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
-      <div class="article-info">
-        <span class="article-nom">${plat.nom}</span>
-        <span class="article-detail">${nomRepas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
-      </div>
-    `;
-    carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
-      evenement.stopPropagation();
-      modifierPlat(etat, plat.id, { favori: !plat.favori });
-      sauvegarder();
-      rendreEcranPlats();
-    });
-    carte.addEventListener("click", () => ouvrirPanneauPlat(plat.id));
-    grillePlatsEl.appendChild(carte);
-  }
+  rendreGrillePlats();
 }
 
 function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
