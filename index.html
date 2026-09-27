@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20260927g">
+  <link rel="stylesheet" href="style.css?v=20260927h">
 </head>
 <body>
   <header class="app-header">
@@ -36,14 +36,9 @@
     </section>
 
     <section id="ecran-plats" class="ecran" hidden>
-      <div class="segmente" id="filtres-plats">
-        <button class="segmente-bouton" data-filtre="tous" type="button">Tous</button>
-        <button class="segmente-bouton" data-filtre="favoris" type="button">⭐ Favoris</button>
-        <button class="segmente-bouton" data-filtre="Petit-déjeuner" type="button">Petit-déj.</button>
-        <button class="segmente-bouton" data-filtre="Smoko" type="button">Smoko</button>
-        <button class="segmente-bouton" data-filtre="Déjeuner-Dîner" type="button">Déjeuner/Dîner</button>
-        <button class="segmente-bouton" data-filtre="Snack" type="button">Snack</button>
-      </div>
+      <div class="segmente" id="filtres-plats"></div>
+      <button id="editer-repas-plats" class="bouton-discret">✏️ Éditer les repas</button>
+      <button id="ajouter-repas-plats" class="bouton-discret" hidden>+ Ajouter un repas</button>
       <div class="segmente" id="filtres-etiquettes-plats"></div>
       <button id="editer-etiquettes-plats" class="bouton-discret">✏️ Éditer les étiquettes</button>
       <button id="ajouter-etiquette-plats" class="bouton-discret" hidden>+ Ajouter une étiquette</button>
@@ -85,6 +80,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260927g"></script>
+  <script type="module" src="app.js?v=20260927h"></script>
 </body>
 </html>

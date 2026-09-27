@@ -29,6 +29,9 @@ import {
   ajouterEtiquette,
   renommerEtiquette,
   supprimerEtiquette,
+  ajouterRepas,
+  renommerRepas,
+  supprimerRepas,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -138,12 +141,17 @@ const MOIS_ABREGES = [
 // Pour chaque créneau : son icône, son libellé affiché, et le libellé
 // "repas" correspondant dans data.js (utilisé pour filtrer la liste de
 // plats proposée dans le panneau).
+// repasId : id du repas (écran Plats & repas, éditable — voir CLAUDE.md
+// § Repas éditables) utilisé pour filtrer les plats proposés à ce créneau.
+// Ids déterministes (dérivés des noms par défaut dans storage.js), stables
+// même si Qassim renomme le repas ensuite (seul le nom change, pas l'id).
+// lunch ET diner partagent le même repas "Déjeuner/Dîner" fusionné.
 const CRENEAU_INFOS = {
-  "petit-dejeuner": { icone: "🌅", label: "Petit-déjeuner", repas: "Petit-déjeuner" },
-  smoko: { icone: "☕", label: "Smoko", repas: "Smoko" },
-  lunch: { icone: "🥗", label: "Lunch", repas: "Déjeuner" },
-  snack: { icone: "🍎", label: "Snack", repas: "Snack" },
-  diner: { icone: "🍽️", label: "Dîner", repas: "Dîner" },
+  "petit-dejeuner": { icone: "🌅", label: "Petit-déjeuner", repasId: "petit-dejeuner" },
+  smoko: { icone: "☕", label: "Smoko", repasId: "smoko" },
+  lunch: { icone: "🥗", label: "Lunch", repasId: "dejeuner-diner" },
+  snack: { icone: "🍎", label: "Snack", repasId: "snack" },
+  diner: { icone: "🍽️", label: "Dîner", repasId: "dejeuner-diner" },
 };
 const ORDRE_CRENEAUX = ["petit-dejeuner", "smoko", "lunch", "snack", "diner"];
 
@@ -313,7 +321,7 @@ function ouvrirPanneau(dateISO, creneau) {
 
   function platsAffiches() {
     if (voirTousLesPlats) return etat.plats;
-    return etat.plats.filter((p) => p.repas === infos.repas);
+    return etat.plats.filter((p) => p.repas === infos.repasId);
   }
 
   function rendrePanneau() {
@@ -1234,30 +1242,27 @@ function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = ren
 // Écran Plats & repas
 // ============================================================
 
-// Les 5 repas proposés à la création/modification d'un plat (mêmes labels
-// que CRENEAU_INFOS, pour rester cohérent avec l'écran Semaine). Les plats
-// importés de Notion peuvent avoir un repas hors de cette liste (ex.
-// "Plaisir occasionnel") : on ne casse pas cette valeur si on n'y touche pas,
-// mais le picker de création/modification ne propose que ces 5-là.
-const REPAS_PLATS = ["Petit-déjeuner", "Smoko", "Déjeuner", "Snack", "Dîner"];
-
-let filtrePlats = "tous";
+let filtrePlats = "tous"; // "tous" | "favoris" | un id de repas
 // Étiquettes cochées en même temps (logique ET, décidée avec Qassim : un
 // plat doit porter TOUTES les étiquettes cochées pour apparaître).
 const etiquettesSelectionnees = new Set();
 let modeEditionEtiquettes = false;
+let modeEditionRepas = false;
 
 const filtresPlatsEl = document.getElementById("filtres-plats");
+const editerRepasPlatsEl = document.getElementById("editer-repas-plats");
+const ajouterRepasPlatsEl = document.getElementById("ajouter-repas-plats");
 const filtresEtiquettesPlatsEl = document.getElementById("filtres-etiquettes-plats");
 const editerEtiquettesPlatsEl = document.getElementById("editer-etiquettes-plats");
 const ajouterEtiquettePlatsEl = document.getElementById("ajouter-etiquette-plats");
 const grillePlatsEl = document.getElementById("grille-plats");
 
-filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
-  bouton.addEventListener("click", () => {
-    filtrePlats = bouton.dataset.filtre;
-    rendreEcranPlats();
-  });
+editerRepasPlatsEl.addEventListener("click", () => {
+  modeEditionRepas = !modeEditionRepas;
+  rendreEcranPlats();
+});
+ajouterRepasPlatsEl.addEventListener("click", () => {
+  ouvrirPanneauNouveauRepas(fermerPanneau, rendreEcranPlats);
 });
 
 editerEtiquettesPlatsEl.addEventListener("click", () => {
@@ -1274,19 +1279,9 @@ document.getElementById("ajouter-plat").addEventListener("click", () => {
 
 function platsFiltres() {
   let liste;
-  switch (filtrePlats) {
-    case "favoris":
-      liste = etat.plats.filter((p) => p.favori);
-      break;
-    case "Déjeuner-Dîner":
-      liste = etat.plats.filter((p) => p.repas === "Déjeuner" || p.repas === "Dîner");
-      break;
-    case "tous":
-      liste = etat.plats;
-      break;
-    default:
-      liste = etat.plats.filter((p) => p.repas === filtrePlats);
-  }
+  if (filtrePlats === "favoris") liste = etat.plats.filter((p) => p.favori);
+  else if (filtrePlats === "tous") liste = etat.plats;
+  else liste = etat.plats.filter((p) => p.repas === filtrePlats); // filtrePlats est un id de repas
 
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
@@ -1295,9 +1290,38 @@ function platsFiltres() {
 }
 
 function rendreEcranPlats() {
-  filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
-    bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtrePlats);
-  });
+  editerRepasPlatsEl.textContent = modeEditionRepas ? "✓ Terminé" : "✏️ Éditer les repas";
+  ajouterRepasPlatsEl.hidden = !modeEditionRepas;
+
+  filtresPlatsEl.innerHTML = "";
+
+  for (const [id, label] of [["tous", "Tous"], ["favoris", "⭐ Favoris"]]) {
+    const bouton = document.createElement("button");
+    bouton.className = "segmente-bouton";
+    if (filtrePlats === id) bouton.classList.add("selectionne");
+    bouton.textContent = label;
+    bouton.addEventListener("click", () => {
+      filtrePlats = id;
+      rendreEcranPlats();
+    });
+    filtresPlatsEl.appendChild(bouton);
+  }
+
+  for (const repas of etat.repas) {
+    const bouton = document.createElement("button");
+    bouton.className = "segmente-bouton";
+    if (filtrePlats === repas.id) bouton.classList.add("selectionne");
+    bouton.textContent = modeEditionRepas ? `${repas.nom} ✏️` : repas.nom;
+    bouton.addEventListener("click", () => {
+      if (modeEditionRepas) {
+        ouvrirPanneauRepas(repas.id, fermerPanneau, rendreEcranPlats);
+        return;
+      }
+      filtrePlats = repas.id;
+      rendreEcranPlats();
+    });
+    filtresPlatsEl.appendChild(bouton);
+  }
 
   editerEtiquettesPlatsEl.textContent = modeEditionEtiquettes ? "✓ Terminé" : "✏️ Éditer les étiquettes";
   ajouterEtiquettePlatsEl.hidden = !modeEditionEtiquettes;
@@ -1330,6 +1354,7 @@ function rendreEcranPlats() {
 
   for (const plat of liste) {
     const nbIngredients = plat.ingredients.length;
+    const nomRepas = etat.repas.find((r) => r.id === plat.repas)?.nom ?? plat.repas;
     const nomsEtiquettes = plat.etiquettes
       .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
       .filter(Boolean);
@@ -1339,7 +1364,7 @@ function rendreEcranPlats() {
       <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
       <div class="article-info">
         <span class="article-nom">${plat.nom}</span>
-        <span class="article-detail">${plat.repas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
+        <span class="article-detail">${nomRepas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
       </div>
     `;
     carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
@@ -1355,12 +1380,12 @@ function rendreEcranPlats() {
 
 function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
   conteneurEl.innerHTML = "";
-  for (const repas of REPAS_PLATS) {
+  for (const repas of etat.repas) {
     const item = document.createElement("button");
     item.className = "plat-choix";
-    if (repas === valeurActuelle) item.classList.add("selectionne");
-    item.textContent = repas;
-    item.addEventListener("click", () => onChoisir(repas));
+    if (repas.id === valeurActuelle) item.classList.add("selectionne");
+    item.textContent = repas.nom;
+    item.addEventListener("click", () => onChoisir(repas.id));
     conteneurEl.appendChild(item);
   }
 }
@@ -1472,6 +1497,98 @@ function ouvrirPanneauNouvelleEtiquette(retour = fermerPanneau, ecranSousJacent 
   panneauPlatEl.hidden = false;
 }
 
+// --- Panneau "modifier un repas" (renommer / supprimer) ---
+
+function ouvrirPanneauRepas(repasId, retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    const repas = etat.repas.find((r) => r.id === repasId);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">✏️ Modifier le repas</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="repas-nom" class="article-quantite-input" style="width:100%;" value="${repas.nom}">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="repas-renommer">Enregistrer</button>
+        <button class="bouton-discret" id="repas-supprimer">🗑️ Supprimer ce repas</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#repas-renommer").addEventListener("click", () => {
+      const nouveauNom = panneauPlatEl.querySelector("#repas-nom").value.trim();
+      if (!nouveauNom) {
+        rendrePanneau("Donne un nom à ce repas.");
+        return;
+      }
+      renommerRepas(etat, repasId, nouveauNom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector("#repas-supprimer").addEventListener("click", () => {
+      const resultat = supprimerRepas(etat, repasId);
+      if (!resultat.ok) {
+        rendrePanneau(`Impossible : utilisé par ${resultat.plats.join(", ")}.`);
+        return;
+      }
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "nouveau repas" ---
+
+function ouvrirPanneauNouveauRepas(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouveau repas</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="repas-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Brunch">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="repas-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#repas-valider").addEventListener("click", () => {
+      const nom = panneauPlatEl.querySelector("#repas-nom").value.trim();
+      if (!nom) {
+        rendrePanneau("Donne un nom à ce repas.");
+        return;
+      }
+      ajouterRepas(etat, nom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
 // --- Panneau "nouveau plat" : juste nom + repas, puis bascule sur le
 // panneau d'édition complet (ingrédients, étapes...) une fois créé. ---
 
@@ -1552,9 +1669,11 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
       <div class="panneau-section-titre">Repas</div>
       <div class="liste-plats" id="plat-repas"></div>
+      <button class="bouton-discret" id="plat-nouveau-repas">+ Nouveau repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
       <div class="liste-plats" id="plat-etiquettes"></div>
+      <button class="bouton-discret" id="plat-nouvelle-etiquette">+ Nouvelle étiquette</button>
 
       <div class="panneau-section-titre">Portions de référence</div>
       <div class="stepper">
@@ -1596,6 +1715,13 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       modifierPlat(etat, platId, { etiquettes: nouvellesEtiquettes });
       sauvegarder();
       rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#plat-nouveau-repas").addEventListener("click", () => {
+      ouvrirPanneauNouveauRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    });
+    panneauPlatEl.querySelector("#plat-nouvelle-etiquette").addEventListener("click", () => {
+      ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
     });
 
     panneauPlatEl.querySelector("#plat-portions-moins").addEventListener("click", () => {
