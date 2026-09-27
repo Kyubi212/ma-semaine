@@ -755,12 +755,12 @@ test("supprimerPlat : autorise si le plat n'est utilisé nulle part", () => {
 test("ajouterEtiquette : ajoute en fin de liste, avec un id dérivé du nom", () => {
   const etat = creerEtatInitial();
   const nbAvant = etat.etiquettes.length;
-  const etiquette = ajouterEtiquette(etat, "Sans gluten");
+  const etiquette = ajouterEtiquette(etat, "Épicé");
 
   assert.equal(etat.etiquettes.length, nbAvant + 1);
   assert.equal(etat.etiquettes[etat.etiquettes.length - 1], etiquette);
-  assert.equal(etiquette.nom, "Sans gluten");
-  assert.equal(etiquette.id, "sans-gluten");
+  assert.equal(etiquette.nom, "Épicé");
+  assert.equal(etiquette.id, "epice");
 });
 
 test("renommerEtiquette : change le nom sans toucher à l'id", () => {

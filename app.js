@@ -1581,15 +1581,15 @@ function ouvrirPanneauFiltresPlats() {
 
       <div class="panneau-section-titre">Repas</div>
       <div class="segmente" id="panneau-filtres-repas"></div>
-      <button class="bouton-discret" id="panneau-ajouter-repas">+ Ajouter un repas</button>
+      <button class="bouton-discret" id="panneau-gerer-repas">⚙️ Gérer les repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
       <div class="segmente" id="panneau-filtres-etiquettes"></div>
-      <button class="bouton-discret" id="panneau-ajouter-etiquette">+ Ajouter une étiquette</button>
+      <button class="bouton-discret" id="panneau-gerer-etiquettes">⚙️ Gérer les étiquettes</button>
 
       <div class="panneau-section-titre">Matériel</div>
       <div class="segmente" id="panneau-filtres-materiel"></div>
-      <button class="bouton-discret" id="panneau-ajouter-materiel">+ Ajouter un matériel</button>
+      <button class="bouton-discret" id="panneau-gerer-materiel">⚙️ Gérer le matériel</button>
     `;
 
     const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris");
@@ -1599,22 +1599,14 @@ function ouvrirPanneauFiltresPlats() {
       rendrePanneau();
     });
 
-    panneauPlatEl.querySelector("#panneau-ajouter-repas").addEventListener("click", () => {
-      ouvrirPanneauNouveauRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    panneauPlatEl.querySelector("#panneau-gerer-repas").addEventListener("click", () => {
+      ouvrirPanneauGererRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
-
     const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas");
-    construireListeEditableEl(
-      filtresRepasEl,
-      "segmente-bouton",
-      etat.repas,
-      (id) => id === filtreRepas,
-      (repasId) => {
-        filtreRepas = repasId;
-        rendrePanneau();
-      },
-      (repasId) => ouvrirPanneauRepas(repasId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
-    );
+    construireListeChoixEl(filtresRepasEl, "segmente-bouton", etat.repas, (id) => id === filtreRepas, (repasId) => {
+      filtreRepas = repasId;
+      rendrePanneau();
+    });
     // "Tous" n'est pas un vrai repas éditable : ajouté à part, en tête.
     const boutonTous = document.createElement("button");
     boutonTous.className = "segmente-bouton";
@@ -1626,10 +1618,10 @@ function ouvrirPanneauFiltresPlats() {
     });
     filtresRepasEl.prepend(boutonTous);
 
-    panneauPlatEl.querySelector("#panneau-ajouter-etiquette").addEventListener("click", () => {
-      ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    panneauPlatEl.querySelector("#panneau-gerer-etiquettes").addEventListener("click", () => {
+      ouvrirPanneauGererEtiquettes(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#panneau-filtres-etiquettes"),
       "segmente-bouton",
       etat.etiquettes,
@@ -1638,14 +1630,13 @@ function ouvrirPanneauFiltresPlats() {
         if (etiquettesSelectionnees.has(etiquetteId)) etiquettesSelectionnees.delete(etiquetteId);
         else etiquettesSelectionnees.add(etiquetteId);
         rendrePanneau();
-      },
-      (etiquetteId) => ouvrirPanneauEtiquette(etiquetteId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
+      }
     );
 
-    panneauPlatEl.querySelector("#panneau-ajouter-materiel").addEventListener("click", () => {
-      ouvrirPanneauNouveauMateriel(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    panneauPlatEl.querySelector("#panneau-gerer-materiel").addEventListener("click", () => {
+      ouvrirPanneauGererMateriel(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#panneau-filtres-materiel"),
       "segmente-bouton",
       etat.materiel,
@@ -1654,8 +1645,7 @@ function ouvrirPanneauFiltresPlats() {
         if (materielSelectionnes.has(materielId)) materielSelectionnes.delete(materielId);
         else materielSelectionnes.add(materielId);
         rendrePanneau();
-      },
-      (materielId) => ouvrirPanneauMateriel(materielId, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats)
+      }
     );
 
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
@@ -1748,37 +1738,88 @@ function rendreEcranPlats() {
   rendreGrillePlats();
 }
 
-// Construit une liste d'options (repas à choix unique, ou étiquettes/
-// matériel à choix multiple selon `estSelectionne`), chaque option
-// accompagnée d'un ✏️ TOUJOURS visible à côté pour la modifier
-// (renommer/supprimer) — jamais caché derrière un mode "édition" à activer
-// au préalable (retour de Qassim : plus ergonomique, plus visible).
-// `classeChoix` : "plat-choix" (liste verticale) ou "segmente-bouton"
-// (rangée de pastilles) selon le contexte d'appel.
-function construireListeEditableEl(conteneurEl, classeChoix, liste, estSelectionne, onChoisir, onEditer) {
+// Construit une liste d'options à choisir (repas à choix unique, ou
+// étiquettes/matériel à choix multiple selon `estSelectionne`) — juste le
+// choix, sans affordance d'édition ici (voir "Gérer les repas/étiquettes/
+// matériel" plus bas : un seul endroit cliquable pour ajouter ET modifier,
+// plutôt qu'un ✏️ à côté de chaque option — retour de Qassim, "ça fait
+// beaucoup"). `classeChoix` : "plat-choix" (liste verticale) ou
+// "segmente-bouton" (rangée de pastilles) selon le contexte d'appel.
+function construireListeChoixEl(conteneurEl, classeChoix, liste, estSelectionne, onChoisir) {
   conteneurEl.innerHTML = "";
   for (const item of liste) {
-    const ligne = document.createElement("div");
-    ligne.className = "item-editable";
-
     const bouton = document.createElement("button");
     bouton.className = classeChoix;
     bouton.type = "button";
     if (estSelectionne(item.id)) bouton.classList.add("selectionne");
     bouton.textContent = item.nom;
     bouton.addEventListener("click", () => onChoisir(item.id));
-    ligne.appendChild(bouton);
-
-    const editerBtn = document.createElement("button");
-    editerBtn.className = "bouton-editer-inline";
-    editerBtn.type = "button";
-    editerBtn.setAttribute("aria-label", `Modifier ${item.nom}`);
-    editerBtn.textContent = "✏️";
-    editerBtn.addEventListener("click", () => onEditer(item.id));
-    ligne.appendChild(editerBtn);
-
-    conteneurEl.appendChild(ligne);
+    conteneurEl.appendChild(bouton);
   }
+}
+
+// Panneau "Gérer les repas/étiquettes/matériel" : une liste complète, dont
+// chaque ligne ouvre directement le renommage/suppression, plus un
+// "+ Ajouter" toujours en bas — un seul endroit cliquable pour ajouter ET
+// éditer (retour de Qassim), au lieu d'un ✏️ à côté de chaque filtre.
+function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouveau, labelAjouter, retour, ecranSousJacent) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau() {
+    const liste = obtenirListe();
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">${titre}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="liste-plats" id="gerer-liste"></div>
+      ${liste.length === 0 ? `<p class="panneau-vide">Rien pour l'instant.</p>` : ""}
+      <button class="bouton-secondaire bouton-pleine-largeur" id="gerer-ajouter" style="margin-top:8px;">${labelAjouter}</button>
+    `;
+
+    const listeEl = panneauPlatEl.querySelector("#gerer-liste");
+    for (const item of liste) {
+      const bouton = document.createElement("button");
+      bouton.className = "plat-choix";
+      bouton.textContent = item.nom;
+      bouton.addEventListener("click", () => ouvrirEdition(item.id, () => rendrePanneau(), ecranSousJacent));
+      listeEl.appendChild(bouton);
+    }
+
+    panneauPlatEl.querySelector("#gerer-ajouter").addEventListener("click", () => {
+      ouvrirNouveau(() => rendrePanneau(), ecranSousJacent);
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+function ouvrirPanneauGererRepas(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  ouvrirPanneauGererListe(
+    "⚙️ Gérer les repas", () => etat.repas,
+    ouvrirPanneauRepas, ouvrirPanneauNouveauRepas, "+ Ajouter un repas",
+    retour, ecranSousJacent
+  );
+}
+
+function ouvrirPanneauGererEtiquettes(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  ouvrirPanneauGererListe(
+    "⚙️ Gérer les étiquettes", () => etat.etiquettes,
+    ouvrirPanneauEtiquette, ouvrirPanneauNouvelleEtiquette, "+ Ajouter une étiquette",
+    retour, ecranSousJacent
+  );
+}
+
+function ouvrirPanneauGererMateriel(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  ouvrirPanneauGererListe(
+    "⚙️ Gérer le matériel", () => etat.materiel,
+    ouvrirPanneauMateriel, ouvrirPanneauNouveauMateriel, "+ Ajouter un matériel",
+    retour, ecranSousJacent
+  );
 }
 
 // --- Panneau "modifier une étiquette" (renommer / supprimer) ---
@@ -2088,7 +2129,7 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
       nouveau.nom = evenement.target.value;
     });
 
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#nouveau-plat-repas"),
       "plat-choix",
       etat.repas,
@@ -2096,8 +2137,7 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
       (repas) => {
         nouveau.repas = repas;
         rendrePanneau();
-      },
-      (repasId) => ouvrirPanneauRepas(repasId, () => rendrePanneau(), ecranSousJacent)
+      }
     );
 
     panneauPlatEl.querySelector("#nouveau-plat-valider").addEventListener("click", () => {
@@ -2144,11 +2184,11 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
       <div class="panneau-section-titre">Repas</div>
       <div class="liste-plats" id="plat-repas"></div>
-      <button class="bouton-discret" id="plat-nouveau-repas">+ Nouveau repas</button>
+      <button class="bouton-discret" id="plat-gerer-repas">⚙️ Gérer les repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
       <div class="liste-plats" id="plat-etiquettes"></div>
-      <button class="bouton-discret" id="plat-nouvelle-etiquette">+ Nouvelle étiquette</button>
+      <button class="bouton-discret" id="plat-gerer-etiquettes">⚙️ Gérer les étiquettes</button>
 
       <div class="panneau-section-titre">Portions de référence</div>
       <p class="panneau-note">Ex. si la recette qu'on t'a donnée est pour 4 personnes, mets 4 ici
@@ -2163,7 +2203,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
       <div class="panneau-section-titre">Matériel requis</div>
       <div class="liste-plats" id="plat-materiel"></div>
-      <button class="bouton-discret" id="plat-nouveau-materiel">+ Nouveau matériel</button>
+      <button class="bouton-discret" id="plat-gerer-materiel">⚙️ Gérer le matériel</button>
 
       <div class="panneau-section-titre">Temps de préparation (min)</div>
       <div class="stepper">
@@ -2200,7 +2240,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       rendrePanneau();
     });
 
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-repas"),
       "plat-choix",
       etat.repas,
@@ -2209,11 +2249,10 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         modifierPlat(etat, platId, { repas });
         sauvegarder();
         rendrePanneau();
-      },
-      (repasId) => ouvrirPanneauRepas(repasId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+      }
     );
 
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-etiquettes"),
       "plat-choix",
       etat.etiquettes,
@@ -2225,11 +2264,10 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         modifierPlat(etat, platId, { etiquettes: nouvellesEtiquettes });
         sauvegarder();
         rendrePanneau();
-      },
-      (etiquetteId) => ouvrirPanneauEtiquette(etiquetteId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+      }
     );
 
-    construireListeEditableEl(
+    construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-materiel"),
       "plat-choix",
       etat.materiel,
@@ -2241,15 +2279,14 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         modifierPlat(etat, platId, { materiel: nouveauMateriel });
         sauvegarder();
         rendrePanneau();
-      },
-      (materielId) => ouvrirPanneauMateriel(materielId, () => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent)
+      }
     );
 
-    panneauPlatEl.querySelector("#plat-nouveau-repas").addEventListener("click", () => {
-      ouvrirPanneauNouveauRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    panneauPlatEl.querySelector("#plat-gerer-repas").addEventListener("click", () => {
+      ouvrirPanneauGererRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
     });
-    panneauPlatEl.querySelector("#plat-nouveau-materiel").addEventListener("click", () => {
-      ouvrirPanneauNouveauMateriel(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    panneauPlatEl.querySelector("#plat-gerer-materiel").addEventListener("click", () => {
+      ouvrirPanneauGererMateriel(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
     });
 
     panneauPlatEl.querySelector("#plat-prepa-moins").addEventListener("click", () => {
@@ -2283,8 +2320,8 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       sauvegarder();
       rendrePanneau();
     });
-    panneauPlatEl.querySelector("#plat-nouvelle-etiquette").addEventListener("click", () => {
-      ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    panneauPlatEl.querySelector("#plat-gerer-etiquettes").addEventListener("click", () => {
+      ouvrirPanneauGererEtiquettes(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
     });
 
     panneauPlatEl.querySelector("#plat-portions-moins").addEventListener("click", () => {

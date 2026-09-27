@@ -27,7 +27,8 @@ const VERSION_FORMAT = 10;
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
 const ETIQUETTES_PAR_DEFAUT = [
-  "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Gâteau", "Rapide à préparer",
+  "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Végétalien", "Sans gluten", "Sans lactose",
+  "Gâteau", "Rapide à préparer", "Économique",
 ];
 
 function etiquettesParDefaut() {
@@ -43,7 +44,8 @@ function etiquettesParDefaut() {
 // étiquettes) : une liste de départ, éditable ensuite (renommer/supprimer/
 // ajouter). Un plat peut demander plusieurs matériels à la fois.
 const MATERIEL_PAR_DEFAUT = [
-  "Poêle", "Casserole", "Four", "Air fryer", "Mixeur", "Cuiseur à riz", "Bol",
+  "Poêle", "Casserole", "Four", "Air fryer", "Micro-ondes", "Mixeur", "Cuiseur à riz",
+  "Cuiseur vapeur", "Grille-pain", "Bol", "Balance de cuisine",
 ];
 
 function materielParDefaut() {
@@ -74,7 +76,10 @@ function rayonsParDefaut() {
 // créneaux fixes de la journée (Semaine) qui restent distincts (lunch ET
 // diner utilisent le même repas, smoko ET snack aussi — voir CRENEAU_INFOS
 // dans app.js).
-const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Snack/Goûter", "Déjeuner/Dîner", "Dessert"];
+const REPAS_PAR_DEFAUT = [
+  "Petit-déjeuner", "Snack/Goûter", "Déjeuner/Dîner", "Dessert",
+  "Entrée", "Accompagnement", "Recette de base", "Boisson",
+];
 
 function repasParDefaut() {
   const idsExistants = new Set();
