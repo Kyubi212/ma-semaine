@@ -386,8 +386,8 @@ panneau, pas directement depuis un écran).
 
 ## Repas éditables (écran Plats & repas)
 
-Même principe que les rayons/étiquettes : les repas (Petit-déjeuner, Snack/Goûter, Déjeuner/Dîner
-au départ — voir "Modèle de données") sont des objets `{ id, nom }` stockés dans l'état
+Même principe que les rayons/étiquettes : les repas (Petit-déjeuner, Snack/Goûter, Déjeuner/Dîner,
+Dessert au départ — voir "Modèle de données") sont des objets `{ id, nom }` stockés dans l'état
 (`etat.repas`), pas figés dans le code. **Vocabulaire 100% en français** ("Smoko" a disparu, y
 compris comme libellé de créneau sur l'écran Semaine — voir ci-dessous). **Déjeuner/Dîner ET
 Snack/Goûter sont fusionnés en une seule catégorie chacun dès le départ** (décision de Qassim :
@@ -421,7 +421,7 @@ manquante sans interrompre la saisie d'une recette, avec retour automatique à l
 ## Étiquettes éditables (écran Plats & repas)
 
 Même principe que les rayons éditables ci-dessus, appliqué aux plats : les étiquettes (Sucré,
-Salé, Sain, Sans porc, Végétarien, Dessert/Gâteau, Rapide à préparer au départ) sont des objets
+Salé, Sain, Sans porc, Végétarien, Gâteau, Rapide à préparer au départ) sont des objets
 `{ id, nom }` stockés dans l'état (`etat.etiquettes`), pas figées dans le code. **Un plat peut
 porter plusieurs étiquettes à la fois** (contrairement au rayon d'un ingrédient, qui est unique) —
 `plat.etiquettes` est une liste d'ids, pas un id seul.

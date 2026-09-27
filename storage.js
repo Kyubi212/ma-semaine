@@ -27,7 +27,7 @@ const VERSION_FORMAT = 10;
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
 const ETIQUETTES_PAR_DEFAUT = [
-  "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Dessert/Gâteau", "Rapide à préparer",
+  "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Gâteau", "Rapide à préparer",
 ];
 
 function etiquettesParDefaut() {
@@ -74,7 +74,7 @@ function rayonsParDefaut() {
 // créneaux fixes de la journée (Semaine) qui restent distincts (lunch ET
 // diner utilisent le même repas, smoko ET snack aussi — voir CRENEAU_INFOS
 // dans app.js).
-const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Snack/Goûter", "Déjeuner/Dîner"];
+const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Snack/Goûter", "Déjeuner/Dîner", "Dessert"];
 
 function repasParDefaut() {
   const idsExistants = new Set();
