@@ -341,3 +341,17 @@ export function sauvegarderEtat(etat) {
     return false;
   }
 }
+
+// Efface tout ce qui est sauvegardé, pour repartir des données de base
+// (data.js) au prochain chargement — irréversible, à confirmer avant côté
+// app.js. Utile pendant la refonte du catalogue (rayons/ingrédients/plats) :
+// modifier data.js ne change rien à ce que Qassim a déjà en localStorage
+// tant qu'il n'a pas réinitialisé.
+export function effacerStockage() {
+  try {
+    localStorage.removeItem(CLE_STOCKAGE);
+    return true;
+  } catch {
+    return false;
+  }
+}

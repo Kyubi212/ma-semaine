@@ -2,7 +2,7 @@
 // Gère la navigation entre les 4 écrans, et construit l'écran Semaine
 // (le seul déjà branché aux vraies données à cette étape du projet).
 
-import { chargerEtat, sauvegarderEtat } from "./storage.js";
+import { chargerEtat, sauvegarderEtat, effacerStockage } from "./storage.js";
 import {
   obtenirElementsEffectifs,
   definirCuisine,
@@ -459,6 +459,59 @@ function fermerPanneau() {
 }
 
 panneauFondEl.addEventListener("click", fermerPanneau);
+
+// --- Menu ⋯ (en-tête) : pour l'instant, seulement réinitialiser les
+// données. Modifier data.js (rayons, ingrédients, plats) ne change RIEN à
+// ce qui est déjà sauvegardé sur ce téléphone — il faut un vrai reset pour
+// repartir des données de base à jour. (Export/import de sauvegarde : voir
+// Roadmap, pas encore fait.) ---
+
+document.getElementById("menu-options").addEventListener("click", () => ouvrirPanneauMenu());
+
+function ouvrirPanneauMenu() {
+  apresFermeturePanneau = null;
+
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">Menu</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+    <button class="bouton-discret" id="menu-reinitialiser">🗑️ Réinitialiser avec les données de base</button>
+    <p class="panneau-note">Efface TOUT ce qui est enregistré sur ce téléphone (planning, stock,
+      plats modifiés...) et recharge l'appli avec le catalogue de base (rayons, ingrédients,
+      plats). Irréversible.</p>
+  `;
+
+  panneauPlatEl.querySelector("#menu-reinitialiser").addEventListener("click", () => {
+    ouvrirPanneauConfirmerReinitialisation();
+  });
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+function ouvrirPanneauConfirmerReinitialisation() {
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">⚠️ Tout réinitialiser ?</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+    <p class="panneau-note">Ton planning, ton stock actuel et tes plats modifiés seront
+      définitivement perdus. Cette action ne peut pas être annulée.</p>
+    <div class="panneau-actions">
+      <button class="bouton-principal" id="confirmer-reinitialiser" style="background:#c0392b;">Oui, tout effacer</button>
+      <button class="bouton-secondaire" id="annuler-reinitialiser">Annuler</button>
+    </div>
+  `;
+
+  panneauPlatEl.querySelector("#confirmer-reinitialiser").addEventListener("click", () => {
+    effacerStockage();
+    location.reload();
+  });
+  panneauPlatEl.querySelector("#annuler-reinitialiser").addEventListener("click", () => ouvrirPanneauMenu());
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+}
 
 function ouvrirPanneau(dateISO, creneau) {
   apresFermeturePanneau = rendreEcranSemaine;
@@ -2102,6 +2155,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
   let quantite = 1;
   let uniteChoisie = null; // par défaut l'unité de stock, choisie au premier rendu
+  let montrerFormCuillere = false;
 
   function rendrePanneau() {
     const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
@@ -2112,9 +2166,12 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
     // Les cuillères ne sont proposées que si l'ingrédient a son équivalence
     // réglée (voir "Équivalence 1 c. à café" dans le panneau Stock) — sinon
     // impossible de convertir vers l'unité de stock au moment des calculs.
+    // Si elle manque encore, on propose de la régler ici même (pas besoin
+    // d'aller sur Stock pour ça pendant qu'on saisit une recette).
     const uniteCompatibleCuillere = ingredient.unite === "g" || ingredient.unite === "ml";
+    const cuillereReglee = ingredient.parCuillereACafe != null;
     const unitesDisponibles =
-      uniteCompatibleCuillere && ingredient.parCuillereACafe != null
+      uniteCompatibleCuillere && cuillereReglee
         ? [ingredient.unite, "c. à café", "c. à soupe"]
         : [ingredient.unite];
 
@@ -2128,6 +2185,16 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
         <div class="panneau-section-titre">Unité (comme la recette te la donne)</div>
         <div class="liste-plats" id="plat-qte-unites"></div>
       ` : ""}
+
+      ${uniteCompatibleCuillere && !cuillereReglee ? (
+        montrerFormCuillere
+          ? `<div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
+             <div class="stepper">
+               <input type="number" id="plat-qte-cuillere-valeur" class="article-quantite-input" min="0" step="any" placeholder="Ex. 5">
+               <button class="bouton-secondaire" id="plat-qte-cuillere-valider">Enregistrer</button>
+             </div>`
+          : `<button class="bouton-discret" id="plat-qte-cuillere-toggle">🥄 La recette parle en cuillères ? Régler l'équivalence</button>`
+      ) : ""}
 
       <div class="panneau-section-titre">Quantité pour ${nbPortions} portion${nbPortions > 1 ? "s" : ""} (${uniteChoisie})</div>
       <p class="panneau-note">La quantité telle que donnée par la recette (pour ${nbPortions}
@@ -2156,6 +2223,24 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
         });
         listeUnitesEl.appendChild(item);
       }
+    }
+
+    const cuillereToggleEl = panneauPlatEl.querySelector("#plat-qte-cuillere-toggle");
+    if (cuillereToggleEl) {
+      cuillereToggleEl.addEventListener("click", () => {
+        montrerFormCuillere = true;
+        rendrePanneau();
+      });
+    }
+    const cuillereValiderEl = panneauPlatEl.querySelector("#plat-qte-cuillere-valider");
+    if (cuillereValiderEl) {
+      cuillereValiderEl.addEventListener("click", () => {
+        const valeur = panneauPlatEl.querySelector("#plat-qte-cuillere-valeur").value;
+        modifierIngredient(etat, ingredientId, { parCuillereACafe: valeur });
+        sauvegarder();
+        montrerFormCuillere = false;
+        rendrePanneau();
+      });
     }
 
     panneauPlatEl.querySelector("#plat-qte-moins").addEventListener("click", () => {
