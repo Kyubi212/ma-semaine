@@ -252,7 +252,7 @@ function construireCarteCreneau(dateISO, creneau) {
   } else if (elements.length === 1) {
     const [element] = elements;
     const detailMorceaux = [];
-    if (element.preparation === "reste") detailMorceaux.push("♻️ Reste");
+    if (element.preparation === "reste") detailMorceaux.push("🍽️ Sans cuisiner");
     detailMorceaux.push(`${element.portions} portion${element.portions > 1 ? "s" : ""}`);
     infoBouton.innerHTML = `
       <span class="carte-creneau-entete">${infos.icone} ${infos.label}</span>
@@ -280,7 +280,7 @@ function construireCarteCreneau(dateISO, creneau) {
     caseACocher.type = "checkbox";
     caseACocher.className = "carte-creneau-cuisine";
     caseACocher.checked = element.cuisine;
-    caseACocher.setAttribute("aria-label", "Cuisiné");
+    caseACocher.setAttribute("aria-label", "Préparé (déduit le stock)");
     caseACocher.addEventListener("change", () => {
       definirCuisine(etat, dateISO, creneau, element.id, caseACocher.checked);
       sauvegarder();
@@ -319,11 +319,22 @@ function ouvrirPanneau(dateISO, creneau) {
   // "Candidat" en cours d'ajout (pas encore enregistré) : null tant que
   // Qassim n'a pas tapé sur un plat de la liste "Ajouter un plat".
   let candidat = null;
-  let voirTousLesPlats = false;
+
+  // Filtres de la liste "Ajouter un plat" — par défaut sur le repas de ce
+  // créneau, mais entièrement changeables (mêmes filtres que l'écran
+  // Plats & repas) pour pouvoir ex. mettre un plat "Petit-déjeuner" au
+  // déjeuner (brunch), ou ne voir que ses favoris.
+  let filtreRepasPanneau = infos.repasId;
+  let filtreFavorisPanneau = false;
+  const etiquettesSelectionneesPanneau = new Set();
 
   function platsAffiches() {
-    if (voirTousLesPlats) return etat.plats;
-    return etat.plats.filter((p) => p.repas === infos.repasId);
+    let liste = filtreRepasPanneau === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepasPanneau);
+    if (filtreFavorisPanneau) liste = liste.filter((p) => p.favori);
+    if (etiquettesSelectionneesPanneau.size > 0) {
+      liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
+    }
+    return liste;
   }
 
   function rendrePanneau() {
@@ -337,17 +348,70 @@ function ouvrirPanneau(dateISO, creneau) {
       </div>
 
       <div class="panneau-section-titre">Plats prévus</div>
+      <p class="panneau-note">
+        Portions : par personne. "👨‍🍳 Cuisiner" = préparé maintenant (coche ensuite
+        "✅ Préparé" une fois fait, pour déduire le stock) — "🍽️ Manger, sans cuisiner" =
+        ex. un reste déjà cuisiné avant, ne touche jamais le stock. Rien à manger ici ? Ne
+        choisis aucun plat, ou retire celui déjà là avec ✕.
+      </p>
       <div class="liste-elements" id="liste-elements"></div>
       ${elements.length === 0 ? `<p class="panneau-vide">Rien de prévu pour l'instant.</p>` : ""}
 
       <div class="panneau-section-titre">Ajouter un plat</div>
+      <div class="segmente" id="filtres-repas-panneau"></div>
+      <button class="segmente-bouton" id="filtre-favoris-panneau" type="button">⭐ Favoris</button>
+      <div class="segmente" id="filtres-etiquettes-panneau"></div>
       <div class="liste-plats" id="liste-plats"></div>
-      <button class="lien-voir-tous" id="lien-voir-tous">
-        ${voirTousLesPlats ? `Filtrer sur ${infos.label}` : "Voir tous les plats"}
-      </button>
 
       <div id="zone-candidat"></div>
     `;
+
+    // --- Filtres de la liste "Ajouter un plat" (repas à choix unique,
+    // favoris indépendant, étiquettes à choix multiple ET — mêmes filtres
+    // que l'écran Plats & repas, voir CLAUDE.md § Repas/Étiquettes
+    // éditables) ---
+    const filtresRepasPanneauEl = panneauPlatEl.querySelector("#filtres-repas-panneau");
+    const boutonTousRepas = document.createElement("button");
+    boutonTousRepas.className = "segmente-bouton";
+    if (filtreRepasPanneau === "tous") boutonTousRepas.classList.add("selectionne");
+    boutonTousRepas.textContent = "Tous";
+    boutonTousRepas.addEventListener("click", () => {
+      filtreRepasPanneau = "tous";
+      rendrePanneau();
+    });
+    filtresRepasPanneauEl.appendChild(boutonTousRepas);
+    for (const repas of etat.repas) {
+      const bouton = document.createElement("button");
+      bouton.className = "segmente-bouton";
+      if (filtreRepasPanneau === repas.id) bouton.classList.add("selectionne");
+      bouton.textContent = repas.nom;
+      bouton.addEventListener("click", () => {
+        filtreRepasPanneau = repas.id;
+        rendrePanneau();
+      });
+      filtresRepasPanneauEl.appendChild(bouton);
+    }
+
+    const filtreFavorisPanneauEl = panneauPlatEl.querySelector("#filtre-favoris-panneau");
+    filtreFavorisPanneauEl.classList.toggle("selectionne", filtreFavorisPanneau);
+    filtreFavorisPanneauEl.addEventListener("click", () => {
+      filtreFavorisPanneau = !filtreFavorisPanneau;
+      rendrePanneau();
+    });
+
+    const filtresEtiquettesPanneauEl = panneauPlatEl.querySelector("#filtres-etiquettes-panneau");
+    for (const etiquette of etat.etiquettes) {
+      const bouton = document.createElement("button");
+      bouton.className = "segmente-bouton";
+      if (etiquettesSelectionneesPanneau.has(etiquette.id)) bouton.classList.add("selectionne");
+      bouton.textContent = etiquette.nom;
+      bouton.addEventListener("click", () => {
+        if (etiquettesSelectionneesPanneau.has(etiquette.id)) etiquettesSelectionneesPanneau.delete(etiquette.id);
+        else etiquettesSelectionneesPanneau.add(etiquette.id);
+        rendrePanneau();
+      });
+      filtresEtiquettesPanneauEl.appendChild(bouton);
+    }
 
     // --- Liste des plats déjà prévus (chacun modifiable/retirable) ---
     const listeElementsEl = panneauPlatEl.querySelector("#liste-elements");
@@ -358,18 +422,23 @@ function ouvrirPanneau(dateISO, creneau) {
       const peutCuisiner = element.preparation !== "reste";
       ligne.innerHTML = `
         <div class="element-prevu-ligne1">
-          ${peutCuisiner ? `<input type="checkbox" class="element-cuisine" aria-label="Cuisiné" ${element.cuisine ? "checked" : ""}>` : "<span></span>"}
           <span class="element-nom">${nomPlat(element.platId)}</span>
           <button class="element-retirer" aria-label="Retirer">✕</button>
         </div>
         <div class="element-prevu-ligne2">
           <div class="stepper stepper-compact">
             <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
-            <span class="stepper-valeur">${element.portions}</span>
+            <span class="stepper-valeur">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
             <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
           </div>
-          <button class="pastille-prep" data-action="prep">${element.preparation === "reste" ? "♻️ Reste" : "🍳 Cuisiné ici"}</button>
+          <button class="pastille-prep" data-action="prep">${element.preparation === "reste" ? "🍽️ Manger, sans cuisiner" : "👨‍🍳 Cuisiner"}</button>
         </div>
+        ${peutCuisiner ? `
+          <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start; margin-top:8px;">
+            <input type="checkbox" class="element-cuisine" ${element.cuisine ? "checked" : ""}>
+            ✅ Préparé (déduit le stock)
+          </label>
+        ` : ""}
       `;
 
       const caseACocher = ligne.querySelector(".element-cuisine");
@@ -420,24 +489,20 @@ function ouvrirPanneau(dateISO, creneau) {
       listePlatsEl.appendChild(item);
     }
 
-    panneauPlatEl.querySelector("#lien-voir-tous").addEventListener("click", () => {
-      voirTousLesPlats = !voirTousLesPlats;
-      rendrePanneau();
-    });
-
     // --- Zone du candidat sélectionné (portions, préparation, boutons d'ajout) ---
     const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat");
     if (candidat) {
       zoneCandidatEl.innerHTML = `
         <div class="panneau-section-titre">${nomPlat(candidat.platId)}</div>
+        <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
         <div class="stepper">
           <button class="stepper-bouton" id="candidat-moins" aria-label="Moins de portions">−</button>
           <span class="stepper-valeur">${candidat.portions}</span>
           <button class="stepper-bouton" id="candidat-plus" aria-label="Plus de portions">+</button>
         </div>
         <div class="segmente">
-          <button class="segmente-bouton" id="candidat-prep-cuisine" type="button">🍳 Cuisiné ici</button>
-          <button class="segmente-bouton" id="candidat-prep-reste" type="button">♻️ Reste</button>
+          <button class="segmente-bouton" id="candidat-prep-cuisine" type="button">👨‍🍳 Cuisiner</button>
+          <button class="segmente-bouton" id="candidat-prep-reste" type="button">🍽️ Manger, sans cuisiner</button>
         </div>
         <div class="panneau-actions">
           <button class="bouton-principal" id="ajouter-jour">Ajouter juste ce jour</button>
