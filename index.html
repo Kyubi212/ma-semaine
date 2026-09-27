@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20260927e">
+  <link rel="stylesheet" href="style.css?v=20260927f">
 </head>
 <body>
   <header class="app-header">
@@ -36,7 +36,17 @@
     </section>
 
     <section id="ecran-plats" class="ecran" hidden>
-      <p class="placeholder">Écran Plats &amp; repas — à construire à l'étape 7.</p>
+      <div class="segmente" id="filtres-plats">
+        <button class="segmente-bouton" data-filtre="tous" type="button">Tous</button>
+        <button class="segmente-bouton" data-filtre="favoris" type="button">⭐ Favoris</button>
+        <button class="segmente-bouton" data-filtre="Petit-déjeuner" type="button">Petit-déj.</button>
+        <button class="segmente-bouton" data-filtre="Smoko" type="button">Smoko</button>
+        <button class="segmente-bouton" data-filtre="Déjeuner" type="button">Déjeuner</button>
+        <button class="segmente-bouton" data-filtre="Snack" type="button">Snack</button>
+        <button class="segmente-bouton" data-filtre="Dîner" type="button">Dîner</button>
+      </div>
+      <button id="ajouter-plat" class="bouton-secondaire bouton-pleine-largeur">+ Nouveau plat</button>
+      <div id="grille-plats"></div>
     </section>
 
     <section id="ecran-stock" class="ecran" hidden>
@@ -73,6 +83,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260927e"></script>
+  <script type="module" src="app.js?v=20260927f"></script>
 </body>
 </html>

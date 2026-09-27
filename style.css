@@ -615,6 +615,15 @@ body {
   line-height: 1;
 }
 
+.plat-favori {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .rayon-articles {
   display: flex;
   flex-direction: column;

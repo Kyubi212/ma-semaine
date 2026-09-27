@@ -23,6 +23,9 @@ import {
   ajouterRayon,
   renommerRayon,
   supprimerRayon,
+  ajouterPlat,
+  modifierPlat,
+  supprimerPlat,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -104,6 +107,7 @@ boutonsOnglets.forEach((bouton) => {
     // on le recalcule à chaque fois qu'on l'ouvre, pas seulement au démarrage.
     if (bouton.dataset.ecran === "courses") rendreEcranCourses();
     if (bouton.dataset.ecran === "stock") rendreEcranStock();
+    if (bouton.dataset.ecran === "plats") rendreEcranPlats();
   });
 });
 
@@ -1024,9 +1028,13 @@ function normaliserRecherche(texte) {
 // ingrédient ouvre son panneau d'édition habituel (stock/essentiel/minimum).
 // Depuis "+ Ajouter un extra", on passe une fonction différente (quantité +
 // "Ajouter cet extra") — voir ouvrirPanneauExtraPourIngredient.
-function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIngredient = null) {
+// retourPropre : ce que fait le ✕ DU Catalogue lui-même. Par défaut ferme
+// tout le panneau (cas Stock/Courses, un seul niveau). Depuis l'éditeur de
+// plat (Catalogue ouvert PAR-DESSUS ce panneau), on passe une fonction qui
+// revient à l'éditeur au lieu de tout fermer — voir ouvrirPanneauPlat.
+function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIngredient = null, retourPropre = fermerPanneau) {
   apresFermeturePanneau = ecranSousJacent;
-  const retourVersCatalogue = () => ouvrirPanneauCatalogue(ecranSousJacent, onChoisirIngredient);
+  const retourVersCatalogue = () => ouvrirPanneauCatalogue(ecranSousJacent, onChoisirIngredient, retourPropre);
 
   function rendreListe() {
     const recherche = normaliserRecherche(rechercheCatalogue.trim());
@@ -1120,7 +1128,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
   panneauPlatEl.querySelector("#catalogue-nouveau-rayon").addEventListener("click", () => {
     ouvrirPanneauNouveauRayon(retourVersCatalogue, ecranSousJacent);
   });
-  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retourPropre);
 
   rendreListe();
   panneauFondEl.hidden = false;
@@ -1208,6 +1216,341 @@ function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = ren
         return;
       }
       ajouterRayon(etat, nom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// ============================================================
+// Écran Plats & repas
+// ============================================================
+
+// Les 5 repas proposés à la création/modification d'un plat (mêmes labels
+// que CRENEAU_INFOS, pour rester cohérent avec l'écran Semaine). Les plats
+// importés de Notion peuvent avoir un repas hors de cette liste (ex.
+// "Plaisir occasionnel") : on ne casse pas cette valeur si on n'y touche pas,
+// mais le picker de création/modification ne propose que ces 5-là.
+const REPAS_PLATS = ["Petit-déjeuner", "Smoko", "Déjeuner", "Snack", "Dîner"];
+
+let filtrePlats = "tous";
+const filtresPlatsEl = document.getElementById("filtres-plats");
+const grillePlatsEl = document.getElementById("grille-plats");
+
+filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
+  bouton.addEventListener("click", () => {
+    filtrePlats = bouton.dataset.filtre;
+    rendreEcranPlats();
+  });
+});
+
+document.getElementById("ajouter-plat").addEventListener("click", () => {
+  ouvrirPanneauNouveauPlat();
+});
+
+function platsFiltres() {
+  switch (filtrePlats) {
+    case "favoris":
+      return etat.plats.filter((p) => p.favori);
+    case "tous":
+      return etat.plats;
+    default:
+      return etat.plats.filter((p) => p.repas === filtrePlats);
+  }
+}
+
+function rendreEcranPlats() {
+  filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
+    bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtrePlats);
+  });
+
+  const liste = platsFiltres();
+  grillePlatsEl.innerHTML = "";
+
+  if (liste.length === 0) {
+    grillePlatsEl.innerHTML = `<p class="liste-vide">Aucun plat pour ce filtre.</p>`;
+    return;
+  }
+
+  for (const plat of liste) {
+    const nbIngredients = plat.ingredients.length;
+    const carte = document.createElement("div");
+    carte.className = "article-course";
+    carte.innerHTML = `
+      <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
+      <div class="article-info">
+        <span class="article-nom">${plat.nom}</span>
+        <span class="article-detail">${plat.repas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}</span>
+      </div>
+    `;
+    carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
+      evenement.stopPropagation();
+      modifierPlat(etat, plat.id, { favori: !plat.favori });
+      sauvegarder();
+      rendreEcranPlats();
+    });
+    carte.addEventListener("click", () => ouvrirPanneauPlat(plat.id));
+    grillePlatsEl.appendChild(carte);
+  }
+}
+
+function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
+  conteneurEl.innerHTML = "";
+  for (const repas of REPAS_PLATS) {
+    const item = document.createElement("button");
+    item.className = "plat-choix";
+    if (repas === valeurActuelle) item.classList.add("selectionne");
+    item.textContent = repas;
+    item.addEventListener("click", () => onChoisir(repas));
+    conteneurEl.appendChild(item);
+  }
+}
+
+// --- Panneau "nouveau plat" : juste nom + repas, puis bascule sur le
+// panneau d'édition complet (ingrédients, étapes...) une fois créé. ---
+
+function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+  const nouveau = { nom: "", repas: null };
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouveau plat</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="nouveau-plat-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Curry de poulet">
+
+      <div class="panneau-section-titre">Repas</div>
+      <div class="liste-plats" id="nouveau-plat-repas"></div>
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="nouveau-plat-valider">Créer ce plat</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#nouveau-plat-nom").addEventListener("change", (evenement) => {
+      nouveau.nom = evenement.target.value;
+    });
+
+    construireListeRepasEl(panneauPlatEl.querySelector("#nouveau-plat-repas"), nouveau.repas, (repas) => {
+      nouveau.repas = repas;
+      rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#nouveau-plat-valider").addEventListener("click", () => {
+      const nomSaisi = panneauPlatEl.querySelector("#nouveau-plat-nom").value.trim();
+      if (!nomSaisi) {
+        rendrePanneau("Donne un nom à ce plat.");
+        return;
+      }
+      if (!nouveau.repas) {
+        rendrePanneau("Choisis un repas.");
+        return;
+      }
+      const plat = ajouterPlat(etat, { nom: nomSaisi, repas: nouveau.repas, ingredients: [] });
+      sauvegarder();
+      ouvrirPanneauPlat(plat.id, ecranSousJacent);
+    });
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "modifier un plat" : nom, repas, portions, étapes,
+// ingrédients (ajoutés via le Catalogue), suppression. Tout s'enregistre
+// immédiatement (même principe que le panneau ingrédient de Stock). ---
+
+function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    const plat = etat.plats.find((p) => p.id === platId);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">✏️ Modifier le plat</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="plat-nom" class="article-quantite-input" style="width:100%;" value="${plat.nom}">
+
+      <div class="panneau-section-titre">Repas</div>
+      <div class="liste-plats" id="plat-repas"></div>
+
+      <div class="panneau-section-titre">Portions de référence</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="plat-portions-moins" aria-label="Moins">−</button>
+        <input type="number" id="plat-portions-valeur" class="article-quantite-input" value="${plat.portionsReference}" min="1" step="1">
+        <button class="stepper-bouton" id="plat-portions-plus" aria-label="Plus">+</button>
+      </div>
+
+      <div class="panneau-section-titre">Étapes / recette</div>
+      <textarea id="plat-etapes" class="article-quantite-input" style="width:100%; min-height:100px;" placeholder="Ex. Faire revenir l'oignon, ajouter le poulet...">${plat.etapes ?? ""}</textarea>
+
+      <div class="panneau-section-titre">Ingrédients (par portion)</div>
+      <div id="plat-ingredients"></div>
+      <button class="bouton-secondaire bouton-pleine-largeur" id="plat-ajouter-ingredient" style="margin-top:8px;">➕ Ajouter un ingrédient</button>
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-discret" id="plat-supprimer">🗑️ Supprimer ce plat</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#plat-nom").addEventListener("change", (evenement) => {
+      modifierPlat(etat, platId, { nom: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    construireListeRepasEl(panneauPlatEl.querySelector("#plat-repas"), plat.repas, (repas) => {
+      modifierPlat(etat, platId, { repas });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#plat-portions-moins").addEventListener("click", () => {
+      modifierPlat(etat, platId, { portionsReference: Math.max(1, plat.portionsReference - 1) });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-portions-plus").addEventListener("click", () => {
+      modifierPlat(etat, platId, { portionsReference: plat.portionsReference + 1 });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-portions-valeur").addEventListener("change", (evenement) => {
+      modifierPlat(etat, platId, { portionsReference: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#plat-etapes").addEventListener("change", (evenement) => {
+      modifierPlat(etat, platId, { etapes: evenement.target.value });
+      sauvegarder();
+    });
+
+    const listeIngredientsEl = panneauPlatEl.querySelector("#plat-ingredients");
+    if (plat.ingredients.length === 0) {
+      listeIngredientsEl.innerHTML = `<p class="panneau-vide">Aucun ingrédient pour l'instant.</p>`;
+    } else {
+      for (const ligne of plat.ingredients) {
+        const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+        const ligneEl = document.createElement("div");
+        ligneEl.className = "element-prevu";
+        ligneEl.innerHTML = `
+          <div class="element-prevu-ligne1">
+            <span class="element-nom">${ingredient ? ingredient.nom : ligne.ingredientId}</span>
+            <button class="element-retirer" aria-label="Retirer cet ingrédient">✕</button>
+          </div>
+          <div class="element-prevu-ligne2">
+            <input type="number" class="article-quantite-input" value="${formaterNombre(ligne.quantitePortion)}" min="0" step="any" style="width:100px;">
+            <span class="article-unite">${ligne.unite}</span>
+          </div>
+        `;
+        ligneEl.querySelector(".element-retirer").addEventListener("click", () => {
+          modifierPlat(etat, platId, { ingredients: plat.ingredients.filter((l) => l !== ligne) });
+          sauvegarder();
+          rendrePanneau();
+        });
+        ligneEl.querySelector("input").addEventListener("change", (evenement) => {
+          const nouvelleListe = plat.ingredients.map((l) =>
+            l === ligne ? { ...l, quantitePortion: clampPositif(evenement.target.value) } : l
+          );
+          modifierPlat(etat, platId, { ingredients: nouvelleListe });
+          sauvegarder();
+        });
+        listeIngredientsEl.appendChild(ligneEl);
+      }
+    }
+
+    panneauPlatEl.querySelector("#plat-ajouter-ingredient").addEventListener("click", () => {
+      ouvrirPanneauCatalogue(
+        ecranSousJacent,
+        (ingredientId, retourVersCatalogue) => ouvrirPanneauQuantitePourPlat(platId, ingredientId, retourVersCatalogue),
+        () => ouvrirPanneauPlat(platId, ecranSousJacent)
+      );
+    });
+
+    panneauPlatEl.querySelector("#plat-supprimer").addEventListener("click", () => {
+      const resultat = supprimerPlat(etat, platId);
+      if (!resultat.ok) {
+        const morceaux = [];
+        if (resultat.joursModele.length > 0) morceaux.push(`prévu le ${resultat.joursModele.join(", ")} (semaine type)`);
+        if (resultat.datesHistorique.length > 0) morceaux.push(`utilisé le ${resultat.datesHistorique.join(", ")}`);
+        rendrePanneau(`Impossible : ${morceaux.join(" et ")}.`);
+        return;
+      }
+      sauvegarder();
+      fermerPanneau();
+    });
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "quantité par portion" pour un ingrédient qu'on vient de
+// choisir dans le Catalogue, pendant l'édition d'un plat. ---
+
+function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
+  let quantite = 1;
+
+  function rendrePanneau() {
+    const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">${ingredient.nom}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Quantité par portion (${ingredient.unite})</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="plat-qte-moins" aria-label="Moins">−</button>
+        <input type="number" id="plat-qte-valeur" class="article-quantite-input" value="${quantite}" min="0" step="any">
+        <button class="stepper-bouton" id="plat-qte-plus" aria-label="Plus">+</button>
+      </div>
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="plat-qte-ajouter">Ajouter à la recette</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#plat-qte-moins").addEventListener("click", () => {
+      quantite = Math.max(0, quantite - 1);
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-qte-plus").addEventListener("click", () => {
+      quantite += 1;
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-qte-valeur").addEventListener("change", (evenement) => {
+      quantite = clampPositif(evenement.target.value);
+    });
+    panneauPlatEl.querySelector("#plat-qte-ajouter").addEventListener("click", () => {
+      const plat = etat.plats.find((p) => p.id === platId);
+      modifierPlat(etat, platId, {
+        ingredients: [...plat.ingredients, { ingredientId, quantitePortion: quantite, unite: ingredient.unite }],
+      });
       sauvegarder();
       retour();
     });
