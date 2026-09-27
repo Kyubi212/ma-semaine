@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Filtres repas **Tous / ⭐ Favoris / Petit-déjeuner / Smoko / Déjeuner-Dîner / Snack** (Déjeuner et Dîner fusionnés), favori basculable sur la carte. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : étiquettes, portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue (quantité par portion), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Filtre repas **Tous / ⭐ Favoris** + un bouton par repas (dynamique, Déjeuner et Dîner fusionnés), favori basculable sur la carte. "✏️ Éditer les repas" (masqué par défaut) pour renommer/supprimer/ajouter un repas — voir "Repas éditables" ci-dessous. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas et étiquettes (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue (quantité par portion), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
@@ -128,9 +128,9 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
-- **Plat** (MVP allégé) : id, nom, repas, étapes, portions de référence, favori (oui/non),
-  étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité **par
-  portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
+- **Plat** (MVP allégé) : id, nom, repas (id, un seul), étapes, portions de référence, favori
+  (oui/non), étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité
+  **par portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions, préparation
   (cuisiné ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle"). Plusieurs
   règles peuvent partager le même jour + créneau.
@@ -138,8 +138,8 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 6 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 dans `storage.js` →
-`migrer`).
+du format (actuellement 7 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 dans
+`storage.js` → `migrer`).
 
 ## Règles de calcul
 
@@ -236,6 +236,37 @@ Dans tous les cas, fermer ce panneau d'action revient au Catalogue (pas à l'éc
 en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ (ou,
 depuis l'éditeur de plat, à l'éditeur lui-même — le Catalogue y est ouvert PAR-DESSUS un autre
 panneau, pas directement depuis un écran).
+
+## Repas éditables (écran Plats & repas)
+
+Même principe que les rayons/étiquettes : les repas (Petit-déjeuner, Smoko, Snack... — voir
+"Modèle de données") sont des objets `{ id, nom }` stockés dans l'état (`etat.repas`), pas figés
+dans le code. **Déjeuner et Dîner sont fusionnés en une seule catégorie "Déjeuner/Dîner" dès le
+départ** (décision de Qassim : ce sont pour lui les mêmes plats, interchangeables entre le lunch
+et le dîner). Contrairement aux étiquettes, un plat n'a qu'**un seul** repas à la fois
+(`plat.repas` est un id seul, pas une liste).
+
+**Distinction importante avec les créneaux de la Semaine** : les 5 créneaux fixes de la journée
+(petit-dejeuner/smoko/lunch/snack/diner — voir "Semaines réelles et modèle") restent des créneaux
+horaires FIXES, jamais renommés ni fusionnés (ce sont des moments de la journée, pas des
+catégories de plats). C'est le **repas associé à chaque créneau** (`CRENEAU_INFOS` dans `app.js`,
+champ `repasId`) qui référence un repas éditable — `lunch` ET `diner` référencent tous les deux
+`dejeuner-diner`, donc piochent dans la même liste de plats. Renommer un repas (ex. "Smoko" →
+"Goûter", une histoire de vocabulaire personnel/familial) ne casse jamais ce lien : l'id ne change
+jamais, seul le nom affiché change, partout où il apparaît (filtre de l'écran Plats, picker de
+repas d'un plat).
+
+Un repas peut être renommé ou supprimé, **sauf** si au moins un plat l'utilise encore (suppression
+refusée, avec la liste de ces plats — même logique que rayon/étiquette). Accès à cette gestion :
+un bouton discret "✏️ Éditer les repas" sur l'écran Plats & repas (masqué par défaut), qui révèle
+un ✏️ sur chaque repas une fois activé, plus "+ Ajouter un repas". **Une catégorie de repas
+inconnue héritée de Notion** (ex. "Plaisir occasionnel", "Préparation de base") n'est jamais
+perdue : elle obtient sa propre entrée à la volée au moment de la migration, éditable comme les
+autres.
+
+Les boutons "+ Nouveau repas" / "+ Nouvelle étiquette" existent aussi **directement dans
+l'éditeur d'un plat** (pas seulement sur l'écran Plats) : Qassim peut créer une catégorie
+manquante sans interrompre la saisie d'une recette, avec retour automatique à l'éditeur en cours.
 
 ## Étiquettes éditables (écran Plats & repas)
 
