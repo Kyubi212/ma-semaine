@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | "⭐ Favoris" : case INDÉPENDANTE (combinable avec n'importe quel repas, ex. "Petit-déjeuner" + "Favoris" en même temps). Filtre repas **Tous** + un bouton par repas (dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés), favori basculable sur la carte. "✏️ Éditer les repas" (masqué par défaut) pour renommer/supprimer/ajouter un repas — voir "Repas éditables" ci-dessous. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas et étiquettes (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Recherche par nom + bouton **"🔧 Filtres"** (compteur si actifs) ouvrant un panneau à part avec Favoris (case indépendante), Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
@@ -212,9 +212,10 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (`parCuillereACafe`,
   éditable dans le panneau Stock pour les unités g/ml — voir "Cuillères dans les recettes" plus
   bas).
-- **Plat** (MVP allégé) : id, nom, repas (id, un seul), étapes, portions de référence, favori
-  (oui/non), étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité
-  **par portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
+- **Plat** : id, nom, repas (id, un seul), étapes, portions de référence, favori (oui/non),
+  étiquettes (liste d'ids, plusieurs à la fois), matériel (liste d'ids, plusieurs à la fois — voir
+  "Matériel requis et temps de préparation/cuisson"), tempsPreparation, tempsCuisson (minutes),
+  liste d'ingrédients avec quantité **par portion**. (Protéine principale : reportée après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions. Pas d'état
   "cuisiné"/"mangé" ici (voir "Semaines réelles et modèle"). Plusieurs règles peuvent partager le
   même jour + créneau.
@@ -226,8 +227,8 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   indépendante du modèle/historique (`etat.repasPrets`).
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 9 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 dans
-`storage.js` → `migrer`).
+du format (actuellement 10 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10
+dans `storage.js` → `migrer`).
 
 ### Portions de référence et saisie des quantités
 
@@ -437,6 +438,44 @@ Une étiquette peut être renommée (l'id ne change jamais, les plats restent li
 même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un bouton discret
 "✏️ Éditer les étiquettes" sur l'écran Plats & repas (masqué par défaut, pas un geste du
 quotidien), qui révèle un ✏️ sur chaque étiquette une fois activé, plus "+ Ajouter une étiquette".
+
+## Panneau Filtres (écran Plats & repas)
+
+**Historique de la décision** : Favoris + Repas + Étiquettes (et leurs boutons d'édition)
+empilaient trop de lignes directement sur l'écran, avant même d'arriver aux résultats — retour de
+Qassim en testant l'app ("ça prend trop de place, je préfère ouvrir un truc à côté"). Regroupés
+dans un panneau à part ("🔧 Filtres", ouvert/fermé comme les autres panneaux de l'app) : l'écran
+principal reste compact (recherche, bouton Filtres avec un compteur si des filtres sont actifs
+— ex. "Filtres (2)" —, "+ Nouveau plat", puis la grille). Éditer un repas/une étiquette/un matériel
+depuis ce panneau y ramène à la fermeture (pas à l'écran principal), pour pouvoir enchaîner
+plusieurs réglages sans perdre le fil.
+
+**Boutons côte à côte plutôt qu'empilés** : plus généralement, `.panneau-actions` (utilisé par
+tous les panneaux à un ou deux boutons d'action — confirmer/annuler, enregistrer/supprimer,
+candidat "Ajouter juste ce jour"/"...et en faire le défaut"...) met ses boutons en ligne avec
+retour à la ligne automatique si ça ne tient pas, au lieu de toujours les empiler — même retour de
+Qassim, appliqué à tout l'app d'un coup.
+
+## Matériel requis et temps de préparation/cuisson (écran Plats & repas)
+
+**Décision clé (demandée par Qassim, "quelle est la meilleure méthode pour expliquer une
+recette")** : il manquait le matériel nécessaire (poêle, air fryer...) pour reproduire une
+recette. Même principe que les étiquettes éditables ci-dessus, appliqué au matériel : objets
+`{ id, nom }` stockés dans l'état (`etat.materiel`, liste de départ éditable — Poêle, Casserole,
+Four, Air fryer, Mixeur, Cuiseur à riz, Bol), pas figés dans le code. **Un plat peut demander
+plusieurs matériels à la fois** — `plat.materiel` est une liste d'ids. Même logique de filtre ET
+que les étiquettes (voir "Panneau Filtres" ci-dessus), même protection à la suppression (refusée
+si un plat le demande encore, avec la liste de ces plats).
+
+En plus du matériel, chaque plat porte `tempsPreparation` et `tempsCuisson` (en minutes, 0 =
+valeur par défaut / pas de cuisson pour `tempsCuisson`), réglables par steppers dans l'éditeur de
+plat, juste après "Portions de référence" et avant "Étapes / recette" — comme sur une vraie fiche
+recette (ingrédients/matériel d'abord, méthode ensuite). Le total (`tempsPreparation +
+tempsCuisson`) s'affiche sur chaque carte plat, avec le matériel requis.
+
+Remplace l'ancien champ `assemblage` (booléen "sans cuisson") qui existait dans les données
+importées de Notion mais n'était **jamais affiché nulle part** dans l'app — retiré (migration
+v9 → v10) au profit de `tempsCuisson` (0 minute exprime la même idée, sans champ redondant).
 
 ## Sécurité et vie privée
 
