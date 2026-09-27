@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Filtres **Tous / ⭐ Favoris / Petit-déjeuner / Smoko / Déjeuner / Snack / Dîner**, favori basculable sur la carte. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue (quantité par portion), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Filtres repas **Tous / ⭐ Favoris / Petit-déjeuner / Smoko / Déjeuner-Dîner / Snack** (Déjeuner et Dîner fusionnés), favori basculable sur la carte. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : étiquettes, portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue (quantité par portion), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
@@ -128,9 +128,9 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
-- **Plat** (MVP allégé) : id, nom, repas, étapes, portions de référence, favori (oui/non), liste
-  d'ingrédients avec quantité **par portion**. (Temps, matériel, protéine principale : reportés
-  après le MVP.)
+- **Plat** (MVP allégé) : id, nom, repas, étapes, portions de référence, favori (oui/non),
+  étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité **par
+  portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions, préparation
   (cuisiné ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle"). Plusieurs
   règles peuvent partager le même jour + créneau.
@@ -138,7 +138,7 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 5 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 dans `storage.js` →
+du format (actuellement 6 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 dans `storage.js` →
 `migrer`).
 
 ## Règles de calcul
@@ -236,6 +236,27 @@ Dans tous les cas, fermer ce panneau d'action revient au Catalogue (pas à l'éc
 en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ (ou,
 depuis l'éditeur de plat, à l'éditeur lui-même — le Catalogue y est ouvert PAR-DESSUS un autre
 panneau, pas directement depuis un écran).
+
+## Étiquettes éditables (écran Plats & repas)
+
+Même principe que les rayons éditables ci-dessus, appliqué aux plats : les étiquettes (Sucré,
+Salé, Sain, Sans porc, Végétarien, Dessert/Gâteau, Rapide à préparer au départ) sont des objets
+`{ id, nom }` stockés dans l'état (`etat.etiquettes`), pas figées dans le code. **Un plat peut
+porter plusieurs étiquettes à la fois** (contrairement au rayon d'un ingrédient, qui est unique) —
+`plat.etiquettes` est une liste d'ids, pas un id seul.
+
+**Décision clé sur les filtres** (validée avec Qassim, comme un système à la Deliveroo/Uber Eats) :
+cocher plusieurs étiquettes en même temps applique une logique **ET**, pas OU — un plat doit
+porter TOUTES les étiquettes cochées pour apparaître (ex. cocher "Sain" + "Sans porc" ne montre
+que les plats qui sont les deux à la fois, pas l'un ou l'autre). Les étiquettes restent une liste
+**plate, sans catégories** (pas de regroupement "Goût"/"Régime"...) — plus simple à gérer, quitte à
+revoir si le nombre d'étiquettes grossit beaucoup.
+
+Une étiquette peut être renommée (l'id ne change jamais, les plats restent liés) ou supprimée,
+**sauf** si au moins un plat la porte encore (suppression refusée, avec la liste de ces plats —
+même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un bouton discret
+"✏️ Éditer les étiquettes" sur l'écran Plats & repas (masqué par défaut, pas un geste du
+quotidien), qui révèle un ✏️ sur chaque étiquette une fois activé, plus "+ Ajouter une étiquette".
 
 ## Sécurité et vie privée
 
