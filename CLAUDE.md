@@ -204,7 +204,9 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 ## Modèle de données
 
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
-  toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (pour épices/liquides).
+  toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (`parCuillereACafe`,
+  éditable dans le panneau Stock pour les unités g/ml — voir "Cuillères dans les recettes" plus
+  bas).
 - **Plat** (MVP allégé) : id, nom, repas (id, un seul), étapes, portions de référence, favori
   (oui/non), étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité
   **par portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
@@ -234,6 +236,36 @@ reste la seule valeur **stockée** (toujours ramenée à 1 portion, en divisant 
 suivent la même logique dans les deux sens : on voit et on modifie toujours "pour N portions",
 jamais la valeur par-portion brute — donc changer `portionsReference` après coup ne perd aucune
 donnée, ça change juste le nombre affiché (mathématiquement cohérent).
+
+### Cuillères dans les recettes, grammes/ml dans le Stock et les Courses
+
+**Décision clé (demandée par Qassim)** : les recettes donnent souvent une quantité en cuillères
+("3 c. à café", "1 c. à soupe") plutôt qu'en grammes — c'est comme ça qu'on cuisine au quotidien.
+Mais le **Stock** et les **Courses** doivent rester en grammes/ml/pièce, parce que c'est ce qui est
+vendu et pesé dans le commerce (pas de "cuillères" en rayon). L'app permet donc de **saisir une
+ligne de recette en cuillères tout en gardant le Stock/Courses en unité de stock**, sans que Qassim
+ait à faire la conversion lui-même.
+
+Mécanisme (voir `ingredient.parCuillereACafe` dans "Modèle de données", et
+`convertirVersUniteStock` dans `calculs.js`) :
+- chaque ingrédient dosé en g ou en ml peut avoir une **équivalence "1 c. à café = combien de
+  g/ml"** réglée une fois pour toutes (ex. miel : 1 c. à café = 7 g) — champ optionnel, réglable
+  dans le panneau d'édition de l'ingrédient (écran Stock), visible seulement pour les unités g/ml
+  (une "pièce" ne se dose pas en cuillères) ;
+- une fois cette équivalence réglée, l'ajout d'un ingrédient à une recette (écran Plats & repas)
+  propose un choix d'unité — l'unité de stock de l'ingrédient, ou "c. à café"/"c. à soupe" (1 c. à
+  soupe = 3 c. à café, constante du cahier des charges) — et Qassim saisit la quantité TELLE QUE
+  DONNÉE par la recette, dans l'unité qu'il préfère pour CETTE ligne précise (une recette peut très
+  bien avoir une ligne "400 g de riz" et une autre "2 c. à café de miel" pour le même plat) ;
+- la conversion vers l'unité de stock n'a lieu qu'au moment des calculs (besoin, déduction du
+  stock...), jamais stockée en dur : `plat.ingredients[].quantitePortion` reste dans l'unité
+  ORIGINALE de la ligne (`unite`), pas forcément l'unité de stock — voir "Portions de référence"
+  ci-dessus pour la logique "par portion" qui s'applique de la même façon.
+
+Un ingrédient dont l'équivalence cuillère est utilisée par au moins une recette ne peut pas se la
+faire retirer (suppression refusée, avec la liste des plats concernés — même logique que
+supprimer un rayon/une étiquette/un ingrédient utilisé) : sinon cette recette deviendrait
+impossible à calculer.
 
 ## Règles de calcul
 
