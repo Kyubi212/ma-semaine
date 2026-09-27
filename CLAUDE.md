@@ -40,7 +40,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 
 | Écran | Rôle |
 |---|---|
-| **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
+| **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, préparation "👨‍🍳 Cuisiner" / "🍽️ Manger, sans cuisiner" avec "juste ce jour" ou "à partir d'aujourd'hui", case "✅ Préparé" (déduit le stock) directement sur la carte — voir "Cuisiner / manger, sans cuisiner" ci-dessous |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 | **Plats & repas** | "⭐ Favoris" : case INDÉPENDANTE (combinable avec n'importe quel repas, ex. "Petit-déjeuner" + "Favoris" en même temps). Filtre repas **Tous** + un bouton par repas (dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés), favori basculable sur la carte. "✏️ Éditer les repas" (masqué par défaut) pour renommer/supprimer/ajouter un repas — voir "Repas éditables" ci-dessous. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas et étiquettes (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
@@ -99,20 +99,46 @@ ci-dessous).
   samedi, etc. gardent leurs propres plats par défaut. C'est un point qui peut prêter à confusion,
   à bien expliciter dans l'interface.
 
+**Choisir un plat pour un créneau** propose les mêmes filtres que l'écran Plats & repas (repas à
+choix unique, ⭐ Favoris indépendant, étiquettes à choix multiple ET — voir "Étiquettes
+éditables"), par défaut sur le repas du créneau ouvert mais entièrement changeable : Qassim peut
+ex. mettre un plat "Petit-déjeuner" au déjeuner (brunch), ou ne voir que ses plats favoris. Chaque
+état de filtre est propre à ce panneau (pas partagé avec l'écran Plats & repas). Les portions sont
+toujours **par personne**, précisé explicitement dans l'interface.
+
+### Cuisiner / manger, sans cuisiner (clarifié suite à un retour de Qassim : "cuisiné ici"/"reste"
+prêtait à confusion avec la case à cocher, qui utilisait aussi le mot "cuisiné")
+
+Chaque élément d'un créneau a un mode de préparation, affiché comme un choix à deux options :
+- **"👨‍🍳 Cuisiner"** (`preparation: "cuisine-ici"` dans le code, nom interne inchangé) : ce plat
+  sera préparé pour ce repas. Une case à cocher séparée et VISIBLEMENT nommée
+  **"✅ Préparé (déduit le stock)"** apparaît alors, à cocher une fois la cuisson faite —
+  jusque-là, aucun effet sur le stock ; c'est cette case qui correspond à cocher **Préparé** dans
+  "Règles de calcul" plus haut.
+- **"🍽️ Manger, sans cuisiner"** (`preparation: "reste"` dans le code) : ce repas vient d'ailleurs
+  (reste déjà cuisiné avant, plat tout prêt...) — aucune case à cocher, ne touche jamais le stock,
+  coché ou non.
+
+**Pas de 3e état "ne pas manger"** : ça correspond simplement à ne choisir aucun plat pour ce
+créneau, ou à retirer avec ✕ celui déjà présent (déjà couvert par "Aucun plat choisi dans un
+créneau" dans les Cas limites) — pas besoin d'un champ de plus pour ça.
+
 **Le stock ne bouge que sur deux actions réelles**, peu importe la date affichée ou le nombre de
 jours écoulés :
-- cocher **Cuisiné** sur une case → déduit le stock immédiatement ; décocher → le restitue (sert à
+- cocher **✅ Préparé** sur une case (uniquement en mode "Cuisiner" — voir "Cuisiner / manger,
+  sans cuisiner" plus bas) → déduit le stock immédiatement ; décocher → le restitue (sert à
   corriger une erreur de saisie) ;
 - cocher **Acheté** sur un article de la liste de courses → ajoute au stock immédiatement.
 
 **Repas prévu à l'avance mais pas mangé** (ex. un batch cuisiné le dimanche pour toute la semaine,
 finalement pas terminé, ou un jour où Qassim change d'avis et sort manger dehors) : rien à faire
 dans l'app. Le stock ne suit que les ingrédients bruts, déduits au moment de la cuisson — pas les
-repas ensuite mangés ou non. Une case "reste" ne touche jamais au stock, cochée ou non. Si Qassim
-sait d'avance qu'il ne mangera rien à un créneau (ex. restaurant), il laisse simplement `platId`
-vide : la case ne compte dans rien.
+repas ensuite mangés ou non. Un élément en mode "🍽️ Manger, sans cuisiner" ne touche jamais au
+stock (pas de case à cocher pour lui). Si Qassim sait d'avance qu'il ne mangera rien à un créneau
+(ex. restaurant), il laisse simplement le créneau vide (aucun plat choisi, ou retiré avec ✕) : la
+case ne compte dans rien.
 
-Un repas dont le jour est passé et qui n'a **pas** été coché cuisiné n'est **pas** signalé
+Un repas dont le jour est passé et qui n'a **pas** été coché "✅ Préparé" n'est **pas** signalé
 automatiquement pour l'instant (contrairement à une version antérieure de cette section) : Qassim
 navigue lui-même vers le jour concerné pour le corriger s'il le souhaite. *(Une relance automatique
 reste une piste possible, voir Roadmap post-MVP.)*
@@ -132,10 +158,12 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   (oui/non), étiquettes (liste d'ids, plusieurs à la fois), liste d'ingrédients avec quantité
   **par portion**. (Temps, matériel, protéine principale : reportés après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions, préparation
-  (cuisiné ici / reste). Pas d'état "cuisiné" ici (voir "Semaines réelles et modèle"). Plusieurs
-  règles peuvent partager le même jour + créneau.
+  (`cuisine-ici`/`reste` dans le code, affichés "👨‍🍳 Cuisiner"/"🍽️ Manger, sans cuisiner" — voir
+  "Cuisiner / manger, sans cuisiner"). Pas d'état "cuisiné" ici (voir "Semaines réelles et
+  modèle"). Plusieurs règles peuvent partager le même jour + créneau.
 - **Élément d'historique** : par date réelle ("AAAA-MM-JJ") puis par créneau, une LISTE d'éléments
-  { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné".
+  { id, plat choisi, portions, préparation, cuisiné } — la seule couche qui porte l'état "cuisiné"
+  (affiché "✅ Préparé").
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
 du format (actuellement 8 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 dans
@@ -161,8 +189,8 @@ donnée, ça change juste le nombre affiché (mathématiquement cohérent).
   "reste" ni déjà cuisinés, de *portions × quantité par portion* (convertie en unité de base).
 - **À acheter** = maximum(0, besoin + minimum essentiel + extra − stock actuel). Arrondi au
   supérieur pour les unités "pièce", inchangé pour les grammes/ml.
-- Cocher **Cuisiné** sur une case : déduit immédiatement le stock des ingrédients du plat (portions
-  × quantité par portion). Décocher : restitue (correction d'erreur uniquement).
+- Cocher **✅ Préparé** sur une case : déduit immédiatement le stock des ingrédients du plat
+  (portions × quantité par portion). Décocher : restitue (correction d'erreur uniquement).
 - Cocher un article de la liste comme **acheté** : ajoute la quantité "à acheter" (modifiable avant
   validation) au stock, immédiatement.
 - Le stock peut être négatif en interne (si le stock de départ était sous-estimé) ; affiché comme
