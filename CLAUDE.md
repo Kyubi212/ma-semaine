@@ -349,12 +349,14 @@ rayon peut aussi être supprimé, **sauf** s'il contient encore au moins un ingr
 refusée, avec la liste des ingrédients concernés — même logique que la suppression d'un
 ingrédient utilisé par un plat).
 
-Accès à cette gestion (renommer/supprimer/ajouter un rayon) : dans l'écran **Catalogue** (voir
-ci-dessous), où chaque rayon a toujours son ✏️. Aussi depuis **Stock** et **Courses**, via un
-bouton discret "✏️ Éditer les rayons" — masqué par défaut (pas un geste du quotidien), il révèle
-le même ✏️ sur chaque rayon une fois activé. Sur Stock, l'activer montre exceptionnellement TOUS
-les rayons, même ceux vides sous le filtre courant (ex. Essentiels), sinon impossibles à
-retrouver pour les renommer ; sur Courses, seuls les rayons qui contiennent quelque chose à
+Accès à cette gestion (renommer/supprimer/ajouter un rayon) : le ✏️ est **toujours visible** sur
+chaque rayon affiché, dans l'écran **Catalogue** (voir ci-dessous) comme dans **Stock** et
+**Courses** — plus de mode "édition" à activer au préalable (décision revue avec Qassim : "plus
+ergonomique, plus visible" — un bouton caché derrière un mode supplémentaire n'était pas assez
+visible). Sur Stock, un bouton discret "👁️ Voir les rayons vides" reste utile pour un tout autre
+rôle : montrer exceptionnellement TOUS les rayons, même ceux vides sous le filtre courant (ex.
+Essentiels), sinon impossibles à retrouver pour les renommer — le ✏️, lui, est déjà là que ce
+bouton soit activé ou non. Sur Courses, seuls les rayons qui contiennent quelque chose à
 acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 14
 rayons, même ceux encore vides comme "Hygiène" au départ — utile pour y ajouter un premier
 ingrédient ou pour le renommer).
@@ -408,11 +410,11 @@ change, partout où il apparaît (filtre de l'écran Plats, picker de repas d'un
 
 Un repas peut être renommé ou supprimé, **sauf** si au moins un plat l'utilise encore (suppression
 refusée, avec la liste de ces plats — même logique que rayon/étiquette). Accès à cette gestion :
-un bouton discret "✏️ Éditer les repas" sur l'écran Plats & repas (masqué par défaut), qui révèle
-un ✏️ sur chaque repas une fois activé, plus "+ Ajouter un repas". **Une catégorie de repas
-inconnue héritée de Notion** (ex. "Plaisir occasionnel", "Préparation de base") n'est jamais
-perdue : elle obtient sa propre entrée à la volée au moment de la migration, éditable comme les
-autres.
+un ✏️ **toujours visible** à côté de chaque repas, partout où la liste apparaît (panneau Filtres,
+éditeur d'un plat) — plus de mode "édition" à activer avant (voir "Panneau Filtres" ci-dessous),
+plus "+ Ajouter un repas" toujours accessible. **Une catégorie de repas inconnue héritée de
+Notion** (ex. "Plaisir occasionnel", "Préparation de base") n'est jamais perdue : elle obtient sa
+propre entrée à la volée au moment de la migration, éditable comme les autres.
 
 Les boutons "+ Nouveau repas" / "+ Nouvelle étiquette" existent aussi **directement dans
 l'éditeur d'un plat** (pas seulement sur l'écran Plats) : Qassim peut créer une catégorie
@@ -435,9 +437,9 @@ revoir si le nombre d'étiquettes grossit beaucoup.
 
 Une étiquette peut être renommée (l'id ne change jamais, les plats restent liés) ou supprimée,
 **sauf** si au moins un plat la porte encore (suppression refusée, avec la liste de ces plats —
-même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un bouton discret
-"✏️ Éditer les étiquettes" sur l'écran Plats & repas (masqué par défaut, pas un geste du
-quotidien), qui révèle un ✏️ sur chaque étiquette une fois activé, plus "+ Ajouter une étiquette".
+même logique que pour un rayon ou un ingrédient). Accès à cette gestion : un ✏️ **toujours
+visible** à côté de chaque étiquette, partout où la liste apparaît (panneau Filtres, éditeur d'un
+plat), plus "+ Ajouter une étiquette" toujours accessible — voir "Panneau Filtres" ci-dessous.
 
 ## Panneau Filtres (écran Plats & repas)
 
@@ -455,6 +457,15 @@ tous les panneaux à un ou deux boutons d'action — confirmer/annuler, enregist
 candidat "Ajouter juste ce jour"/"...et en faire le défaut"...) met ses boutons en ligne avec
 retour à la ligne automatique si ça ne tient pas, au lieu de toujours les empiler — même retour de
 Qassim, appliqué à tout l'app d'un coup.
+
+**✏️ toujours visible, jamais de mode "édition" à activer** : dans ce panneau (Repas, Étiquettes,
+Matériel) comme dans l'éditeur d'un plat, chaque option est accompagnée d'un ✏️ **toujours
+affiché** à côté (fonction `construireListeEditableEl` dans `app.js`, réutilisée partout où une de
+ces listes apparaît) — retour de Qassim : demander d'activer un mode avant de voir le crayon
+n'était "pas assez visible". Un tap dessus ouvre directement le panneau renommer/supprimer ; un
+tap sur l'option elle-même la sélectionne (filtre) ou la bascule (repas à choix unique, étiquettes/
+matériel à choix multiple). Même principe pour les rayons (Stock, Courses, Catalogue) — voir
+"Rayons éditables".
 
 ## Matériel requis et temps de préparation/cuisson (écran Plats & repas)
 
