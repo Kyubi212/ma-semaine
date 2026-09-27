@@ -43,7 +43,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | **Semaine** | Navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour, choix du plat + portions + préparation (cuisiné ici / reste) avec "juste ce jour" ou "à partir d'aujourd'hui", case "Cuisiné" directement sur la carte |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock |
 | **Plats & repas** | Bibliothèque de plats, filtrable par repas, ajout/modification par Qassim |
-| **Stock** | Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum, extra ponctuel |
+| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" ouvre l'écran **Catalogue** (recherche par nom + parcours par rayon, montrant TOUS les ingrédients y compris à 0 g / non essentiels) plutôt qu'un simple formulaire de création — voir "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
 import de sauvegarde" est dans un menu ⋯ en haut (pas un 5e onglet). Écran d'ouverture : Semaine,
@@ -175,10 +175,10 @@ l'app.
 
 ## Rayons et articles non-alimentaires
 
-Les rayons (`constantes.js` → `RAYONS`) suivent le parcours d'un vrai supermarché, alimentaire
-d'abord (ceux déjà utilisés par les ingrédients importés de Notion), puis non-alimentaire —
-**"Hygiène"** (dentifrice, déodorant...) et **"Entretien maison"** (produits ménagers...), jamais
-mélangés entre eux ni avec l'alimentaire, comme dans un vrai magasin.
+Les rayons suivent le parcours d'un vrai supermarché, alimentaire d'abord (ceux déjà utilisés par
+les ingrédients importés de Notion), puis non-alimentaire — **"Hygiène"** (dentifrice,
+déodorant...) et **"Entretien maison"** (produits ménagers...), jamais mélangés entre eux ni avec
+l'alimentaire, comme dans un vrai magasin.
 
 **Un ingrédient n'a pas besoin d'être utilisé dans un plat pour exister.** Le mécanisme
 essentiel + minimum (déjà dans le modèle de données, voir "Règles de calcul") fonctionne pour
@@ -186,8 +186,32 @@ n'importe quel article, alimentaire ou non : marqué essentiel avec un minimum, 
 liste de courses dès que son stock passe sous ce minimum, **même si aucun plat ne le demande cette
 semaine** (ex. dentifrice, ou huile d'olive même en semaine sans plat qui en a besoin). Ça permet à
 l'app de servir à **toutes** les courses de Qassim, pas seulement à la nourriture liée au planning.
-L'écran Stock (à construire) est l'endroit prévu pour cocher essentiel/minimum et ajouter un tout
-nouvel ingrédient (y compris non-alimentaire, sans l'associer à aucun plat).
+
+### Rayons éditables
+
+Les rayons ne sont **pas** figés dans le code (contrairement à la version initiale du MVP) : ce
+sont des objets `{ id, nom }` stockés dans l'état (`etat.rayons`), au même titre que les
+ingrédients. Le `nom` est éditable par Qassim (renommer un rayon, ex. "Fruits et légumes" →
+"Marché du dimanche" renomme la catégorie pour tous les ingrédients qui y sont rangés), l'`id` ne
+change jamais — c'est lui que les ingrédients référencent (`ingredient.rayon`), pas le nom. Un
+rayon peut aussi être supprimé, **sauf** s'il contient encore au moins un ingrédient (suppression
+refusée, avec la liste des ingrédients concernés — même logique que la suppression d'un
+ingrédient utilisé par un plat).
+
+Accès à cette gestion (renommer/supprimer/ajouter un rayon) : dans l'écran **Catalogue** (voir
+ci-dessous), pas dans l'écran Stock lui-même.
+
+### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock)
+
+Contrairement à l'écran Stock (qui ne montre que ce que Qassim a réellement — voir "Règles de
+calcul" pour la logique vide/bas/ok), le Catalogue montre **tous** les ingrédients, y compris ceux
+à 0 g et non essentiels, pour pouvoir retrouver n'importe lequel et lui redonner du stock (sinon
+un ingrédient à 0 g et pas essentiel deviendrait injoignable). Il propose : une recherche par nom
+(insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), un parcours par rayon
+(blocs repliables comme Courses/Stock), un bouton pour créer un tout nouvel ingrédient, et un
+bouton pour gérer les rayons (renommer/supprimer/ajouter — voir "Rayons éditables" ci-dessus).
+Toucher un ingrédient ouvre son panneau d'édition habituel (stock, essentiel, minimum,
+suppression), avec un retour vers le Catalogue à la fermeture (pas vers Stock).
 
 ## Sécurité et vie privée
 
