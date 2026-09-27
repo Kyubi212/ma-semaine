@@ -608,17 +608,19 @@ export function supprimerIngredient(etat, ingredientId) {
 // Ajoute un tout nouveau plat au catalogue (écran Plats & repas). `favori`
 // démarre toujours à false (à cocher ensuite depuis la liste). Rend le plat
 // créé.
-export function ajouterPlat(etat, { nom, repas, assemblage = true, portionsReference = 1, etapes = "", ingredients = [], etiquettes = [] }) {
+export function ajouterPlat(etat, { nom, repas, portionsReference = 1, etapes = "", ingredients = [], etiquettes = [], materiel = [], tempsPreparation = 0, tempsCuisson = 0 }) {
   const idsExistants = new Set(etat.plats.map((p) => p.id));
   const plat = {
     id: genererSlug(nom, idsExistants),
     nom,
     repas,
-    assemblage,
     portionsReference: Math.max(1, Math.round(Number(portionsReference)) || 1),
     etapes,
     ingredients: ingredients.map((ligne) => ({ ...ligne })),
     etiquettes: [...etiquettes],
+    materiel: [...materiel],
+    tempsPreparation: clampPositif(tempsPreparation),
+    tempsCuisson: clampPositif(tempsCuisson),
     favori: false,
   };
   etat.plats.push(plat);
@@ -637,7 +639,6 @@ export function modifierPlat(etat, platId, changements) {
     if (nom) plat.nom = nom;
   }
   if (changements.repas !== undefined) plat.repas = changements.repas;
-  if (changements.assemblage !== undefined) plat.assemblage = Boolean(changements.assemblage);
   if (changements.portionsReference !== undefined) {
     plat.portionsReference = Math.max(1, Math.round(Number(changements.portionsReference)) || 1);
   }
@@ -646,6 +647,9 @@ export function modifierPlat(etat, platId, changements) {
     plat.ingredients = changements.ingredients.map((ligne) => ({ ...ligne }));
   }
   if (changements.etiquettes !== undefined) plat.etiquettes = [...changements.etiquettes];
+  if (changements.materiel !== undefined) plat.materiel = [...changements.materiel];
+  if (changements.tempsPreparation !== undefined) plat.tempsPreparation = clampPositif(changements.tempsPreparation);
+  if (changements.tempsCuisson !== undefined) plat.tempsCuisson = clampPositif(changements.tempsCuisson);
   if (changements.favori !== undefined) plat.favori = Boolean(changements.favori);
 }
 
@@ -702,6 +706,37 @@ export function supprimerEtiquette(etat, etiquetteId) {
     return { ok: false, plats: platsConcernes.map((p) => p.nom) };
   }
   etat.etiquettes = etat.etiquettes.filter((e) => e.id !== etiquetteId);
+  return { ok: true };
+}
+
+// --- Matériel requis (écran Plats & repas, éditable — même principe que les
+// étiquettes). Un plat peut demander PLUSIEURS matériels à la fois. ---
+
+// Ajoute un nouveau matériel, en fin de liste. Rend le matériel créé.
+export function ajouterMateriel(etat, nom) {
+  const idsExistants = new Set(etat.materiel.map((m) => m.id));
+  const materiel = { id: genererSlug(nom, idsExistants), nom };
+  etat.materiel.push(materiel);
+  return materiel;
+}
+
+// Renomme un matériel existant. Son id ne change pas : les plats qui le
+// référencent restent liés sans rien avoir à mettre à jour.
+export function renommerMateriel(etat, materielId, nouveauNom) {
+  const materiel = etat.materiel.find((m) => m.id === materielId);
+  if (!materiel) return;
+  materiel.nom = nouveauNom;
+}
+
+// Supprime un matériel — SAUF si au moins un plat le demande encore (même
+// logique que supprimerEtiquette). Rend { ok: true } si supprimé,
+// { ok: false, plats: [...noms] } sinon.
+export function supprimerMateriel(etat, materielId) {
+  const platsConcernes = etat.plats.filter((p) => p.materiel.includes(materielId));
+  if (platsConcernes.length > 0) {
+    return { ok: false, plats: platsConcernes.map((p) => p.nom) };
+  }
+  etat.materiel = etat.materiel.filter((m) => m.id !== materielId);
   return { ok: true };
 }
 

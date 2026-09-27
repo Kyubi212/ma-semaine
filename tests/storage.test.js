@@ -41,7 +41,7 @@ test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
   assert.equal(etat.plats.length, 6);
   assert.equal(etat.ingredients.length, 168);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.deepEqual(etat.repasPrets, []);
 });
 
@@ -69,6 +69,23 @@ test("creerEtatInitial : les repas sont des objets {id, nom}, Déjeuner/Dîner e
   const idsRepas = new Set(etat.repas.map((r) => r.id));
   for (const plat of etat.plats) {
     assert.ok(idsRepas.has(plat.repas), `repas inconnu pour ${plat.nom} : ${plat.repas}`);
+  }
+});
+
+test("creerEtatInitial : une liste de matériel par défaut existe (Poêle, Four...), plats référencés par id, sans assemblage orphelin", () => {
+  const etat = creerEtatInitial();
+  assert.ok(etat.materiel.length > 0);
+  assert.ok(etat.materiel.some((m) => m.nom === "Poêle"));
+
+  const idsMateriel = new Set(etat.materiel.map((m) => m.id));
+  for (const plat of etat.plats) {
+    assert.equal(plat.assemblage, undefined, `"assemblage" ne doit plus exister sur ${plat.nom}`);
+    assert.ok(Array.isArray(plat.materiel));
+    assert.equal(typeof plat.tempsPreparation, "number");
+    assert.equal(typeof plat.tempsCuisson, "number");
+    for (const materielId of plat.materiel) {
+      assert.ok(idsMateriel.has(materielId), `matériel inconnu pour ${plat.nom} : ${materielId}`);
+    }
   }
 });
 
@@ -133,7 +150,7 @@ test("chargerEtat : migre un ancien format v2 (un seul plat par case) vers v3 (l
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.ok(etat.rayons.length > 0, "la migration v3 → v4 doit créer les rayons par défaut");
 
   // Une case vide (platId: null) disparaît (liste vide), une case avec un
@@ -162,7 +179,7 @@ test("chargerEtat : migre un très ancien format v1 jusqu'à v3, en chaîne", ()
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.ok(etat.rayons.length > 0, "la migration en chaîne doit aussi créer les rayons par défaut");
   assert.equal(etat.modele.length, 1);
   assert.equal(etat.modele[0].platId, "x");
@@ -185,7 +202,7 @@ test("chargerEtat : migre v3 → v4, un ingrédient dont le rayon était un nom 
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
 
   const rayonHygiene = etat.rayons.find((r) => r.nom === "Hygiène");
   assert.ok(rayonHygiene, "le rayon Hygiène doit exister par défaut");
@@ -205,7 +222,7 @@ test("chargerEtat : migre v4 → v5, un plat sans favori en récupère un à fal
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.equal(etat.plats[0].favori, false);
 });
 
@@ -222,7 +239,7 @@ test("chargerEtat : migre v5 → v6, un plat sans étiquette en récupère une l
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.deepEqual(etat.plats[0].etiquettes, []);
   assert.ok(etat.etiquettes.length > 0, "la migration v5 → v6 doit créer les étiquettes par défaut");
 });
@@ -245,7 +262,7 @@ test("chargerEtat : migre v6 → v7, Déjeuner et Dîner deviennent le même rep
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
 
   const platA = etat.plats.find((p) => p.id === "plat-a");
   const platB = etat.plats.find((p) => p.id === "plat-b");
@@ -282,7 +299,7 @@ test("chargerEtat : migre v7 → v8, Smoko et Snack (déjà séparés depuis la 
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.ok(!etat.repas.some((r) => r.nom === "Smoko"));
 
   const platSmoko = etat.plats.find((p) => p.id === "plat-smoko");
@@ -308,8 +325,34 @@ test("chargerEtat : migre v8 → v9, un état sans repasPrets en récupère une 
 
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.version, 9);
+  assert.equal(etat.version, 10);
   assert.deepEqual(etat.repasPrets, []);
+});
+
+test("chargerEtat : migre v9 → v10, matériel par défaut créé, plats sans assemblage avec materiel/temps par défaut", () => {
+  const ancienEtat = {
+    version: 9,
+    rayons: [],
+    etiquettes: [],
+    repas: [],
+    ingredients: [],
+    plats: [{ id: "plat-x", nom: "Plat X", repas: "r1", assemblage: true, portionsReference: 1, etapes: "", ingredients: [], etiquettes: [], favori: false }],
+    modele: [],
+    historique: {},
+    repasPrets: [],
+  };
+  globalThis.localStorage.setItem("ma-semaine", JSON.stringify(ancienEtat));
+
+  const { etat, erreurLecture } = chargerEtat();
+  assert.equal(erreurLecture, false);
+  assert.equal(etat.version, 10);
+  assert.ok(etat.materiel.length > 0, "la migration v9 → v10 doit créer le matériel par défaut");
+
+  const plat = etat.plats[0];
+  assert.equal(plat.assemblage, undefined, '"assemblage" ne doit plus exister après migration');
+  assert.deepEqual(plat.materiel, []);
+  assert.equal(plat.tempsPreparation, 0);
+  assert.equal(plat.tempsCuisson, 0);
 });
 
 test("chargerEtat : données corrompues → repart sur un état propre, avec erreurLecture", () => {

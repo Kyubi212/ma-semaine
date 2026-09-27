@@ -29,6 +29,9 @@ import {
   ajouterEtiquette,
   renommerEtiquette,
   supprimerEtiquette,
+  ajouterMateriel,
+  renommerMateriel,
+  supprimerMateriel,
   ajouterRepas,
   renommerRepas,
   supprimerRepas,
@@ -1559,6 +1562,10 @@ let filtreFavorisActif = false;
 const etiquettesSelectionnees = new Set();
 let modeEditionEtiquettes = false;
 let modeEditionRepas = false;
+// Matériel coché en même temps (même logique ET que les étiquettes : un
+// plat doit demander TOUT le matériel coché pour apparaître).
+const materielSelectionnes = new Set();
+let modeEditionMateriel = false;
 
 let recherchePlats = "";
 
@@ -1599,6 +1606,11 @@ function ouvrirPanneauFiltresPlats() {
       <div class="segmente" id="panneau-filtres-etiquettes"></div>
       <button class="bouton-discret" id="panneau-editer-etiquettes">✏️ Éditer les étiquettes</button>
       <button class="bouton-discret" id="panneau-ajouter-etiquette" hidden>+ Ajouter une étiquette</button>
+
+      <div class="panneau-section-titre">Matériel</div>
+      <div class="segmente" id="panneau-filtres-materiel"></div>
+      <button class="bouton-discret" id="panneau-editer-materiel">✏️ Éditer le matériel</button>
+      <button class="bouton-discret" id="panneau-ajouter-materiel" hidden>+ Ajouter un matériel</button>
     `;
 
     const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris");
@@ -1676,6 +1688,36 @@ function ouvrirPanneauFiltresPlats() {
       filtresEtiquettesEl.appendChild(bouton);
     }
 
+    const editerMaterielEl = panneauPlatEl.querySelector("#panneau-editer-materiel");
+    const ajouterMaterielEl = panneauPlatEl.querySelector("#panneau-ajouter-materiel");
+    editerMaterielEl.textContent = modeEditionMateriel ? "✓ Terminé" : "✏️ Éditer le matériel";
+    ajouterMaterielEl.hidden = !modeEditionMateriel;
+    editerMaterielEl.addEventListener("click", () => {
+      modeEditionMateriel = !modeEditionMateriel;
+      rendrePanneau();
+    });
+    ajouterMaterielEl.addEventListener("click", () => {
+      ouvrirPanneauNouveauMateriel(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+    });
+
+    const filtresMaterielEl = panneauPlatEl.querySelector("#panneau-filtres-materiel");
+    for (const materiel of etat.materiel) {
+      const bouton = document.createElement("button");
+      bouton.className = "segmente-bouton";
+      if (materielSelectionnes.has(materiel.id)) bouton.classList.add("selectionne");
+      bouton.textContent = modeEditionMateriel ? `${materiel.nom} ✏️` : materiel.nom;
+      bouton.addEventListener("click", () => {
+        if (modeEditionMateriel) {
+          ouvrirPanneauMateriel(materiel.id, () => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
+          return;
+        }
+        if (materielSelectionnes.has(materiel.id)) materielSelectionnes.delete(materiel.id);
+        else materielSelectionnes.add(materiel.id);
+        rendrePanneau();
+      });
+      filtresMaterielEl.appendChild(bouton);
+    }
+
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
   }
 
@@ -1691,6 +1733,9 @@ function platsFiltres() {
 
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
+  }
+  if (materielSelectionnes.size > 0) {
+    liste = liste.filter((p) => [...materielSelectionnes].every((id) => p.materiel.includes(id)));
   }
   const recherche = normaliserRecherche(recherchePlats.trim());
   if (recherche) {
@@ -1716,13 +1761,24 @@ function rendreGrillePlats() {
     const nomsEtiquettes = plat.etiquettes
       .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
       .filter(Boolean);
+    const nomsMateriel = plat.materiel
+      .map((id) => etat.materiel.find((m) => m.id === id)?.nom)
+      .filter(Boolean);
+    const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
+    const morceaux = [
+      nomRepas,
+      `${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}`,
+      tempsTotal > 0 ? `${tempsTotal} min` : null,
+      nomsMateriel.length > 0 ? nomsMateriel.join(", ") : null,
+      nomsEtiquettes.length > 0 ? nomsEtiquettes.join(", ") : null,
+    ].filter(Boolean);
     const carte = document.createElement("div");
     carte.className = "article-course";
     carte.innerHTML = `
       <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
       <div class="article-info">
         <span class="article-nom">${plat.nom}</span>
-        <span class="article-detail">${nomRepas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
+        <span class="article-detail">${morceaux.join(" · ")}</span>
       </div>
     `;
     carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
@@ -1745,7 +1801,8 @@ function rendreEcranPlats() {
   const nbFiltresActifs =
     (filtreFavorisActif ? 1 : 0) +
     (filtreRepas !== "tous" ? 1 : 0) +
-    etiquettesSelectionnees.size;
+    etiquettesSelectionnees.size +
+    materielSelectionnes.size;
   filtresPlatsCompteEl.textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
 
   rendreGrillePlats();
@@ -1763,18 +1820,18 @@ function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
   }
 }
 
-// Sélecteur d'étiquettes à PLUSIEURS choix (contrairement au repas, un plat
-// peut porter plusieurs étiquettes à la fois) : chaque bouton bascule
-// individuellement dans `etiquettesActuelles` (un tableau d'ids).
-function construireListeEtiquettesMultiEl(conteneurEl, etiquettesActuelles, onBasculer) {
+// Sélecteur à PLUSIEURS choix générique (étiquettes ET matériel : un plat
+// peut en porter/demander plusieurs à la fois) : chaque bouton bascule
+// individuellement dans `idsActuels` (un tableau d'ids).
+function construireListeMultiEl(conteneurEl, liste, idsActuels, onBasculer) {
   conteneurEl.innerHTML = "";
-  for (const etiquette of etat.etiquettes) {
-    const item = document.createElement("button");
-    item.className = "plat-choix";
-    if (etiquettesActuelles.includes(etiquette.id)) item.classList.add("selectionne");
-    item.textContent = etiquette.nom;
-    item.addEventListener("click", () => onBasculer(etiquette.id));
-    conteneurEl.appendChild(item);
+  for (const item of liste) {
+    const bouton = document.createElement("button");
+    bouton.className = "plat-choix";
+    if (idsActuels.includes(item.id)) bouton.classList.add("selectionne");
+    bouton.textContent = item.nom;
+    bouton.addEventListener("click", () => onBasculer(item.id));
+    conteneurEl.appendChild(bouton);
   }
 }
 
@@ -1859,6 +1916,98 @@ function ouvrirPanneauNouvelleEtiquette(retour = fermerPanneau, ecranSousJacent 
         return;
       }
       ajouterEtiquette(etat, nom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "modifier un matériel" (renommer / supprimer) ---
+
+function ouvrirPanneauMateriel(materielId, retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    const materiel = etat.materiel.find((m) => m.id === materielId);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">✏️ Modifier le matériel</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="materiel-nom" class="article-quantite-input" style="width:100%;" value="${materiel.nom}">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="materiel-renommer">Enregistrer</button>
+        <button class="bouton-discret" id="materiel-supprimer">🗑️ Supprimer ce matériel</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#materiel-renommer").addEventListener("click", () => {
+      const nouveauNom = panneauPlatEl.querySelector("#materiel-nom").value.trim();
+      if (!nouveauNom) {
+        rendrePanneau("Donne un nom à ce matériel.");
+        return;
+      }
+      renommerMateriel(etat, materielId, nouveauNom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector("#materiel-supprimer").addEventListener("click", () => {
+      const resultat = supprimerMateriel(etat, materielId);
+      if (!resultat.ok) {
+        rendrePanneau(`Impossible : demandé par ${resultat.plats.join(", ")}.`);
+        return;
+      }
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "nouveau matériel" ---
+
+function ouvrirPanneauNouveauMateriel(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouveau matériel</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="materiel-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Blender">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="materiel-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#materiel-valider").addEventListener("click", () => {
+      const nom = panneauPlatEl.querySelector("#materiel-nom").value.trim();
+      if (!nom) {
+        rendrePanneau("Donne un nom à ce matériel.");
+        return;
+      }
+      ajouterMateriel(etat, nom);
       sauvegarder();
       retour();
     });
@@ -2059,6 +2208,25 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         <button class="stepper-bouton" id="plat-portions-plus" aria-label="Plus">+</button>
       </div>
 
+      <div class="panneau-section-titre">Matériel requis</div>
+      <div class="liste-plats" id="plat-materiel"></div>
+      <button class="bouton-discret" id="plat-nouveau-materiel">+ Nouveau matériel</button>
+
+      <div class="panneau-section-titre">Temps de préparation (min)</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="plat-prepa-moins" aria-label="Moins">−</button>
+        <input type="number" id="plat-prepa-valeur" class="article-quantite-input" value="${plat.tempsPreparation}" min="0" step="1">
+        <button class="stepper-bouton" id="plat-prepa-plus" aria-label="Plus">+</button>
+      </div>
+
+      <div class="panneau-section-titre">Temps de cuisson (min)</div>
+      <p class="panneau-note">0 si le plat ne demande aucune cuisson.</p>
+      <div class="stepper">
+        <button class="stepper-bouton" id="plat-cuisson-moins" aria-label="Moins">−</button>
+        <input type="number" id="plat-cuisson-valeur" class="article-quantite-input" value="${plat.tempsCuisson}" min="0" step="1">
+        <button class="stepper-bouton" id="plat-cuisson-plus" aria-label="Plus">+</button>
+      </div>
+
       <div class="panneau-section-titre">Étapes / recette</div>
       <textarea id="plat-etapes" class="article-quantite-input" style="width:100%; min-height:100px;" placeholder="Ex. Faire revenir l'oignon, ajouter le poulet...">${plat.etapes ?? ""}</textarea>
 
@@ -2085,7 +2253,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       rendrePanneau();
     });
 
-    construireListeEtiquettesMultiEl(panneauPlatEl.querySelector("#plat-etiquettes"), plat.etiquettes, (etiquetteId) => {
+    construireListeMultiEl(panneauPlatEl.querySelector("#plat-etiquettes"), etat.etiquettes, plat.etiquettes, (etiquetteId) => {
       const nouvellesEtiquettes = plat.etiquettes.includes(etiquetteId)
         ? plat.etiquettes.filter((id) => id !== etiquetteId)
         : [...plat.etiquettes, etiquetteId];
@@ -2094,8 +2262,52 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       rendrePanneau();
     });
 
+    construireListeMultiEl(panneauPlatEl.querySelector("#plat-materiel"), etat.materiel, plat.materiel, (materielId) => {
+      const nouveauMateriel = plat.materiel.includes(materielId)
+        ? plat.materiel.filter((id) => id !== materielId)
+        : [...plat.materiel, materielId];
+      modifierPlat(etat, platId, { materiel: nouveauMateriel });
+      sauvegarder();
+      rendrePanneau();
+    });
+
     panneauPlatEl.querySelector("#plat-nouveau-repas").addEventListener("click", () => {
       ouvrirPanneauNouveauRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    });
+    panneauPlatEl.querySelector("#plat-nouveau-materiel").addEventListener("click", () => {
+      ouvrirPanneauNouveauMateriel(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+    });
+
+    panneauPlatEl.querySelector("#plat-prepa-moins").addEventListener("click", () => {
+      modifierPlat(etat, platId, { tempsPreparation: Math.max(0, plat.tempsPreparation - 5) });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-prepa-plus").addEventListener("click", () => {
+      modifierPlat(etat, platId, { tempsPreparation: plat.tempsPreparation + 5 });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-prepa-valeur").addEventListener("change", (evenement) => {
+      modifierPlat(etat, platId, { tempsPreparation: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    panneauPlatEl.querySelector("#plat-cuisson-moins").addEventListener("click", () => {
+      modifierPlat(etat, platId, { tempsCuisson: Math.max(0, plat.tempsCuisson - 5) });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-cuisson-plus").addEventListener("click", () => {
+      modifierPlat(etat, platId, { tempsCuisson: plat.tempsCuisson + 5 });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#plat-cuisson-valeur").addEventListener("change", (evenement) => {
+      modifierPlat(etat, platId, { tempsCuisson: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
     });
     panneauPlatEl.querySelector("#plat-nouvelle-etiquette").addEventListener("click", () => {
       ouvrirPanneauNouvelleEtiquette(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);

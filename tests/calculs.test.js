@@ -38,6 +38,9 @@ import {
   ajouterEtiquette,
   renommerEtiquette,
   supprimerEtiquette,
+  ajouterMateriel,
+  renommerMateriel,
+  supprimerMateriel,
   ajouterRepas,
   renommerRepas,
   supprimerRepas,
@@ -247,8 +250,8 @@ function etatDeTest() {
   // Copies (pas les objets partagés platTest/platTest2) : certains tests
   // modifient le "nom" du plat, ça ne doit pas fuiter d'un test à l'autre.
   etat.plats = [
-    { ...platTest, ingredients: platTest.ingredients.map((l) => ({ ...l })), etiquettes: [] },
-    { ...platTest2, ingredients: platTest2.ingredients.map((l) => ({ ...l })), etiquettes: [] },
+    { ...platTest, ingredients: platTest.ingredients.map((l) => ({ ...l })), etiquettes: [], materiel: [] },
+    { ...platTest2, ingredients: platTest2.ingredients.map((l) => ({ ...l })), etiquettes: [], materiel: [] },
   ];
   etat.ingredients = [
     { ...riz, enStock: 200, rayon: "Épicerie", essentiel: false, minimum: 0, extra: 0 },
@@ -789,6 +792,48 @@ test("supprimerEtiquette : autorise si aucun plat ne la porte", () => {
   const resultat = supprimerEtiquette(etat, etiquette.id);
   assert.equal(resultat.ok, true);
   assert.ok(!etat.etiquettes.some((e) => e.id === etiquette.id));
+});
+
+test("ajouterMateriel : ajoute en fin de liste, avec un id dérivé du nom", () => {
+  const etat = creerEtatInitial();
+  const nbAvant = etat.materiel.length;
+  const materiel = ajouterMateriel(etat, "Blender");
+
+  assert.equal(etat.materiel.length, nbAvant + 1);
+  assert.equal(etat.materiel[etat.materiel.length - 1], materiel);
+  assert.equal(materiel.nom, "Blender");
+  assert.equal(materiel.id, "blender");
+});
+
+test("renommerMateriel : change le nom sans toucher à l'id", () => {
+  const etat = creerEtatInitial();
+  const materiel = etat.materiel.find((m) => m.nom === "Poêle");
+  const idAvant = materiel.id;
+
+  renommerMateriel(etat, idAvant, "Poêle antiadhésive");
+  assert.equal(materiel.id, idAvant);
+  assert.equal(materiel.nom, "Poêle antiadhésive");
+});
+
+test("supprimerMateriel : refuse si un plat le demande encore, en le nommant", () => {
+  const etat = etatDeTest();
+  const materiel = ajouterMateriel(etat, "Test matériel");
+  etat.plats[0].nom = "Plat test matériel";
+  etat.plats[0].materiel = [materiel.id];
+
+  const resultat = supprimerMateriel(etat, materiel.id);
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.plats, ["Plat test matériel"]);
+  assert.ok(etat.materiel.some((m) => m.id === materiel.id), "le matériel ne doit pas être supprimé");
+});
+
+test("supprimerMateriel : autorise si aucun plat ne le demande", () => {
+  const etat = creerEtatInitial();
+  const materiel = ajouterMateriel(etat, "Matériel inutilisé");
+
+  const resultat = supprimerMateriel(etat, materiel.id);
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.materiel.some((m) => m.id === materiel.id));
 });
 
 test("ajouterPlat / modifierPlat : gèrent les étiquettes (plusieurs à la fois)", () => {

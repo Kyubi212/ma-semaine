@@ -1873,7 +1873,8 @@ export const ingredients = [
 //   "Snack", "Dîner", "Préparation de base", "Plaisir occasionnel"). Les 5 premiers
 //   correspondent aux créneaux de l'écran Semaine ; les 2 derniers sont des plats
 //   à part (base à préparer, ou écart occasionnel) non rattachés à un créneau fixe.
-// assemblage : true si le plat ne demande aucune cuisson (juste assembler).
+// materiel : noms (résolus en ids au chargement, voir storage.js) du matériel
+//   requis ; tempsPreparation/tempsCuisson : en minutes (0 = pas de cuisson).
 // portionsReference : nombre de portions de la recette d'origine (indicatif).
 // ingredients[].quantitePortion : quantité nécessaire pour UNE portion, dans
 //   l'unité "unite" de la ligne (peut différer de l'unité de stock : conversion
@@ -1883,7 +1884,9 @@ export const plats = [
     id: "poulet-patate-douce-epinards",
     nom: "Poulet, patate douce & épinards",
     repas: "Dîner",
-    assemblage: false,
+    materiel: ["Air fryer", "Poêle"],
+    tempsPreparation: 10,
+    tempsCuisson: 20,
     portionsReference: 1,
     etapes: "1. Patate douce. En dés avec la peau, huile, sel. Air fryer 200°C, 18–20 min, secoue à mi-cuisson.\n2. Poulet. En lanières, paprika, sel, poivre. Poêle, 6–8 min. Réserve.\n3. Oignon et ail. Même poêle, 3 min.\n4. Tomate. En dés, 2 min.\n5. Épinards. 2 poignées, 1–2 min, remets le poulet. Sers avec la patate douce.",
     ingredients: [
@@ -1903,7 +1906,9 @@ export const plats = [
     id: "oeufs-avocat-pain-au-levain",
     nom: "Œufs, avocat & pain au levain",
     repas: "Petit-déjeuner",
-    assemblage: false,
+    materiel: ["Poêle"],
+    tempsPreparation: 5,
+    tempsCuisson: 5,
     portionsReference: 1,
     etapes: "1. Pain. Fais griller 1–2 tranches de pain dans la poêle sèche, 1–2 min par face. Réserve.\n2. Œufs. Mets 1 c. à café d'huile d'olive dans la poêle, feu moyen. Casse 3 œufs. Au plat : couvre, 3–4 min. Brouillés : bats-les avant, remue sans arrêt 2–3 min à feu doux.\n3. Avocat. Coupe l'avocat en deux, garde la moitié avec le noyau au frigo, tranche l'autre.\n4. Service. Sel, poivre, une poignée de noix et d'amandes à côté.\nVariante sans cuisson : 3 œufs durs à la place des œufs cuits.",
     ingredients: [
@@ -1920,7 +1925,9 @@ export const plats = [
     id: "salade-de-lentilles",
     nom: "Salade de lentilles",
     repas: "Déjeuner",
-    assemblage: false,
+    materiel: ["Bol"],
+    tempsPreparation: 10,
+    tempsCuisson: 0,
     portionsReference: 3,
     etapes: "1. Égoutte, rince les lentilles.\n2. Concombre en dés, tomates en dés, oignon rouge et persil hachés.\n3. Émiette 100 g de feta.\n4. Assaisonne : huile, citron, cumin, sel, poivre. 3 boîtes, frigo 3 jours.\nPour un déjeuner complet : ajoute 2 œufs durs ou une boîte de sardines, et du pain au levain.",
     ingredients: [
@@ -1941,7 +1948,9 @@ export const plats = [
     id: "bol-yaourt-grec",
     nom: "Bol yaourt grec",
     repas: "Petit-déjeuner",
-    assemblage: false,
+    materiel: ["Bol"],
+    tempsPreparation: 5,
+    tempsCuisson: 0,
     portionsReference: 1,
     etapes: "1. Verse 200 g de yaourt grec dans un bol.\n2. Ajoute une grosse poignée de fruits rouges.\n3. Concasse grossièrement une poignée de noix et d'amandes dans ta main et parsème.\n4. Filet de miel si tu veux. Pain au levain à côté si tu as encore faim.\nAstuce : des fruits rouges surgelés, mis au frigo la veille, sont décongelés le matin.",
     ingredients: [
@@ -1955,7 +1964,9 @@ export const plats = [
     id: "avoine-trempee",
     nom: "Avoine trempée",
     repas: "Petit-déjeuner",
-    assemblage: true,
+    materiel: ["Bol"],
+    tempsPreparation: 5,
+    tempsCuisson: 0,
     portionsReference: 1,
     etapes: "1. La veille. Dans un pot, mélange 50 g de flocons d'avoine, 150 ml de lait, 2 c. à soupe de yaourt grec et 1 c. à soupe de chia. Ferme, frigo.\n2. Le matin. Ajoute une poignée de fruits rouges. Miel facultatif.",
     ingredients: [
@@ -1970,7 +1981,9 @@ export const plats = [
     id: "oeufs-brouilles-guacamole-pain",
     nom: "Œufs brouillés, guacamole & pain",
     repas: "Petit-déjeuner",
-    assemblage: false,
+    materiel: ["Poêle"],
+    tempsPreparation: 5,
+    tempsCuisson: 5,
     portionsReference: 1,
     etapes: "1. Guacamole. Écrase ½ avocat à la fourchette avec sel, poivre et cumin.\n2. Étale le guacamole sur une tranche de pain.\n3. Œufs. Huile d'olive dans la poêle, feu doux. Bats 3 œufs, verse, remue 2–3 min (brouillés).\n4. Dépose les œufs brouillés sur le pain.",
     ingredients: [

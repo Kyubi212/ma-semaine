@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 9;
+const VERSION_FORMAT = 10;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -33,6 +33,22 @@ const ETIQUETTES_PAR_DEFAUT = [
 function etiquettesParDefaut() {
   const idsExistants = new Set();
   return ETIQUETTES_PAR_DEFAUT.map((nom) => {
+    const id = genererSlug(nom, idsExistants);
+    idsExistants.add(id);
+    return { id, nom };
+  });
+}
+
+// Matériel par défaut (écran Plats & repas — même principe que les
+// étiquettes) : une liste de départ, éditable ensuite (renommer/supprimer/
+// ajouter). Un plat peut demander plusieurs matériels à la fois.
+const MATERIEL_PAR_DEFAUT = [
+  "Poêle", "Casserole", "Four", "Air fryer", "Mixeur", "Cuiseur à riz", "Bol",
+];
+
+function materielParDefaut() {
+  const idsExistants = new Set();
+  return MATERIEL_PAR_DEFAUT.map((nom) => {
     const id = genererSlug(nom, idsExistants);
     idsExistants.add(id);
     return { id, nom };
@@ -108,21 +124,28 @@ export function creerEtatInitial() {
   const repas = repasParDefaut();
   const idsRepasExistants = new Set(repas.map((r) => r.id));
 
+  const materiel = materielParDefaut();
+  const idMaterielParNom = new Map(materiel.map((m) => [m.nom, m.id]));
+
   return {
     version: VERSION_FORMAT,
     rayons,
     etiquettes: etiquettesParDefaut(),
     repas,
+    materiel,
     ingredients: ingredientsParDefaut.map((ingredient) => ({
       ...ingredient,
       rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
     })),
-    plats: platsParDefaut.map((plat) => ({
+    plats: platsParDefaut.map(({ assemblage, ...plat }) => ({
       ...plat,
       favori: plat.favori ?? false,
       etiquettes: plat.etiquettes ?? [],
       repas: idRepasPourAncienneValeur(repas, idsRepasExistants, plat.repas),
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
+      materiel: (plat.materiel ?? []).map((nom) => idMaterielParNom.get(nom) ?? nom),
+      tempsPreparation: plat.tempsPreparation ?? 0,
+      tempsCuisson: plat.tempsCuisson ?? 0,
     })),
     modele: [],
     historique: {},
@@ -297,6 +320,22 @@ function migrer(etat) {
     // concept) ; on le laisse tel quel dans les données déjà sauvegardées,
     // simplement ignoré par le code désormais.
     etat = { ...etat, repasPrets: etat.repasPrets ?? [], version: 9 };
+  }
+
+  if (etat.version === 9) {
+    // v9 → v10 : matériel requis (écran Plats & repas — même principe que
+    // les étiquettes, un plat peut en demander plusieurs à la fois), temps
+    // de préparation et de cuisson (en minutes). Retire au passage le champ
+    // "assemblage" (sans cuisson) : orphelin, jamais affiché nulle part,
+    // désormais remplacé par tempsCuisson (0 = pas de cuisson).
+    const materiel = etat.materiel ?? materielParDefaut();
+    const plats = etat.plats.map(({ assemblage, ...plat }) => ({
+      ...plat,
+      materiel: plat.materiel ?? [],
+      tempsPreparation: plat.tempsPreparation ?? 0,
+      tempsCuisson: plat.tempsCuisson ?? 0,
+    }));
+    etat = { ...etat, materiel, plats, version: 10 };
   }
 
   return etat;
