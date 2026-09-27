@@ -45,10 +45,15 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | **Plats & repas** | "⭐ Favoris" : case INDÉPENDANTE (combinable avec n'importe quel repas, ex. "Petit-déjeuner" + "Favoris" en même temps). Filtre repas **Tous** + un bouton par repas (dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés), favori basculable sur la carte. "✏️ Éditer les repas" (masqué par défaut) pour renommer/supprimer/ajouter un repas — voir "Repas éditables" ci-dessous. 2e rangée de filtres **Étiquettes** (Sucré, Salé, Sain... — sélection multiple, logique ET) avec "✏️ Éditer les étiquettes" (masqué par défaut) — voir "Étiquettes éditables" ci-dessous. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas et étiquettes (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
-Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Le bouton "export /
-import de sauvegarde" est dans un menu ⋯ en haut (pas un 5e onglet). Écran d'ouverture : Semaine,
-sur le jour d'aujourd'hui. Mode sombre automatique selon le réglage du téléphone. Style sobre,
-couleur d'accent verte.
+Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
+propose pour l'instant "🗑️ Réinitialiser avec les données de base" (efface `localStorage` via
+`effacerStockage()` dans `storage.js`, confirmation requise, irréversible — recharge l'app avec
+le catalogue de base de `data.js`) ; l'export/import de sauvegarde y sera ajouté plus tard (pas
+encore fait, voir Roadmap). **Important** : modifier `data.js` (rayons, ingrédients, plats) ne
+change RIEN à ce que Qassim a déjà sur son téléphone tant qu'il n'utilise pas ce bouton — les
+migrations (`storage.js` → `migrer`) ne touchent que la STRUCTURE des données, jamais leur
+contenu. Écran d'ouverture : Semaine, sur le jour d'aujourd'hui. Mode sombre automatique selon le
+réglage du téléphone. Style sobre, couleur d'accent verte.
 
 ## Semaines réelles et modèle (décision clé, remplace un système "Nouvelle semaine" à bouton)
 
@@ -249,9 +254,11 @@ ait à faire la conversion lui-même.
 Mécanisme (voir `ingredient.parCuillereACafe` dans "Modèle de données", et
 `convertirVersUniteStock` dans `calculs.js`) :
 - chaque ingrédient dosé en g ou en ml peut avoir une **équivalence "1 c. à café = combien de
-  g/ml"** réglée une fois pour toutes (ex. miel : 1 c. à café = 7 g) — champ optionnel, réglable
-  dans le panneau d'édition de l'ingrédient (écran Stock), visible seulement pour les unités g/ml
-  (une "pièce" ne se dose pas en cuillères) ;
+  g/ml"** réglée une fois pour toutes (ex. miel : 1 c. à café = 7 g) — champ optionnel, visible
+  seulement pour les unités g/ml (une "pièce" ne se dose pas en cuillères). Réglable dans le
+  panneau d'édition de l'ingrédient (écran Stock), MAIS AUSSI directement pendant l'ajout d'un
+  ingrédient à une recette (bouton "🥄 La recette parle en cuillères ? Régler l'équivalence" si
+  elle manque encore) — pas besoin d'interrompre la saisie de la recette pour aller sur Stock ;
 - une fois cette équivalence réglée, l'ajout d'un ingrédient à une recette (écran Plats & repas)
   propose un choix d'unité — l'unité de stock de l'ingrédient, ou "c. à café"/"c. à soupe" (1 c. à
   soupe = 3 c. à café, constante du cahier des charges) — et Qassim saisit la quantité TELLE QUE
