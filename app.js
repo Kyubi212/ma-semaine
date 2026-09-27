@@ -1058,6 +1058,14 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       <div class="panneau-section-titre">Minimum à toujours avoir (${ingredient.unite})</div>
       <input type="number" id="ingredient-minimum" class="article-quantite-input" value="${formaterNombre(ingredient.minimum)}" min="0" step="any" style="width:100%;">
 
+      ${ingredient.unite === "g" || ingredient.unite === "ml" ? `
+        <div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
+        <p class="panneau-note">Optionnel : à régler une fois, permet ensuite de saisir les
+          quantités de cet ingrédient dans une recette en cuillères (comme la recette d'origine
+          te les donne) plutôt qu'en ${ingredient.unite}.</p>
+        <input type="number" id="ingredient-cuillere" class="article-quantite-input" style="width:100%;" value="${ingredient.parCuillereACafe ?? ""}" min="0" step="any" placeholder="Ex. 5">
+      ` : ""}
+
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
       <div class="panneau-actions">
@@ -1110,6 +1118,21 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       sauvegarder();
       rendrePanneau();
     });
+    const champCuillereEl = panneauPlatEl.querySelector("#ingredient-cuillere");
+    if (champCuillereEl) {
+      champCuillereEl.addEventListener("change", (evenement) => {
+        const valeurBrute = evenement.target.value.trim();
+        const resultat = modifierIngredient(etat, ingredientId, {
+          parCuillereACafe: valeurBrute === "" ? null : valeurBrute,
+        });
+        if (!resultat.ok) {
+          rendrePanneau(`Impossible de retirer cette équivalence : utilisée en cuillères par ${resultat.plats.join(", ")}.`);
+          return;
+        }
+        sauvegarder();
+        rendrePanneau();
+      });
+    }
     panneauPlatEl.querySelector("#ingredient-supprimer").addEventListener("click", () => {
       const resultat = supprimerIngredient(etat, ingredientId);
       if (!resultat.ok) {
@@ -2029,18 +2052,35 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
 function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
   let quantite = 1;
+  let uniteChoisie = null; // par défaut l'unité de stock, choisie au premier rendu
 
   function rendrePanneau() {
     const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
     const plat = etat.plats.find((p) => p.id === platId);
     const nbPortions = plat.portionsReference;
+    if (!uniteChoisie) uniteChoisie = ingredient.unite;
+
+    // Les cuillères ne sont proposées que si l'ingrédient a son équivalence
+    // réglée (voir "Équivalence 1 c. à café" dans le panneau Stock) — sinon
+    // impossible de convertir vers l'unité de stock au moment des calculs.
+    const uniteCompatibleCuillere = ingredient.unite === "g" || ingredient.unite === "ml";
+    const unitesDisponibles =
+      uniteCompatibleCuillere && ingredient.parCuillereACafe != null
+        ? [ingredient.unite, "c. à café", "c. à soupe"]
+        : [ingredient.unite];
+
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">${ingredient.nom}</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
 
-      <div class="panneau-section-titre">Quantité pour ${nbPortions} portion${nbPortions > 1 ? "s" : ""} (${ingredient.unite})</div>
+      ${unitesDisponibles.length > 1 ? `
+        <div class="panneau-section-titre">Unité (comme la recette te la donne)</div>
+        <div class="liste-plats" id="plat-qte-unites"></div>
+      ` : ""}
+
+      <div class="panneau-section-titre">Quantité pour ${nbPortions} portion${nbPortions > 1 ? "s" : ""} (${uniteChoisie})</div>
       <p class="panneau-note">La quantité telle que donnée par la recette (pour ${nbPortions}
         portion${nbPortions > 1 ? "s" : ""}) — ramenée automatiquement à 1 portion.</p>
       <div class="stepper">
@@ -2053,6 +2093,21 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
         <button class="bouton-principal" id="plat-qte-ajouter">Ajouter à la recette</button>
       </div>
     `;
+
+    if (unitesDisponibles.length > 1) {
+      const listeUnitesEl = panneauPlatEl.querySelector("#plat-qte-unites");
+      for (const unite of unitesDisponibles) {
+        const item = document.createElement("button");
+        item.className = "plat-choix";
+        if (unite === uniteChoisie) item.classList.add("selectionne");
+        item.textContent = unite;
+        item.addEventListener("click", () => {
+          uniteChoisie = unite;
+          rendrePanneau();
+        });
+        listeUnitesEl.appendChild(item);
+      }
+    }
 
     panneauPlatEl.querySelector("#plat-qte-moins").addEventListener("click", () => {
       quantite = Math.max(0, quantite - 1);
@@ -2068,7 +2123,7 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
     panneauPlatEl.querySelector("#plat-qte-ajouter").addEventListener("click", () => {
       const quantitePortion = quantite / nbPortions;
       modifierPlat(etat, platId, {
-        ingredients: [...plat.ingredients, { ingredientId, quantitePortion, unite: ingredient.unite }],
+        ingredients: [...plat.ingredients, { ingredientId, quantitePortion, unite: uniteChoisie }],
       });
       sauvegarder();
       retour();

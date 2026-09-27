@@ -467,13 +467,29 @@ export function etatStock(ingredient) {
   return "ok";
 }
 
-// Modifie le stock, le statut "essentiel" et/ou le minimum d'un ingrédient
-// existant. Chaque champ omis dans `changements` reste inchangé. Les
-// quantités invalides (négatives, texte) sont ramenées à 0 (clampPositif),
-// jamais refusées avec une erreur (CLAUDE.md § Cas limites).
+// Modifie le stock, le statut "essentiel", le minimum et/ou l'équivalence
+// cuillère d'un ingrédient existant. Chaque champ omis dans `changements`
+// reste inchangé. Les quantités invalides (négatives, texte) sont ramenées
+// à 0 (clampPositif), jamais refusées avec une erreur (CLAUDE.md § Cas
+// limites). Rend { ok: true } normalement, ou { ok: false, plats } si on a
+// essayé de RETIRER l'équivalence cuillère (parCuillereACafe: null) alors
+// qu'au moins un plat l'utilise encore pour une ligne en cuillères — sinon
+// ce plat deviendrait impossible à calculer (convertirVersUniteStock
+// planterait), même logique que supprimerIngredient/supprimerRayon.
 export function modifierIngredient(etat, ingredientId, changements) {
   const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
-  if (!ingredient) return;
+  if (!ingredient) return { ok: true };
+
+  if (changements.parCuillereACafe === null && ingredient.parCuillereACafe !== null) {
+    const plats = etat.plats.filter((p) =>
+      p.ingredients.some(
+        (ligne) => ligne.ingredientId === ingredientId && ligne.unite !== ingredient.unite
+      )
+    );
+    if (plats.length > 0) {
+      return { ok: false, plats: plats.map((p) => p.nom) };
+    }
+  }
 
   if (changements.nom !== undefined) {
     const nom = changements.nom.trim();
@@ -491,6 +507,12 @@ export function modifierIngredient(etat, ingredientId, changements) {
   if (changements.minimum !== undefined) {
     ingredient.minimum = clampPositif(changements.minimum);
   }
+  if (changements.parCuillereACafe !== undefined) {
+    ingredient.parCuillereACafe =
+      changements.parCuillereACafe === null ? null : clampPositif(changements.parCuillereACafe);
+  }
+
+  return { ok: true };
 }
 
 // Un identifiant simple et unique dérivé du nom (pas d'accents, minuscules,

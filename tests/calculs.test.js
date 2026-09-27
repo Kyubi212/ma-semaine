@@ -555,6 +555,35 @@ test("modifierIngredient : une quantité négative ou invalide est ramenée à 0
   assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 0);
 });
 
+// --- modifierIngredient : équivalence cuillère (parCuillereACafe) ---
+
+test("modifierIngredient : règle l'équivalence cuillère d'un ingrédient", () => {
+  const etat = etatDeTest();
+  etat.ingredients.find((i) => i.id === "riz").parCuillereACafe = null;
+
+  const resultat = modifierIngredient(etat, "riz", { parCuillereACafe: 4 });
+  assert.equal(resultat.ok, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").parCuillereACafe, 4);
+});
+
+test("modifierIngredient : retire l'équivalence cuillère si aucun plat ne l'utilise en cuillères", () => {
+  const etat = etatDeTest();
+  const resultat = modifierIngredient(etat, "huile", { parCuillereACafe: null });
+  assert.equal(resultat.ok, true);
+  assert.equal(etat.ingredients.find((i) => i.id === "huile").parCuillereACafe, null);
+});
+
+test("modifierIngredient : refuse de retirer l'équivalence cuillère si un plat l'utilise en cuillères", () => {
+  const etat = etatDeTest();
+  etat.plats[0].nom = "Vinaigrette";
+  etat.plats[0].ingredients = [{ ingredientId: "huile", quantitePortion: 2, unite: "c. à café" }];
+
+  const resultat = modifierIngredient(etat, "huile", { parCuillereACafe: null });
+  assert.equal(resultat.ok, false);
+  assert.deepEqual(resultat.plats, ["Vinaigrette"]);
+  assert.equal(etat.ingredients.find((i) => i.id === "huile").parCuillereACafe, 5, "inchangé");
+});
+
 test("ajouterIngredient : crée un ingrédient sans lien avec aucun plat", () => {
   const etat = etatDeTest();
   const nouveau = ajouterIngredient(etat, { nom: "Déodorant", rayon: "Hygiène", unite: "pièce" });
