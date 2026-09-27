@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma Semaine</title>
-  <link rel="stylesheet" href="style.css?v=20261001a">
+  <link rel="stylesheet" href="style.css?v=20261001b">
 </head>
 <body>
   <header class="app-header">
@@ -44,8 +44,10 @@
 
     <section id="ecran-plats" class="ecran" hidden>
       <input type="text" id="recherche-plats" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat...">
-      <button id="ouvrir-filtres-plats" class="bouton-secondaire bouton-pleine-largeur">🔧 Filtres<span id="filtres-plats-compte"></span></button>
-      <button id="ajouter-plat" class="bouton-secondaire bouton-pleine-largeur">+ Nouveau plat</button>
+      <div class="panneau-actions" style="margin-top:0; margin-bottom:8px;">
+        <button id="ouvrir-filtres-plats" class="bouton-secondaire">🔧 Filtres<span id="filtres-plats-compte"></span></button>
+        <button id="ajouter-plat" class="bouton-secondaire">+ Nouveau plat</button>
+      </div>
       <div id="grille-plats" class="liste-resultats"></div>
     </section>
 
@@ -83,6 +85,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20261001a"></script>
+  <script type="module" src="app.js?v=20261001b"></script>
 </body>
 </html>

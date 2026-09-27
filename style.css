@@ -460,11 +460,18 @@ body {
   color: var(--couleur-accent-texte);
 }
 
+/* En ligne, pas empilé : gagne de la place (retour de Qassim). Revient
+   à une pile seulement si ça ne tient vraiment pas sur la largeur de
+   l'écran (flex-wrap), jamais de recouvrement. */
 .panneau-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+.panneau-actions > * {
+  flex: 1 1 140px;
 }
 
 .bouton-principal {
