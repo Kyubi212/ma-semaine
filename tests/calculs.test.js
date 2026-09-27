@@ -37,6 +37,9 @@ import {
   ajouterEtiquette,
   renommerEtiquette,
   supprimerEtiquette,
+  ajouterRepas,
+  renommerRepas,
+  supprimerRepas,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -744,6 +747,58 @@ test("ajouterPlat / modifierPlat : gèrent les étiquettes (plusieurs à la fois
 
   modifierPlat(etat, plat.id, { etiquettes: [sucre.id, sain.id] });
   assert.deepEqual(plat.etiquettes, [sucre.id, sain.id]);
+});
+
+// --- Repas éditables (ajouterRepas / renommerRepas / supprimerRepas) ---
+
+test("ajouterRepas : ajoute en fin de liste, avec un id dérivé du nom", () => {
+  const etat = creerEtatInitial();
+  const nbAvant = etat.repas.length;
+  const repas = ajouterRepas(etat, "Brunch");
+
+  assert.equal(etat.repas.length, nbAvant + 1);
+  assert.equal(etat.repas[etat.repas.length - 1], repas);
+  assert.equal(repas.nom, "Brunch");
+  assert.equal(repas.id, "brunch");
+});
+
+test("renommerRepas : change le nom sans toucher à l'id", () => {
+  const etat = creerEtatInitial();
+  const repas = etat.repas.find((r) => r.nom === "Smoko");
+  const idAvant = repas.id;
+
+  renommerRepas(etat, idAvant, "Goûter");
+  assert.equal(repas.id, idAvant);
+  assert.equal(repas.nom, "Goûter");
+});
+
+test("supprimerRepas : refuse si un plat l'utilise encore, en le nommant", () => {
+  const etat = creerEtatInitial();
+  const repasSnack = etat.repas.find((r) => r.nom === "Snack");
+  const platConcerne = etat.plats.find((p) => p.repas === repasSnack.id);
+  assert.ok(platConcerne, "au moins un plat importé doit être en Snack");
+
+  const resultat = supprimerRepas(etat, repasSnack.id);
+  assert.equal(resultat.ok, false);
+  assert.ok(resultat.plats.includes(platConcerne.nom));
+});
+
+test("supprimerRepas : autorise si aucun plat ne l'utilise", () => {
+  const etat = creerEtatInitial();
+  const repas = ajouterRepas(etat, "Repas inutilisé");
+
+  const resultat = supprimerRepas(etat, repas.id);
+  assert.equal(resultat.ok, true);
+  assert.ok(!etat.repas.some((r) => r.id === repas.id));
+});
+
+test("creerEtatInitial : Déjeuner et Dîner sont fusionnés en un seul repas", () => {
+  const etat = creerEtatInitial();
+  const dejeunerDiner = etat.repas.find((r) => r.nom === "Déjeuner/Dîner");
+  assert.ok(dejeunerDiner, "le repas fusionné doit exister");
+
+  const platsDejeunerOuDiner = etat.plats.filter((p) => p.repas === dejeunerDiner.id);
+  assert.ok(platsDejeunerOuDiner.length > 0, "des plats importés (Déjeuner ou Dîner) doivent y être rattachés");
 });
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---

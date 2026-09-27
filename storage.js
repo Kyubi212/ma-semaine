@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 6;
+const VERSION_FORMAT = 7;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -52,6 +52,37 @@ function rayonsParDefaut() {
   });
 }
 
+// Repas par défaut (écran Plats & repas — voir CLAUDE.md § Repas éditables) :
+// Déjeuner et Dîner sont FUSIONNÉS en une seule catégorie dès le départ (pour
+// Qassim, ce sont les mêmes plats), contrairement aux 5 créneaux fixes de la
+// journée (Semaine) qui restent distincts (lunch ET diner utilisent ce même
+// repas — voir CRENEAU_INFOS dans app.js).
+const REPAS_PAR_DEFAUT = ["Petit-déjeuner", "Smoko", "Déjeuner/Dîner", "Snack"];
+
+function repasParDefaut() {
+  const idsExistants = new Set();
+  return REPAS_PAR_DEFAUT.map((nom) => {
+    const id = genererSlug(nom, idsExistants);
+    idsExistants.add(id);
+    return { id, nom };
+  });
+}
+
+// Trouve (ou crée à la volée) l'id du repas correspondant à l'ancienne
+// valeur texte d'un plat (ex. "Déjeuner", "Dîner", mais aussi d'anciennes
+// catégories Notion comme "Plaisir occasionnel" qui ne sont pas dans la
+// liste par défaut — rien n'est perdu, une catégorie est créée pour elles).
+function idRepasPourAncienneValeur(listeRepas, idsExistants, ancienneValeur) {
+  const nomCible = ancienneValeur === "Déjeuner" || ancienneValeur === "Dîner" ? "Déjeuner/Dîner" : ancienneValeur;
+  let repas = listeRepas.find((r) => r.nom === nomCible);
+  if (!repas) {
+    repas = { id: genererSlug(nomCible, idsExistants), nom: nomCible };
+    idsExistants.add(repas.id);
+    listeRepas.push(repas);
+  }
+  return repas.id;
+}
+
 // Construit un état de départ propre, à partir du catalogue de data.js.
 // Utilisé au tout premier lancement de l'app, et chaque fois que les
 // données sauvegardées sont absentes ou illisibles.
@@ -71,10 +102,14 @@ export function creerEtatInitial() {
   const rayons = rayonsParDefaut();
   const idRayonParNom = new Map(rayons.map((r) => [r.nom, r.id]));
 
+  const repas = repasParDefaut();
+  const idsRepasExistants = new Set(repas.map((r) => r.id));
+
   return {
     version: VERSION_FORMAT,
     rayons,
     etiquettes: etiquettesParDefaut(),
+    repas,
     ingredients: ingredientsParDefaut.map((ingredient) => ({
       ...ingredient,
       rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
@@ -83,6 +118,7 @@ export function creerEtatInitial() {
       ...plat,
       favori: plat.favori ?? false,
       etiquettes: plat.etiquettes ?? [],
+      repas: idRepasPourAncienneValeur(repas, idsRepasExistants, plat.repas),
       ingredients: plat.ingredients.map((ligne) => ({ ...ligne })),
     })),
     modele: [],
@@ -194,6 +230,26 @@ function migrer(etat) {
       etiquettes: etat.etiquettes ?? etiquettesParDefaut(),
       plats: (etat.plats ?? []).map((plat) => ({ ...plat, etiquettes: plat.etiquettes ?? [] })),
       version: 6,
+    };
+  }
+
+  if (etat.version === 6) {
+    // v6 → v7 : les repas deviennent une donnée éditable (renommable), comme
+    // les rayons — voir CLAUDE.md § Repas éditables. Déjeuner et Dîner sont
+    // fusionnés en une seule catégorie "Déjeuner/Dîner" (Qassim les considère
+    // comme les mêmes plats). Les plats, qui stockaient jusqu'ici le NOM du
+    // repas directement, référencent maintenant un id.
+    const repas = repasParDefaut();
+    const idsRepasExistants = new Set(repas.map((r) => r.id));
+
+    etat = {
+      ...etat,
+      repas,
+      plats: (etat.plats ?? []).map((plat) => ({
+        ...plat,
+        repas: idRepasPourAncienneValeur(repas, idsRepasExistants, plat.repas),
+      })),
+      version: 7,
     };
   }
 

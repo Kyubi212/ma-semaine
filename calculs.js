@@ -668,3 +668,35 @@ export function supprimerEtiquette(etat, etiquetteId) {
   etat.etiquettes = etat.etiquettes.filter((e) => e.id !== etiquetteId);
   return { ok: true };
 }
+
+// --- Repas (écran Plats & repas, éditables — même principe que les rayons
+// et les étiquettes). Contrairement aux étiquettes, un plat n'a qu'UN SEUL
+// repas à la fois (comme un rayon d'ingrédient). ---
+
+// Ajoute un nouveau repas, en fin de liste. Rend le repas créé.
+export function ajouterRepas(etat, nom) {
+  const idsExistants = new Set(etat.repas.map((r) => r.id));
+  const repas = { id: genererSlug(nom, idsExistants), nom };
+  etat.repas.push(repas);
+  return repas;
+}
+
+// Renomme un repas existant. Son id ne change pas : les plats qui le
+// référencent restent liés sans rien avoir à mettre à jour.
+export function renommerRepas(etat, repasId, nouveauNom) {
+  const repas = etat.repas.find((r) => r.id === repasId);
+  if (!repas) return;
+  repas.nom = nouveauNom;
+}
+
+// Supprime un repas — SAUF si au moins un plat l'utilise encore (même
+// logique que supprimerEtiquette/supprimerRayon). Rend { ok: true } si
+// supprimé, { ok: false, plats: [...noms] } sinon.
+export function supprimerRepas(etat, repasId) {
+  const platsConcernes = etat.plats.filter((p) => p.repas === repasId);
+  if (platsConcernes.length > 0) {
+    return { ok: false, plats: platsConcernes.map((p) => p.nom) };
+  }
+  etat.repas = etat.repas.filter((r) => r.id !== repasId);
+  return { ok: true };
+}
