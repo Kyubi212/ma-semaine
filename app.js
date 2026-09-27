@@ -492,6 +492,20 @@ const achetesSession = new Map();
 // coche, sinon Qassim devrait tout replier à nouveau à chaque action.
 const rayonsReplies = new Set();
 
+// Mode "Éditer les rayons" : masqué par défaut (pas un geste du quotidien —
+// voir CLAUDE.md § Rayons éditables), affiche un ✏️ sur chaque titre de
+// rayon pour le renommer/supprimer une fois activé.
+let modeEditionRayonsCourses = false;
+const editerRayonsCoursesEl = document.getElementById("editer-rayons-courses");
+const nouveauRayonCoursesEl = document.getElementById("nouveau-rayon-courses");
+editerRayonsCoursesEl.addEventListener("click", () => {
+  modeEditionRayonsCourses = !modeEditionRayonsCourses;
+  rendreEcranCourses();
+});
+nouveauRayonCoursesEl.addEventListener("click", () => {
+  ouvrirPanneauNouveauRayon(fermerPanneau, rendreEcranCourses);
+});
+
 function formaterNombre(n) {
   const arrondi = Math.round(n * 10) / 10;
   return String(arrondi);
@@ -511,6 +525,9 @@ function formaterDetail(article) {
 const listeCoursesEl = document.getElementById("liste-courses");
 
 function rendreEcranCourses() {
+  editerRayonsCoursesEl.textContent = modeEditionRayonsCourses ? "✓ Terminé" : "✏️ Éditer les rayons";
+  nouveauRayonCoursesEl.hidden = !modeEditionRayonsCourses;
+
   const liste = construireListeCourses(etat, new Date());
 
   // On ajoute les articles achetés pendant cette session mais qui ont
@@ -558,7 +575,21 @@ function rendreEcranCourses() {
       if (groupe.open) rayonsReplies.delete(rayon.id);
       else rayonsReplies.add(rayon.id);
     });
-    groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${articles.length}</span></summary>`;
+    if (modeEditionRayonsCourses) {
+      const summary = document.createElement("summary");
+      summary.className = "rayon-titre";
+      summary.innerHTML = `
+        <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span></span>
+        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
+      `;
+      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
+        evenement.preventDefault();
+        ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranCourses);
+      });
+      groupe.appendChild(summary);
+    } else {
+      groupe.innerHTML = `<summary class="rayon-titre">${rayon.nom} <span class="rayon-compte">${articles.length}</span></summary>`;
+    }
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
@@ -1084,8 +1115,8 @@ function ouvrirPanneauCatalogue() {
 
 // --- Panneau "modifier un rayon" (renommer / supprimer) ---
 
-function ouvrirPanneauRayon(rayonId, retour = fermerPanneau) {
-  apresFermeturePanneau = rendreEcranStock;
+function ouvrirPanneauRayon(rayonId, retour = fermerPanneau, ecranSousJacent = rendreEcranStock) {
+  apresFermeturePanneau = ecranSousJacent;
 
   function rendrePanneau(messageErreur) {
     const rayon = etat.rayons.find((r) => r.id === rayonId);
@@ -1136,8 +1167,8 @@ function ouvrirPanneauRayon(rayonId, retour = fermerPanneau) {
 
 // --- Panneau "nouveau rayon" ---
 
-function ouvrirPanneauNouveauRayon(retour = fermerPanneau) {
-  apresFermeturePanneau = rendreEcranStock;
+function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = rendreEcranStock) {
+  apresFermeturePanneau = ecranSousJacent;
 
   function rendrePanneau(messageErreur) {
     panneauPlatEl.innerHTML = `
