@@ -497,6 +497,24 @@ test("modifierIngredient : change stock, essentiel et minimum indépendamment", 
   assert.equal(riz.enStock, 500); // inchangé
 });
 
+test("modifierIngredient : change le nom et le rayon (via ouvrirPanneauIngredient dans le Catalogue)", () => {
+  const etat = etatDeTest();
+  const rayonHygiene = etat.rayons.find((r) => r.nom === "Hygiène");
+
+  modifierIngredient(etat, "riz", { nom: "Riz basmati" });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").nom, "Riz basmati");
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").id, "riz", "l'id ne change jamais (les plats le référencent)");
+
+  modifierIngredient(etat, "riz", { rayon: rayonHygiene.id });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").rayon, rayonHygiene.id);
+});
+
+test("modifierIngredient : un nom vide est ignoré (garde l'ancien nom)", () => {
+  const etat = etatDeTest();
+  modifierIngredient(etat, "riz", { nom: "   " });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").nom, riz.nom);
+});
+
 test("modifierIngredient : une quantité négative ou invalide est ramenée à 0", () => {
   const etat = etatDeTest();
   modifierIngredient(etat, "riz", { enStock: -10 });

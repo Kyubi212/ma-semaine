@@ -781,14 +781,18 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
   function rendrePanneau(messageErreur) {
     const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
     const pas = pasStock(ingredient.unite);
-    const rayon = etat.rayons.find((r) => r.id === ingredient.rayon);
 
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
-        <span class="panneau-titre">${ingredient.nom}</span>
+        <span class="panneau-titre">✏️ Modifier l'ingrédient</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
-      <p class="panneau-note">${rayon ? rayon.nom : ""}</p>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="ingredient-nom" class="article-quantite-input" style="width:100%;" value="${ingredient.nom}">
+
+      <div class="panneau-section-titre">Rayon</div>
+      <div class="liste-plats" id="ingredient-liste-rayons"></div>
 
       <div class="panneau-section-titre">Stock actuel (${ingredient.unite})</div>
       <div class="stepper">
@@ -812,6 +816,26 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
         <button class="bouton-discret" id="ingredient-supprimer">🗑️ Supprimer cet ingrédient</button>
       </div>
     `;
+
+    panneauPlatEl.querySelector("#ingredient-nom").addEventListener("change", (evenement) => {
+      modifierIngredient(etat, ingredientId, { nom: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    const listeRayonsIngredientEl = panneauPlatEl.querySelector("#ingredient-liste-rayons");
+    for (const rayon of etat.rayons) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (rayon.id === ingredient.rayon) item.classList.add("selectionne");
+      item.textContent = rayon.nom;
+      item.addEventListener("click", () => {
+        modifierIngredient(etat, ingredientId, { rayon: rayon.id });
+        sauvegarder();
+        rendrePanneau();
+      });
+      listeRayonsIngredientEl.appendChild(item);
+    }
 
     panneauPlatEl.querySelector("#stock-moins").addEventListener("click", () => {
       modifierIngredient(etat, ingredientId, { enStock: Math.max(0, ingredient.enStock - pas) });

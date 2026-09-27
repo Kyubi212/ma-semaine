@@ -461,6 +461,13 @@ export function modifierIngredient(etat, ingredientId, changements) {
   const ingredient = etat.ingredients.find((i) => i.id === ingredientId);
   if (!ingredient) return;
 
+  if (changements.nom !== undefined) {
+    const nom = changements.nom.trim();
+    if (nom) ingredient.nom = nom;
+  }
+  if (changements.rayon !== undefined) {
+    ingredient.rayon = changements.rayon;
+  }
   if (changements.enStock !== undefined) {
     ingredient.enStock = clampPositif(changements.enStock);
   }
