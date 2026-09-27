@@ -26,6 +26,9 @@ import {
   ajouterPlat,
   modifierPlat,
   supprimerPlat,
+  ajouterEtiquette,
+  renommerEtiquette,
+  supprimerEtiquette,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -1239,7 +1242,15 @@ function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = ren
 const REPAS_PLATS = ["Petit-déjeuner", "Smoko", "Déjeuner", "Snack", "Dîner"];
 
 let filtrePlats = "tous";
+// Étiquettes cochées en même temps (logique ET, décidée avec Qassim : un
+// plat doit porter TOUTES les étiquettes cochées pour apparaître).
+const etiquettesSelectionnees = new Set();
+let modeEditionEtiquettes = false;
+
 const filtresPlatsEl = document.getElementById("filtres-plats");
+const filtresEtiquettesPlatsEl = document.getElementById("filtres-etiquettes-plats");
+const editerEtiquettesPlatsEl = document.getElementById("editer-etiquettes-plats");
+const ajouterEtiquettePlatsEl = document.getElementById("ajouter-etiquette-plats");
 const grillePlatsEl = document.getElementById("grille-plats");
 
 filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
@@ -1249,25 +1260,65 @@ filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
   });
 });
 
+editerEtiquettesPlatsEl.addEventListener("click", () => {
+  modeEditionEtiquettes = !modeEditionEtiquettes;
+  rendreEcranPlats();
+});
+ajouterEtiquettePlatsEl.addEventListener("click", () => {
+  ouvrirPanneauNouvelleEtiquette(fermerPanneau, rendreEcranPlats);
+});
+
 document.getElementById("ajouter-plat").addEventListener("click", () => {
   ouvrirPanneauNouveauPlat();
 });
 
 function platsFiltres() {
+  let liste;
   switch (filtrePlats) {
     case "favoris":
-      return etat.plats.filter((p) => p.favori);
+      liste = etat.plats.filter((p) => p.favori);
+      break;
+    case "Déjeuner-Dîner":
+      liste = etat.plats.filter((p) => p.repas === "Déjeuner" || p.repas === "Dîner");
+      break;
     case "tous":
-      return etat.plats;
+      liste = etat.plats;
+      break;
     default:
-      return etat.plats.filter((p) => p.repas === filtrePlats);
+      liste = etat.plats.filter((p) => p.repas === filtrePlats);
   }
+
+  if (etiquettesSelectionnees.size > 0) {
+    liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
+  }
+  return liste;
 }
 
 function rendreEcranPlats() {
   filtresPlatsEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
     bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtrePlats);
   });
+
+  editerEtiquettesPlatsEl.textContent = modeEditionEtiquettes ? "✓ Terminé" : "✏️ Éditer les étiquettes";
+  ajouterEtiquettePlatsEl.hidden = !modeEditionEtiquettes;
+
+  filtresEtiquettesPlatsEl.innerHTML = "";
+  for (const etiquette of etat.etiquettes) {
+    const bouton = document.createElement("button");
+    bouton.className = "segmente-bouton";
+    if (etiquettesSelectionnees.has(etiquette.id)) bouton.classList.add("selectionne");
+    bouton.textContent = modeEditionEtiquettes ? `${etiquette.nom} ✏️` : etiquette.nom;
+    bouton.addEventListener("click", () => {
+      if (modeEditionEtiquettes) {
+        ouvrirPanneauEtiquette(etiquette.id, fermerPanneau, rendreEcranPlats);
+        return;
+      }
+      if (etiquettesSelectionnees.has(etiquette.id)) etiquettesSelectionnees.delete(etiquette.id);
+      else etiquettesSelectionnees.add(etiquette.id);
+      rendreEcranPlats();
+    });
+    filtresEtiquettesPlatsEl.appendChild(bouton);
+  }
 
   const liste = platsFiltres();
   grillePlatsEl.innerHTML = "";
@@ -1279,13 +1330,16 @@ function rendreEcranPlats() {
 
   for (const plat of liste) {
     const nbIngredients = plat.ingredients.length;
+    const nomsEtiquettes = plat.etiquettes
+      .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
+      .filter(Boolean);
     const carte = document.createElement("div");
     carte.className = "article-course";
     carte.innerHTML = `
       <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
       <div class="article-info">
         <span class="article-nom">${plat.nom}</span>
-        <span class="article-detail">${plat.repas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}</span>
+        <span class="article-detail">${plat.repas} · ${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}${nomsEtiquettes.length > 0 ? " · " + nomsEtiquettes.join(", ") : ""}</span>
       </div>
     `;
     carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
@@ -1309,6 +1363,113 @@ function construireListeRepasEl(conteneurEl, valeurActuelle, onChoisir) {
     item.addEventListener("click", () => onChoisir(repas));
     conteneurEl.appendChild(item);
   }
+}
+
+// Sélecteur d'étiquettes à PLUSIEURS choix (contrairement au repas, un plat
+// peut porter plusieurs étiquettes à la fois) : chaque bouton bascule
+// individuellement dans `etiquettesActuelles` (un tableau d'ids).
+function construireListeEtiquettesMultiEl(conteneurEl, etiquettesActuelles, onBasculer) {
+  conteneurEl.innerHTML = "";
+  for (const etiquette of etat.etiquettes) {
+    const item = document.createElement("button");
+    item.className = "plat-choix";
+    if (etiquettesActuelles.includes(etiquette.id)) item.classList.add("selectionne");
+    item.textContent = etiquette.nom;
+    item.addEventListener("click", () => onBasculer(etiquette.id));
+    conteneurEl.appendChild(item);
+  }
+}
+
+// --- Panneau "modifier une étiquette" (renommer / supprimer) ---
+
+function ouvrirPanneauEtiquette(etiquetteId, retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    const etiquette = etat.etiquettes.find((e) => e.id === etiquetteId);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">✏️ Modifier l'étiquette</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="etiquette-nom" class="article-quantite-input" style="width:100%;" value="${etiquette.nom}">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="etiquette-renommer">Enregistrer</button>
+        <button class="bouton-discret" id="etiquette-supprimer">🗑️ Supprimer cette étiquette</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#etiquette-renommer").addEventListener("click", () => {
+      const nouveauNom = panneauPlatEl.querySelector("#etiquette-nom").value.trim();
+      if (!nouveauNom) {
+        rendrePanneau("Donne un nom à cette étiquette.");
+        return;
+      }
+      renommerEtiquette(etat, etiquetteId, nouveauNom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector("#etiquette-supprimer").addEventListener("click", () => {
+      const resultat = supprimerEtiquette(etat, etiquetteId);
+      if (!resultat.ok) {
+        rendrePanneau(`Impossible : portée par ${resultat.plats.join(", ")}.`);
+        return;
+      }
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Panneau "nouvelle étiquette" ---
+
+function ouvrirPanneauNouvelleEtiquette(retour = fermerPanneau, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+
+  function rendrePanneau(messageErreur) {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">➕ Nouvelle étiquette</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Nom</div>
+      <input type="text" id="etiquette-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Sans gluten">
+
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="etiquette-valider">Ajouter</button>
+      </div>
+    `;
+
+    panneauPlatEl.querySelector("#etiquette-valider").addEventListener("click", () => {
+      const nom = panneauPlatEl.querySelector("#etiquette-nom").value.trim();
+      if (!nom) {
+        rendrePanneau("Donne un nom à cette étiquette.");
+        return;
+      }
+      ajouterEtiquette(etat, nom);
+      sauvegarder();
+      retour();
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
 }
 
 // --- Panneau "nouveau plat" : juste nom + repas, puis bascule sur le
@@ -1392,6 +1553,9 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       <div class="panneau-section-titre">Repas</div>
       <div class="liste-plats" id="plat-repas"></div>
 
+      <div class="panneau-section-titre">Étiquettes</div>
+      <div class="liste-plats" id="plat-etiquettes"></div>
+
       <div class="panneau-section-titre">Portions de référence</div>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-portions-moins" aria-label="Moins">−</button>
@@ -1421,6 +1585,15 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
     construireListeRepasEl(panneauPlatEl.querySelector("#plat-repas"), plat.repas, (repas) => {
       modifierPlat(etat, platId, { repas });
+      sauvegarder();
+      rendrePanneau();
+    });
+
+    construireListeEtiquettesMultiEl(panneauPlatEl.querySelector("#plat-etiquettes"), plat.etiquettes, (etiquetteId) => {
+      const nouvellesEtiquettes = plat.etiquettes.includes(etiquetteId)
+        ? plat.etiquettes.filter((id) => id !== etiquetteId)
+        : [...plat.etiquettes, etiquetteId];
+      modifierPlat(etat, platId, { etiquettes: nouvellesEtiquettes });
       sauvegarder();
       rendrePanneau();
     });
