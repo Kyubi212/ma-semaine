@@ -563,6 +563,79 @@ function ouvrirPanneau(dateISO, creneau) {
     }
   }
 
+  // --- Panneau "Filtres" imbriqué (repas/favoris/étiquettes) : comme sur
+  // l'écran Plats & repas, regroupés à part plutôt qu'empilés directement
+  // ici (retour de Qassim : même souci de place que sur Plats & repas). Le
+  // ✕ de CE panneau revient au panneau créneau (rendrePanneau), pas à
+  // l'écran Semaine — voir apresFermeturePanneau, qui reste réglé sur
+  // rendreEcranSemaine pour la fermeture complète (backdrop). ---
+  function ouvrirPanneauFiltresCreneau() {
+    function rendreFiltres() {
+      panneauPlatEl.innerHTML = `
+        <div class="panneau-entete">
+          <span class="panneau-titre">🔧 Filtres</span>
+          <button class="panneau-fermer" aria-label="Fermer">✕</button>
+        </div>
+
+        <button class="segmente-bouton" id="panneau-filtre-favoris-creneau" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
+
+        <div class="panneau-section-titre">Repas</div>
+        <div class="segmente" id="panneau-filtres-repas-creneau"></div>
+        <button class="bouton-discret" id="panneau-gerer-repas-creneau">⚙️ Gérer les repas</button>
+
+        <div class="panneau-section-titre">Étiquettes</div>
+        <div class="segmente" id="panneau-filtres-etiquettes-creneau"></div>
+        <button class="bouton-discret" id="panneau-gerer-etiquettes-creneau">⚙️ Gérer les étiquettes</button>
+      `;
+
+      const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris-creneau");
+      favorisEl.classList.toggle("selectionne", filtreFavorisPanneau);
+      favorisEl.addEventListener("click", () => {
+        filtreFavorisPanneau = !filtreFavorisPanneau;
+        rendreFiltres();
+      });
+
+      const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas-creneau");
+      construireListeChoixEl(filtresRepasEl, "segmente-bouton", etat.repas, (id) => id === filtreRepasPanneau, (repasId) => {
+        filtreRepasPanneau = repasId;
+        rendreFiltres();
+      });
+      const boutonTous = document.createElement("button");
+      boutonTous.className = "segmente-bouton";
+      if (filtreRepasPanneau === "tous") boutonTous.classList.add("selectionne");
+      boutonTous.textContent = "Tous";
+      boutonTous.addEventListener("click", () => {
+        filtreRepasPanneau = "tous";
+        rendreFiltres();
+      });
+      filtresRepasEl.prepend(boutonTous);
+      panneauPlatEl.querySelector("#panneau-gerer-repas-creneau").addEventListener("click", () => {
+        ouvrirPanneauGererRepas(() => ouvrirPanneauFiltresCreneau(), rendreEcranSemaine);
+      });
+
+      construireListeChoixEl(
+        panneauPlatEl.querySelector("#panneau-filtres-etiquettes-creneau"),
+        "segmente-bouton",
+        etat.etiquettes,
+        (id) => etiquettesSelectionneesPanneau.has(id),
+        (etiquetteId) => {
+          if (etiquettesSelectionneesPanneau.has(etiquetteId)) etiquettesSelectionneesPanneau.delete(etiquetteId);
+          else etiquettesSelectionneesPanneau.add(etiquetteId);
+          rendreFiltres();
+        }
+      );
+      panneauPlatEl.querySelector("#panneau-gerer-etiquettes-creneau").addEventListener("click", () => {
+        ouvrirPanneauGererEtiquettes(() => ouvrirPanneauFiltresCreneau(), rendreEcranSemaine);
+      });
+
+      panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", () => rendrePanneau());
+    }
+
+    rendreFiltres();
+    panneauFondEl.hidden = false;
+    panneauPlatEl.hidden = false;
+  }
+
   function rendrePanneau() {
     const elements = obtenirElementsEffectifs(etat, dateISO, creneau);
 
@@ -580,9 +653,7 @@ function ouvrirPanneau(dateISO, creneau) {
 
       <div class="panneau-section-titre">Ajouter un plat</div>
       <input type="text" id="recherche-plats-panneau" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat..." value="${recherchePlatsPanneau}">
-      <div class="segmente" id="filtres-repas-panneau"></div>
-      <button class="segmente-bouton" id="filtre-favoris-panneau" type="button">⭐ Favoris</button>
-      <div class="segmente" id="filtres-etiquettes-panneau"></div>
+      <button class="bouton-secondaire bouton-pleine-largeur" id="ouvrir-filtres-panneau" style="margin-bottom:8px;">🔧 Filtres<span id="filtres-panneau-compte"></span></button>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
@@ -595,52 +666,15 @@ function ouvrirPanneau(dateISO, creneau) {
       rendreListePlatsPanneau();
     });
 
-    // --- Filtres de la liste "Ajouter un plat" (repas à choix unique,
-    // favoris indépendant, étiquettes à choix multiple ET — mêmes filtres
-    // que l'écran Plats & repas, voir CLAUDE.md § Repas/Étiquettes
-    // éditables) ---
-    const filtresRepasPanneauEl = panneauPlatEl.querySelector("#filtres-repas-panneau");
-    const boutonTousRepas = document.createElement("button");
-    boutonTousRepas.className = "segmente-bouton";
-    if (filtreRepasPanneau === "tous") boutonTousRepas.classList.add("selectionne");
-    boutonTousRepas.textContent = "Tous";
-    boutonTousRepas.addEventListener("click", () => {
-      filtreRepasPanneau = "tous";
-      rendrePanneau();
+    // --- Bouton "Filtres" (repas à choix unique, favoris indépendant,
+    // étiquettes à choix multiple ET — mêmes filtres que l'écran Plats &
+    // repas, regroupés dans un panneau à part pour ne pas prendre trop de
+    // place ici — voir CLAUDE.md § Repas/Étiquettes éditables) ---
+    const nbFiltresActifs = (filtreRepasPanneau !== "tous" ? 1 : 0) + (filtreFavorisPanneau ? 1 : 0) + etiquettesSelectionneesPanneau.size;
+    panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
+    panneauPlatEl.querySelector("#ouvrir-filtres-panneau").addEventListener("click", () => {
+      ouvrirPanneauFiltresCreneau();
     });
-    filtresRepasPanneauEl.appendChild(boutonTousRepas);
-    for (const repas of etat.repas) {
-      const bouton = document.createElement("button");
-      bouton.className = "segmente-bouton";
-      if (filtreRepasPanneau === repas.id) bouton.classList.add("selectionne");
-      bouton.textContent = repas.nom;
-      bouton.addEventListener("click", () => {
-        filtreRepasPanneau = repas.id;
-        rendrePanneau();
-      });
-      filtresRepasPanneauEl.appendChild(bouton);
-    }
-
-    const filtreFavorisPanneauEl = panneauPlatEl.querySelector("#filtre-favoris-panneau");
-    filtreFavorisPanneauEl.classList.toggle("selectionne", filtreFavorisPanneau);
-    filtreFavorisPanneauEl.addEventListener("click", () => {
-      filtreFavorisPanneau = !filtreFavorisPanneau;
-      rendrePanneau();
-    });
-
-    const filtresEtiquettesPanneauEl = panneauPlatEl.querySelector("#filtres-etiquettes-panneau");
-    for (const etiquette of etat.etiquettes) {
-      const bouton = document.createElement("button");
-      bouton.className = "segmente-bouton";
-      if (etiquettesSelectionneesPanneau.has(etiquette.id)) bouton.classList.add("selectionne");
-      bouton.textContent = etiquette.nom;
-      bouton.addEventListener("click", () => {
-        if (etiquettesSelectionneesPanneau.has(etiquette.id)) etiquettesSelectionneesPanneau.delete(etiquette.id);
-        else etiquettesSelectionneesPanneau.add(etiquette.id);
-        rendrePanneau();
-      });
-      filtresEtiquettesPanneauEl.appendChild(bouton);
-    }
 
     // --- Liste des plats déjà prévus (chacun modifiable/retirable) ---
     const listeElementsEl = panneauPlatEl.querySelector("#liste-elements");
