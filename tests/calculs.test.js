@@ -829,8 +829,7 @@ test("renommerRepas : change le nom sans toucher à l'id", () => {
 test("supprimerRepas : refuse si un plat l'utilise encore, en le nommant", () => {
   const etat = creerEtatInitial();
   const repasSnack = etat.repas.find((r) => r.nom === "Snack/Goûter");
-  const platConcerne = etat.plats.find((p) => p.repas === repasSnack.id);
-  assert.ok(platConcerne, "au moins un plat importé doit être en Snack/Goûter");
+  const platConcerne = ajouterPlat(etat, { nom: "Snack test", repas: repasSnack.id, ingredients: [] });
 
   const resultat = supprimerRepas(etat, repasSnack.id);
   assert.equal(resultat.ok, false);
@@ -916,9 +915,9 @@ test("retirerRepasPret : supprime l'entrée entière, quel que soit le nombre de
 
 // --- Test bout-en-bout avec les vraies données (celui demandé dans le cahier des charges) ---
 
-test("bout-en-bout : 7 petits-déjeuners 'Petit-déj habituel' planifiés → 21 œufs et 3,5 avocats", () => {
+test("bout-en-bout : 7 petits-déjeuners 'Œufs brouillés, guacamole & pain' planifiés → 21 œufs et 3,5 avocats", () => {
   const etat = creerEtatInitial();
-  const idPlat = "petit-dej-habituel-3-oeufs-12-avocat";
+  const idPlat = "oeufs-brouilles-guacamole-pain";
   assert.ok(etat.plats.some((p) => p.id === idPlat), "le plat de test doit exister dans data.js");
 
   for (const jour of JOURS) {

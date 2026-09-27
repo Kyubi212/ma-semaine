@@ -39,7 +39,7 @@ beforeEach(() => {
 
 test("creerEtatInitial : reprend le catalogue de data.js", () => {
   const etat = creerEtatInitial();
-  assert.equal(etat.plats.length, 25);
+  assert.equal(etat.plats.length, 6);
   assert.equal(etat.ingredients.length, 168);
   assert.equal(etat.version, 9);
   assert.deepEqual(etat.repasPrets, []);
@@ -94,7 +94,7 @@ test("creerEtatInitial : modèle et historique vides au départ", () => {
 test("chargerEtat : premier lancement (rien en stockage) → état initial, sans erreur", () => {
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, false);
-  assert.equal(etat.plats.length, 25);
+  assert.equal(etat.plats.length, 6);
 });
 
 test("sauvegarderEtat puis chargerEtat : on retrouve exactement ce qu'on a sauvegardé", () => {
@@ -316,7 +316,7 @@ test("chargerEtat : données corrompues → repart sur un état propre, avec err
   globalThis.localStorage.setItem("ma-semaine", "{ ceci n'est pas du JSON valide");
   const { etat, erreurLecture } = chargerEtat();
   assert.equal(erreurLecture, true);
-  assert.equal(etat.plats.length, 25);
+  assert.equal(etat.plats.length, 6);
 });
 
 test("chargerEtat : stockage inaccessible (ex. mode privé) → ne plante pas", () => {
