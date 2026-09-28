@@ -2939,6 +2939,8 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
 // --- Démarrage ---
 
 rendreEcranSemaine();
+// Signal pour le filet de sécurité d'index.html : l'app a bien démarré.
+window.maSemaineDemarree = true;
 
 // --- PWA : installable sur l'écran d'accueil, utilisable hors connexion
 // (chantier, zone sans réseau...) une fois ouverte au moins une fois avec

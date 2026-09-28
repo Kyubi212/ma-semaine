@@ -31,10 +31,18 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 - **Tests** : `node --test` (outil intégré à Node.js, aucune dépendance à installer), pour la
   logique de calcul uniquement (fonctions pures dans `calculs.js`, séparées de l'affichage).
 - **Anti-cache** : `index.html` charge `app.js` et `style.css` avec un paramètre `?v=AAAAMMJJx`
-  (ex. `?v=20260926a`). Safari mobile a tendance à garder une ancienne version de ces fichiers en
-  cache même après un rechargement de la page. **À chaque modification de `app.js` ou
-  `style.css`, changer ce numéro de version dans `index.html`** (les deux endroits), sinon Qassim
-  peut continuer à voir l'ancienne version sans erreur ni message.
+  (ex. `?v=20260926a`), et une **carte d'import** (`<script type="importmap">`) ajoute le même
+  `?v=` à chaque module importé (`calculs.js`, `storage.js`, `data.js`, `constantes.js`). Safari
+  mobile a tendance à garder une ancienne version de ces fichiers en cache même après un
+  rechargement de la page. **À chaque modification d'un fichier JS ou CSS, changer TOUS les `?v=`
+  de `index.html`** (même numéro partout), sinon Qassim peut continuer à voir l'ancienne version.
+  **Historique (bug réel)** : au départ seuls `app.js`/`style.css` étaient versionnés ; après
+  l'ajout d'une fonction dans `calculs.js`, le téléphone a chargé le nouveau `app.js` avec
+  l'ancien `calculs.js` resté en cache → import introuvable, l'app ne démarrait plus du tout
+  (écran quasi vide, rien de cliquable). D'où la carte d'import, plus un **filet de sécurité**
+  (script en bas d'`index.html`) : si `app.js` n'a pas signalé son démarrage
+  (`window.maSemaineDemarree`) au bout de 4 s, un bandeau explique que les données ne sont pas
+  perdues et propose "🔄 Recharger". Tout nouveau module JS doit être ajouté à la carte d'import.
 
 ## Écrans (MVP, 4 écrans)
 
