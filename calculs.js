@@ -1047,3 +1047,21 @@ export function cuisinerAPrevoir(etat, entreeId) {
   ajusterStockPourCase(entree, etat.plats, etat.ingredients, -1);
   retirerAPrevoir(etat, entreeId);
 }
+
+// --- Partir d'une appli vide (menu ⋯) ---
+//
+// Pour qui veut tout renseigner lui-même, avec ses propres produits et ses
+// propres noms (demandé par Qassim) : vide plats, ingrédients, étiquettes,
+// matériel, planning (modèle + historique), repas prêts et "À prévoir".
+// Garde la structure qui sert de cadre : rayons, repas (catégories de
+// plats) et créneaux affichés — éditables ensuite comme d'habitude.
+export function viderPourPartirDeZero(etat) {
+  etat.plats = [];
+  etat.ingredients = [];
+  etat.etiquettes = [];
+  etat.materiel = [];
+  etat.modele = [];
+  etat.historique = {};
+  etat.repasPrets = [];
+  etat.aPrevoir = [];
+}

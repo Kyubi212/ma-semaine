@@ -45,6 +45,7 @@ import {
   modifierPortionsAPrevoir,
   retirerAPrevoir,
   cuisinerAPrevoir,
+  viderPourPartirDeZero,
   changerTempsMax,
   platDansTempsMax,
   ajouterRepasPret,
@@ -741,6 +742,10 @@ function ouvrirPanneauMenu() {
     <p class="panneau-note">Efface TOUT ce qui est enregistré sur ce téléphone (planning, stock,
       plats modifiés...) et recharge l'appli avec le catalogue de base (rayons, ingrédients,
       plats). Irréversible.</p>
+    <button class="bouton-discret" id="menu-vider">🧹 Partir d'une appli vide</button>
+    <p class="panneau-note">Pour tout renseigner toi-même, avec tes produits et tes noms : efface
+      plats, ingrédients, étiquettes, matériel et planning. Garde les rayons et les types de repas.
+      Irréversible.</p>
   `;
 
   panneauPlatEl.querySelector("#menu-exporter").addEventListener("click", () => {
@@ -752,10 +757,40 @@ function ouvrirPanneauMenu() {
   panneauPlatEl.querySelector("#menu-reinitialiser").addEventListener("click", () => {
     ouvrirPanneauConfirmerReinitialisation();
   });
+  panneauPlatEl.querySelector("#menu-vider").addEventListener("click", () => {
+    ouvrirPanneauConfirmerVider();
+  });
   panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
 
   panneauFondEl.hidden = false;
   panneauPlatEl.hidden = false;
+}
+
+function ouvrirPanneauConfirmerVider() {
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">🧹 Partir d'une appli vide ?</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+    <p class="fiche-texte">Seront <strong>définitivement effacés</strong> : tous les plats, tous
+      les ingrédients (et donc le stock), les étiquettes, le matériel, le planning, les repas prêts
+      et "À prévoir".</p>
+    <p class="fiche-texte">Seront <strong>gardés</strong> : les rayons, les types de repas
+      (Petit-déjeuner, Déjeuner/Dîner...) et les repas affichés dans la journée.</p>
+    <p class="panneau-note">Conseil : "⬇️ Exporter une sauvegarde" avant, pour pouvoir revenir en
+      arrière. Cette action ne peut pas être annulée.</p>
+    <div class="panneau-actions">
+      <button class="bouton-principal bouton-danger" id="confirmer-vider">Oui, tout vider</button>
+      <button class="bouton-secondaire" id="annuler-vider">Annuler</button>
+    </div>
+  `;
+  panneauPlatEl.querySelector("#confirmer-vider").addEventListener("click", () => {
+    viderPourPartirDeZero(etat);
+    sauvegarder();
+    location.reload();
+  });
+  panneauPlatEl.querySelector("#annuler-vider").addEventListener("click", () => ouvrirPanneauMenu());
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
 }
 
 function exporterSauvegarde() {
@@ -2040,7 +2075,9 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
     listeEl.innerHTML = "";
 
     if (ingredients.length === 0) {
-      listeEl.innerHTML = `<p class="liste-vide">Aucun ingrédient ne correspond.</p>`;
+      listeEl.innerHTML = etat.ingredients.length === 0
+        ? `<p class="liste-vide">Ton catalogue est vide.<br>Touche "➕ Créer un nouvel ingrédient" pour ajouter le premier.</p>`
+        : `<p class="liste-vide">Aucun ingrédient ne correspond.</p>`;
       return;
     }
 
@@ -2403,7 +2440,9 @@ function rendreGrillePlats() {
   grillePlatsEl.innerHTML = "";
 
   if (liste.length === 0) {
-    grillePlatsEl.innerHTML = `<p class="liste-vide">Aucun plat pour ce filtre.</p>`;
+    grillePlatsEl.innerHTML = etat.plats.length === 0
+      ? `<p class="liste-vide">Aucun plat pour l'instant.<br>Touche "+ Nouveau" pour créer ta première recette.</p>`
+      : `<p class="liste-vide">Aucun plat pour ce filtre.</p>`;
     return;
   }
 

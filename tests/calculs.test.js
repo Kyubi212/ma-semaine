@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  viderPourPartirDeZero,
   ajouterAPrevoir,
   modifierPortionsAPrevoir,
   retirerAPrevoir,
@@ -1234,4 +1235,23 @@ test("bout-en-bout : 7 dîners 'Steak-frites' planifiés → 1400 g de bœuf et 
   const besoins = calculerBesoinsSemaine(etat, new Date(2026, 8, 24)); // jeudi 24/09/2026
   assert.equal(besoins.get("boeuf-faux-filet"), 1400); // 200 g × 7 jours
   assert.equal(besoins.get("frites-surgelees"), 1400); // 200 g × 7 jours
+});
+
+// --- Partir d'une appli vide ---
+
+test("viderPourPartirDeZero : vide le contenu, garde rayons, repas et créneaux affichés", () => {
+  const etat = etatDeTest();
+  etat.creneauxAffiches = ["lunch", "diner"];
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 }, true);
+  ajouterAPrevoir(etat, { platId: "plat-test", portions: 1 });
+  ajouterRepasPret(etat, { nom: "Reste", portions: 2 });
+  const rayons = etat.rayons.length;
+  const repas = etat.repas.length;
+  viderPourPartirDeZero(etat);
+  assert.deepEqual([etat.plats, etat.ingredients, etat.etiquettes, etat.materiel, etat.modele, etat.repasPrets, etat.aPrevoir], [[], [], [], [], [], [], []]);
+  assert.deepEqual(etat.historique, {});
+  assert.equal(etat.rayons.length, rayons);
+  assert.equal(etat.repas.length, repas);
+  assert.deepEqual(etat.creneauxAffiches, ["lunch", "diner"]);
+  assert.equal(construireListeCourses(etat, LUNDI).length, 0);
 });

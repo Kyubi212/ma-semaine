@@ -57,7 +57,12 @@ Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un
 propose "⬇️ Exporter une sauvegarde" / "⬆️ Importer une sauvegarde" (fichier JSON téléchargé/
 réimporté à la main, voir "Export/import de sauvegarde" ci-dessous) et "🗑️ Réinitialiser avec les
 données de base" (efface `localStorage` via `effacerStockage()` dans `storage.js`, confirmation
-requise, irréversible — recharge l'app avec le catalogue de base de `data.js`). **Important** :
+requise, irréversible — recharge l'app avec le catalogue de base de `data.js`), et **"🧹 Partir
+d'une appli vide"** (demandé par Qassim, pour qui veut tout renseigner avec ses propres produits et
+ses propres noms : `viderPourPartirDeZero` dans `calculs.js` efface plats, ingrédients/stock,
+étiquettes, matériel, planning, repas prêts et "À prévoir", mais garde rayons, types de repas et
+créneaux affichés ; confirmation qui conseille d'exporter une sauvegarde avant ; les écrans Plats et
+Catalogue vides expliquent alors comment créer le premier élément). **Important** :
 modifier `data.js` (rayons, ingrédients, plats) ne
 change RIEN à ce que Qassim a déjà sur son téléphone tant qu'il n'utilise pas ce bouton — les
 migrations (`storage.js` → `migrer`) ne touchent que la STRUCTURE des données, jamais leur
