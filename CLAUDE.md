@@ -958,6 +958,39 @@ hors-ligne, aucun service externe :
   rien écraser. Une confirmation ("⚠️ Importer cette sauvegarde ?", même style que la
   réinitialisation) précède l'écrasement, irréversible, de tout ce qui est déjà enregistré.
 
+### Partager UNE recette (écran Plats & repas)
+
+**Décision clé (demandée par Qassim, sa sœur venait de créer une recette et voulait la lui
+partager, "on peut pas")** : "⬇️ Exporter une sauvegarde" exporte TOUT le téléphone (planning,
+stock...), pas pratique pour partager une seule recette entre deux personnes qui utilisent chacune
+leur propre appli. Même mécanisme de fichier que l'export/import de sauvegarde (`Blob` + lien
+`download`, `<input type="file">` attaché au DOM), mais scindé à part :
+- **"📤 Partager"**, sur la fiche recette d'un plat (à côté de "📅 Planifier") : télécharge
+  `ma-semaine-recette-<id>.json` (`preparerPartagePlat` dans `calculs.js`), à envoyer ensuite par
+  n'importe quel moyen (SMS, mail, WhatsApp...) — l'app n'a pas de compte ni de serveur pour un
+  vrai partage en un tap.
+- **"📥 Importer une recette"**, sur l'écran Plats & repas (à côté de "☑️ Sélectionner pour
+  supprimer") : lit le fichier reçu et ajoute le plat (`importerPlatPartage` dans `calculs.js`).
+
+**Tout référencé PAR NOM, jamais par id** (repas, étiquettes, matériel, ingrédients) : les ids sont
+générés localement sur chaque téléphone (`genererSlug` + compteur en cas de collision) et ne
+coïncident jamais entre deux appareils différents — seul le nom a un sens des deux côtés.
+`clePourNom` (normalisation accents/majuscules, réutilise `genererSlug`) sert à faire correspondre
+un repas/une étiquette/un matériel/un ingrédient du fichier avec ce que Qassim a déjà, **sans lui
+demander confirmation** (décision explicite de Qassim) :
+- déjà présent chez lui (même nom, insensible aux accents) → réutilisé tel quel ;
+- absent → créé à la volée avec `ajouterRepas`/`ajouterEtiquette`/`ajouterMateriel`/
+  `ajouterIngredient` habituels ; pour un ingrédient, le rayon indiqué dans le fichier est repris
+  (recréé lui aussi si besoin), "Épicerie salée" en tout dernier recours si le fichier n'en précise
+  aucun.
+
+**Import jamais destructeur, donc pas de confirmation "es-tu sûr"** (contrairement à "⬆️ Importer
+une sauvegarde", qui écrase tout) : ça ne fait qu'AJOUTER un plat (et, si besoin, les ingrédients
+qui allaient avec) — jamais de remplacement. Le bilan après import (`ouvrirPanneauBilanImportRecette`
+dans `app.js`) liste les ingrédients créés automatiquement, pour que Qassim aille vérifier/corriger
+leur rayon dans le Catalogue si besoin (son ingrédient reste utilisable en attendant, même sans
+correction).
+
 ## PWA (installable sur l'écran d'accueil, hors connexion)
 
 **Décision clé (choisie par Qassim plutôt qu'un vrai backend avec comptes)** : pour une "vraie

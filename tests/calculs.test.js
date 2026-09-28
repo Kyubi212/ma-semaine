@@ -63,6 +63,8 @@ import {
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
+  preparerPartagePlat,
+  importerPlatPartage,
 } from "../calculs.js";
 import { creerEtatInitial } from "../storage.js";
 import { JOURS } from "../constantes.js";
@@ -932,6 +934,101 @@ test("ajouterPlat / modifierPlat : gèrent les étiquettes (plusieurs à la fois
 
   modifierPlat(etat, plat.id, { etiquettes: [sucre.id, sain.id] });
   assert.deepEqual(plat.etiquettes, [sucre.id, sain.id]);
+});
+
+// --- Partager une recette (preparerPartagePlat / importerPlatPartage) ---
+
+function etatAvecRecettePartageable() {
+  const etat = creerEtatInitial();
+  const farine = ajouterIngredient(etat, { nom: "Farine spéciale test", rayon: etat.rayons[0].id, unite: "g" });
+  const oeufs = ajouterIngredient(etat, { nom: "Œufs de test", rayon: etat.rayons[0].id, unite: "pièce" });
+  const dejeunerDiner = etat.repas.find((r) => r.nom.includes("Déjeuner"));
+  const sucre = etat.etiquettes.find((e) => e.nom === "Sucré");
+  const four = etat.materiel.find((m) => m.nom === "Four");
+  const plat = ajouterPlat(etat, {
+    nom: "Cookies de test",
+    repas: dejeunerDiner.id,
+    etapes: "Mélanger, cuire.",
+    portionsReference: 4,
+    typePortions: "quantite",
+    tempsPreparation: 10,
+    tempsCuisson: 15,
+    etiquettes: [sucre.id],
+    materiel: [four.id],
+    ingredients: [
+      { ingredientId: farine.id, quantitePortion: 50, unite: "g" },
+      { ingredientId: oeufs.id, quantitePortion: 0.5, unite: "pièce" },
+    ],
+  });
+  return { etat, plat };
+}
+
+test("preparerPartagePlat : rend null si le plat n'existe pas", () => {
+  const etat = creerEtatInitial();
+  assert.equal(preparerPartagePlat(etat, "plat-inconnu"), null);
+});
+
+test("preparerPartagePlat : exporte tout PAR NOM (repas, étiquettes, matériel, ingrédients), pas par id", () => {
+  const { etat, plat } = etatAvecRecettePartageable();
+  const partage = preparerPartagePlat(etat, plat.id);
+
+  assert.equal(partage.typePartage, "recette-ma-semaine");
+  assert.equal(partage.plat.nom, "Cookies de test");
+  assert.equal(partage.plat.repas, "Déjeuner/Dîner");
+  assert.equal(partage.plat.typePortions, "quantite");
+  assert.equal(partage.plat.portionsReference, 4);
+  assert.deepEqual(partage.plat.etiquettes, ["Sucré"]);
+  assert.deepEqual(partage.plat.materiel, ["Four"]);
+  assert.deepEqual(
+    partage.plat.ingredients.map((l) => l.nom).sort(),
+    ["Farine spéciale test", "Œufs de test"]
+  );
+  assert.ok(partage.ingredients.some((i) => i.nom === "Farine spéciale test" && i.unite === "g"));
+});
+
+test("importerPlatPartage : recrée les ingrédients manquants (avec leur rayon) et ajoute le plat", () => {
+  const { etat: etatSource, plat } = etatAvecRecettePartageable();
+  const partage = preparerPartagePlat(etatSource, plat.id);
+
+  const etatDestination = creerEtatInitial(); // téléphone "vide" de ce point de vue : Farine/Œufs pas encore ajoutés
+  const nbIngredientsAvant = etatDestination.ingredients.length;
+  const resultat = importerPlatPartage(etatDestination, partage);
+
+  assert.equal(resultat.ok, true);
+  assert.deepEqual(resultat.ingredientsCrees.sort(), ["Farine spéciale test", "Œufs de test"]);
+  assert.equal(etatDestination.ingredients.length, nbIngredientsAvant + 2);
+
+  const platImporte = etatDestination.plats.find((p) => p.id === resultat.plat.id);
+  assert.equal(platImporte.nom, "Cookies de test");
+  assert.equal(platImporte.typePortions, "quantite");
+  assert.equal(platImporte.ingredients.length, 2);
+  // Les quantités par portion sont conservées telles quelles.
+  const farineImportee = etatDestination.ingredients.find((i) => i.nom === "Farine spéciale test");
+  const ligneFarine = platImporte.ingredients.find((l) => l.ingredientId === farineImportee.id);
+  assert.equal(ligneFarine.quantitePortion, 50);
+});
+
+test("importerPlatPartage : réutilise un ingrédient déjà là (même nom, insensible aux accents/majuscules) au lieu d'en recréer un", () => {
+  const { etat: etatSource, plat } = etatAvecRecettePartageable();
+  const partage = preparerPartagePlat(etatSource, plat.id);
+
+  const etatDestination = creerEtatInitial();
+  // Le destinataire a DÉJÀ "farine" (minuscules, sans accent) dans son stock.
+  const farineExistante = ajouterIngredient(etatDestination, { nom: "farine spéciale test", rayon: etatDestination.rayons[0].id, unite: "g" });
+  const resultat = importerPlatPartage(etatDestination, partage);
+
+  assert.equal(resultat.ok, true);
+  assert.deepEqual(resultat.ingredientsCrees, ["Œufs de test"], "Farine n'est PAS recréée, seuls les Œufs le sont");
+  const platImporte = etatDestination.plats.find((p) => p.id === resultat.plat.id);
+  const ligneFarine = platImporte.ingredients.find((l) => l.ingredientId === farineExistante.id);
+  assert.ok(ligneFarine, "la recette réutilise bien l'ingrédient 'farine' déjà existant");
+});
+
+test("importerPlatPartage : refuse un fichier qui n'est pas une recette partagée reconnue", () => {
+  const etat = creerEtatInitial();
+  assert.equal(importerPlatPartage(etat, { pasDuTout: "une recette" }).ok, false);
+  assert.equal(importerPlatPartage(etat, null).ok, false);
+  assert.equal(importerPlatPartage(etat, { typePartage: "sauvegarde-complete", plat: {}, ingredients: [] }).ok, false);
 });
 
 // --- Repas éditables (ajouterRepas / renommerRepas / supprimerRepas) ---

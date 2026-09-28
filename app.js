@@ -54,6 +54,8 @@ import {
   retirerRepasPret,
   formaterQuantite,
   convertirVersUniteStock,
+  preparerPartagePlat,
+  importerPlatPartage,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -930,6 +932,101 @@ function exporterSauvegarde() {
   lien.download = `ma-semaine-sauvegarde-${dateISO}.json`;
   lien.click();
   URL.revokeObjectURL(url);
+}
+
+// --- Partager UNE recette (demandé par Qassim, sa sœur voulait partager une
+// recette sans exporter/réimporter toute la sauvegarde — voir
+// preparerPartagePlat/importerPlatPartage dans calculs.js). Même mécanisme
+// de téléchargement de fichier que "⬇️ Exporter une sauvegarde", mais avec
+// juste ce plat ; à envoyer ensuite par n'importe quel moyen (SMS, mail,
+// WhatsApp...) puisque l'app n'a pas de compte ni de serveur. ---
+
+function partagerRecette(platId) {
+  const partage = preparerPartagePlat(etat, platId);
+  if (!partage) return;
+  const texte = JSON.stringify(partage, null, 2);
+  const blob = new Blob([texte], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const lien = document.createElement("a");
+  lien.href = url;
+  lien.download = `ma-semaine-recette-${platId}.json`;
+  lien.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("plats-importer").addEventListener("click", () => declencherSelectionFichierImportRecette());
+
+function declencherSelectionFichierImportRecette() {
+  // Même bidouille que declencherSelectionFichierImport ci-dessous : l'input
+  // doit être dans le DOM (même caché) pour que le sélecteur de fichier
+  // s'ouvre de façon fiable sur tous les navigateurs.
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.hidden = true;
+  document.body.appendChild(input);
+  input.addEventListener("change", () => {
+    const fichier = input.files[0];
+    input.remove();
+    if (!fichier) return;
+    const lecteur = new FileReader();
+    lecteur.addEventListener("load", () => {
+      let donnees;
+      try {
+        donnees = JSON.parse(lecteur.result);
+      } catch {
+        afficherAvertissement("Ce fichier n'est pas un JSON valide.");
+        return;
+      }
+      const resultat = importerPlatPartage(etat, donnees);
+      if (!resultat.ok) {
+        afficherAvertissement(resultat.erreur);
+        return;
+      }
+      sauvegarder();
+      ouvrirPanneauBilanImportRecette(resultat);
+    });
+    lecteur.addEventListener("error", () => {
+      afficherAvertissement("Impossible de lire ce fichier.");
+    });
+    lecteur.readAsText(fichier);
+  });
+  input.click();
+}
+
+// Pas de confirmation "es-tu sûr" avant d'importer une recette (contrairement
+// à "⬆️ Importer une sauvegarde") : contrairement à la sauvegarde complète,
+// ça n'écrase RIEN de ce que Qassim a déjà — ça AJOUTE juste un plat (et,
+// si besoin, les ingrédients qui allaient avec). Ce bilan dit ce qui a été
+// fait, pour que Qassim puisse vérifier/corriger ensuite (rayon d'un
+// ingrédient créé à la volée, par exemple).
+function ouvrirPanneauBilanImportRecette(resultat) {
+  apresFermeturePanneau = rendreEcranPlats;
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">📥 Recette importée</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+    <p class="fiche-texte">"<strong>${resultat.plat.nom}</strong>" a été ajouté à tes plats.</p>
+    ${resultat.ingredientsCrees.length > 0 ? `
+      <p class="panneau-note">${resultat.ingredientsCrees.length} ingrédient${resultat.ingredientsCrees.length > 1 ? "s" : ""}
+        que tu n'avais pas encore ${resultat.ingredientsCrees.length > 1 ? "ont" : "a"} été créé${resultat.ingredientsCrees.length > 1 ? "s" : ""}
+        automatiquement : ${resultat.ingredientsCrees.join(", ")}. Vérifie leur rayon dans le
+        Catalogue (Stock) si besoin.</p>
+    ` : ""}
+    <div class="panneau-actions">
+      <button class="bouton-principal" id="bilan-recette-voir">Voir la recette</button>
+      <button class="bouton-secondaire" id="bilan-recette-ok">OK</button>
+    </div>
+  `;
+  panneauPlatEl.querySelector("#bilan-recette-voir").addEventListener("click", () => {
+    ouvrirPanneauFicheRecette(resultat.plat.id, rendreEcranPlats);
+  });
+  panneauPlatEl.querySelector("#bilan-recette-ok").addEventListener("click", fermerPanneau);
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
 }
 
 function declencherSelectionFichierImport() {
@@ -3987,6 +4084,7 @@ function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
       <div class="fiche-actions">
         <button class="bouton-secondaire bouton-petit" id="fiche-favori">${plat.favori ? "⭐ Favori" : "☆ Favori"}</button>
         <button class="bouton-secondaire bouton-petit" id="fiche-planifier">📅 Planifier</button>
+        <button class="bouton-secondaire bouton-petit" id="fiche-partager">📤 Partager</button>
         <button class="bouton-secondaire bouton-petit" id="fiche-modifier">✏️ Modifier</button>
         <button class="bouton-secondaire bouton-petit" id="fiche-supprimer" aria-label="Supprimer ce plat">🗑️</button>
       </div>
@@ -4045,6 +4143,7 @@ function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
     });
     const retourFiche = () => ouvrirPanneauFicheRecette(platId, ecranSousJacent);
     panneauPlatEl.querySelector("#fiche-planifier").addEventListener("click", () => ouvrirPanneauPlanifierPlat(platId, retourFiche));
+    panneauPlatEl.querySelector("#fiche-partager").addEventListener("click", () => partagerRecette(platId));
     panneauPlatEl.querySelector("#fiche-supprimer").addEventListener("click", () => ouvrirPanneauConfirmerSuppressionPlat(platId, retourFiche));
     panneauPlatEl.querySelector("#fiche-modifier").addEventListener("click", () => {
       ouvrirPanneauPlat(platId, ecranSousJacent, () => ouvrirPanneauFicheRecette(platId, ecranSousJacent));

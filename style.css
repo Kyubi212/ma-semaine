@@ -1256,6 +1256,7 @@ textarea.champ-texte {
 /* Fiche recette (lecture seule) : Plats & repas → toucher un plat. */
 .fiche-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1451,8 +1452,10 @@ textarea.champ-texte {
 /* Sélection multiple (☑️ Sélectionner → 🗑️ Supprimer). */
 .barre-liste {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 4px 12px;
   font-size: 0.8rem;
   color: var(--couleur-texte-discret);
   margin-top: 4px;

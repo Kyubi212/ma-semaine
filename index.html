@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Ma Semaine">
   <link rel="icon" href="icons/icone-192.png">
   <link rel="apple-touch-icon" href="icons/icone-apple-touch.png">
-  <link rel="stylesheet" href="style.css?v=20260929b">
+  <link rel="stylesheet" href="style.css?v=20260929c">
 </head>
 <body>
   <header class="app-header">
@@ -70,6 +70,7 @@
       </div>
       <div class="barre-liste">
         <span id="plats-compte"></span>
+        <button id="plats-importer" class="bouton-discret" type="button">📥 Importer une recette</button>
         <button id="plats-selectionner" class="bouton-discret" type="button">☑️ Sélectionner pour supprimer</button>
       </div>
       <div id="grille-plats" class="liste-resultats"></div>
@@ -119,14 +120,14 @@
   <script type="importmap">
     {
       "imports": {
-        "./calculs.js": "./calculs.js?v=20260929b",
-        "./storage.js": "./storage.js?v=20260929b",
-        "./data.js": "./data.js?v=20260929b",
-        "./constantes.js": "./constantes.js?v=20260929b"
+        "./calculs.js": "./calculs.js?v=20260929c",
+        "./storage.js": "./storage.js?v=20260929c",
+        "./data.js": "./data.js?v=20260929c",
+        "./constantes.js": "./constantes.js?v=20260929c"
       }
     }
   </script>
-  <script type="module" src="app.js?v=20260929b"></script>
+  <script type="module" src="app.js?v=20260929c"></script>
   <!-- Filet de sécurité : si l'app n'a pas démarré au bout de quelques
        secondes (fichier manquant, ancienne version en cache...), on le dit
        avec un bouton pour recharger, au lieu d'un écran figé sans rien de

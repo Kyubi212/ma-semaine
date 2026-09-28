@@ -711,6 +711,141 @@ export function supprimerPlat(etat, platId) {
   return { ok: true };
 }
 
+// --- Partager une recette (juste CE plat, pas toute la sauvegarde) ---
+// Demandé par Qassim (sa sœur voulait partager une recette qu'elle venait de
+// créer) : "⬇️ Exporter une sauvegarde" exporte TOUT le téléphone, pas
+// pratique pour une seule recette. Contrairement à exporterEtat, tout est
+// référencé PAR NOM (repas, étiquettes, matériel, ingrédients) plutôt que
+// par id : les ids sont générés localement sur chaque téléphone (genererSlug
+// + compteur en cas de collision) et ne coïncident jamais entre deux
+// appareils différents — seul le nom a un sens des deux côtés.
+
+// Une clé de comparaison insensible aux accents/majuscules (réutilise
+// genererSlug : deux noms qui donneraient le même id générés séparément sont
+// considérés comme "le même" ingrédient/repas/étiquette/matériel).
+function clePourNom(nom) {
+  return genererSlug(nom, new Set());
+}
+
+// Retrouve un élément { id, nom } existant dans `liste` par son nom
+// (insensible aux accents/majuscules) ; sinon le crée avec `creer(nom)`.
+function idExistantOuCree(liste, nom, creer) {
+  const cle = clePourNom(nom);
+  const existant = liste.find((item) => clePourNom(item.nom) === cle);
+  return existant ? existant.id : creer(nom).id;
+}
+
+// Prépare un plat pour l'export en fichier (voir exporterPlatPartage dans
+// app.js, même mécanisme que exporterEtat mais pour UN SEUL plat). Rend
+// `null` si le plat n'existe pas (ex. supprimé entre-temps).
+export function preparerPartagePlat(etat, platId) {
+  const plat = etat.plats.find((p) => p.id === platId);
+  if (!plat) return null;
+
+  const nomRepas = etat.repas.find((r) => r.id === plat.repas)?.nom ?? "Recette de base";
+  const ingredientsLignes = plat.ingredients
+    .map((ligne) => ({ ligne, ingredient: etat.ingredients.find((i) => i.id === ligne.ingredientId) }))
+    .filter(({ ingredient }) => ingredient);
+
+  return {
+    typePartage: "recette-ma-semaine",
+    versionFormat: 1,
+    plat: {
+      nom: plat.nom,
+      repas: nomRepas,
+      etapes: plat.etapes,
+      portionsReference: plat.portionsReference,
+      typePortions: plat.typePortions,
+      tempsPreparation: plat.tempsPreparation,
+      tempsCuisson: plat.tempsCuisson,
+      etiquettes: plat.etiquettes.map((id) => etat.etiquettes.find((e) => e.id === id)?.nom).filter(Boolean),
+      materiel: plat.materiel.map((id) => etat.materiel.find((m) => m.id === id)?.nom).filter(Boolean),
+      ingredients: ingredientsLignes.map(({ ligne, ingredient }) => ({
+        nom: ingredient.nom,
+        quantitePortion: ligne.quantitePortion,
+        unite: ligne.unite,
+      })),
+    },
+    // Détails de chaque ingrédient utilisé, pour pouvoir le RECRÉER chez le
+    // destinataire s'il ne l'a pas déjà (voir importerPlatPartage).
+    ingredients: ingredientsLignes.map(({ ingredient }) => ({
+      nom: ingredient.nom,
+      unite: ingredient.unite,
+      rayon: etat.rayons.find((r) => r.id === ingredient.rayon)?.nom ?? "Épicerie salée",
+      parCuillereACafe: ingredient.parCuillereACafe ?? null,
+    })),
+  };
+}
+
+// Importe une recette partagée par quelqu'un d'autre (voir preparerPartagePlat
+// ci-dessus). Les ingrédients/repas/étiquettes/matériel qui n'existent pas
+// encore chez Qassim sont créés automatiquement, PAR LEUR NOM (insensible aux
+// accents/majuscules — pas de confirmation demandée, décision de Qassim) :
+// un ingrédient nouveau reprend le rayon indiqué dans le fichier (recréé s'il
+// n'existe pas déjà), "Épicerie salée" en tout dernier recours si le fichier
+// n'en précise aucun. Rend { ok: false, erreur } si le fichier n'est pas une
+// recette partagée reconnue par Ma Semaine, sinon { ok: true, plat,
+// ingredientsCrees: [...noms] } (pour informer Qassim de ce qui a été ajouté
+// au passage, à vérifier/corriger ensuite comme n'importe quel ingrédient).
+export function importerPlatPartage(etat, donnees) {
+  if (
+    typeof donnees !== "object" || donnees === null ||
+    donnees.typePartage !== "recette-ma-semaine" ||
+    typeof donnees.plat !== "object" || donnees.plat === null ||
+    !Array.isArray(donnees.ingredients)
+  ) {
+    return { ok: false, erreur: "Ce fichier ne ressemble pas à une recette partagée par Ma Semaine." };
+  }
+
+  const ingredientsCrees = [];
+  const idIngredientParCle = new Map();
+  for (const info of donnees.ingredients) {
+    const cle = clePourNom(info.nom);
+    const existant = etat.ingredients.find((i) => clePourNom(i.nom) === cle);
+    if (existant) {
+      idIngredientParCle.set(cle, existant.id);
+      continue;
+    }
+    const rayonId = idExistantOuCree(etat.rayons, info.rayon || "Épicerie salée", (nom) => ajouterRayon(etat, nom));
+    const nouveau = ajouterIngredient(etat, {
+      nom: info.nom,
+      rayon: rayonId,
+      unite: info.unite,
+      parCuillereACafe: info.parCuillereACafe,
+    });
+    idIngredientParCle.set(cle, nouveau.id);
+    ingredientsCrees.push(info.nom);
+  }
+
+  const repasId = idExistantOuCree(etat.repas, donnees.plat.repas || "Recette de base", (nom) => ajouterRepas(etat, nom));
+  const etiquettesIds = (donnees.plat.etiquettes ?? [])
+    .map((nom) => idExistantOuCree(etat.etiquettes, nom, (n) => ajouterEtiquette(etat, n)));
+  const materielIds = (donnees.plat.materiel ?? [])
+    .map((nom) => idExistantOuCree(etat.materiel, nom, (n) => ajouterMateriel(etat, n)));
+
+  const ingredientsLignes = (donnees.plat.ingredients ?? [])
+    .map((ligne) => {
+      const ingredientId = idIngredientParCle.get(clePourNom(ligne.nom));
+      return ingredientId ? { ingredientId, quantitePortion: ligne.quantitePortion, unite: ligne.unite } : null;
+    })
+    .filter(Boolean);
+
+  const plat = ajouterPlat(etat, {
+    nom: donnees.plat.nom,
+    repas: repasId,
+    etapes: donnees.plat.etapes ?? "",
+    portionsReference: donnees.plat.portionsReference,
+    typePortions: donnees.plat.typePortions,
+    tempsPreparation: donnees.plat.tempsPreparation,
+    tempsCuisson: donnees.plat.tempsCuisson,
+    etiquettes: etiquettesIds,
+    materiel: materielIds,
+    ingredients: ingredientsLignes,
+  });
+
+  return { ok: true, plat, ingredientsCrees };
+}
+
 // --- Étiquettes (écran Plats & repas, éditables — même principe que les
 // rayons). Un plat peut porter PLUSIEURS étiquettes à la fois. ---
 
