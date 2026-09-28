@@ -649,6 +649,18 @@ test("ajouterIngredient : crée un ingrédient sans lien avec aucun plat", () =>
   assert.ok(etat.ingredients.some((i) => i.id === nouveau.id));
 });
 
+test("ajouterIngredient : essentiel, minimum, stock et équivalence cuillère dès la création", () => {
+  const etat = etatDeTest();
+  const miel = ajouterIngredient(etat, { nom: "Miel de fleurs", rayon: "r", unite: "g", enStock: "250", essentiel: true, minimum: "100", parCuillereACafe: "7" });
+  assert.equal(miel.enStock, 250);
+  assert.equal(miel.essentiel, true);
+  assert.equal(miel.minimum, 100);
+  assert.equal(miel.parCuillereACafe, 7);
+  const savon = ajouterIngredient(etat, { nom: "Savon", rayon: "r", unite: "pièce", parCuillereACafe: 5 });
+  assert.equal(savon.parCuillereACafe, null, "pas de cuillères pour une pièce");
+  assert.equal(savon.essentiel, false);
+});
+
 test("ajouterIngredient : deux noms proches n'entrent jamais en collision d'id", () => {
   const etat = etatDeTest();
   const premier = ajouterIngredient(etat, { nom: "Savon", rayon: "Hygiène", unite: "pièce" });

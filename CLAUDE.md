@@ -49,7 +49,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | Écran | Rôle |
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un repère sous chaque jour, voir "Repère du jour et repas affichés" ci-dessous), jusqu'à 5 créneaux/jour, **au choix de Qassim** ("⚙️ Repas affichés : 3 sur 5" sous la journée). Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
-| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités **exactes** pour les g/ml (10 g de sucre, pas un paquet — voir "Quantités exactes dans les courses" ci-dessous), arrondies à l'unité supérieure pour ce qui se compte (2 pommes, pas 1,5). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2, ou 500 g de sucre trouvés en rayon au lieu des 10 g demandés ; pas de 1 pièce/50 g-ml, ou saisie directe), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
+| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités **exactes** pour les g/ml (10 g de sucre, pas un paquet — voir "Quantités exactes dans les courses" ci-dessous), arrondies à l'unité supérieure pour ce qui se compte (2 pommes, pas 1,5). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2, ou 500 g de sucre trouvés en rayon au lieu des 10 g demandés ; pas de 1 pièce/50 g-ml, ou saisie directe), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. Quand tout un rayon est acheté, une **✓ verte** s'affiche à côté de son compteur (titre en vert) : Qassim peut le replier et voir d'un coup d'œil ce qui est fini. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
 | **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis **une seule ligne de filtres rapides** : ⭐ Favoris · 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) · **[− ⏱️ 30 min +]** (temps max, voir "Filtre temps" ci-dessous) · **➕** (compteur si actifs), ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). **Toucher un plat ouvre sa fiche recette en lecture seule** (voir "Fiche recette" ci-dessous) ; l'édition passe par "✏️ Modifier". "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
@@ -413,7 +413,10 @@ Dîner, Dessert, Entrée, Accompagnement, Recette de base, Boisson) et par étiq
 objectif : qu'un nouvel utilisateur, pas seulement Qassim, ouvre l'app avec un catalogue déjà
 utile plutôt que vide ou trop personnel. Chaque plat porte repas, portions de référence, matériel
 requis, temps de préparation/cuisson, étapes et ingrédients avec quantité par portion, comme
-n'importe quel plat créé depuis l'app. 8 ingrédients ont été ajoutés au catalogue pour ces
+n'importe quel plat créé depuis l'app. **Noms d'ingrédients neutres** (demandé par Qassim : l'app
+est pour tout le monde) — plus de "halal", de parenthèses ou de variantes dans les noms ("Poulet en
+morceaux", "Merguez", "Bouillon de volaille", "Haricots rouges", "Thon en boîte"...), ids internes
+nettoyés de la même façon. 8 ingrédients ont été ajoutés au catalogue pour ces
 recettes (aubergine, basilic, menthe fraîche, pruneaux, chocolat noir, lait de coco, bouillon de
 légumes, pâte brisée).
 
@@ -479,8 +482,10 @@ dans Courses, et "➕ Ajouter un ingrédient" dans l'éditeur d'un plat)
 Contrairement à l'écran Stock (qui ne montre que ce que Qassim a réellement — voir "Règles de
 calcul" pour la logique vide/bas/ok), le Catalogue montre **tous** les ingrédients, y compris ceux
 à 0 g et non essentiels, pour pouvoir retrouver n'importe lequel. Il propose : une recherche par
-nom (insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), un parcours par rayon
-(blocs repliables comme Courses/Stock), un bouton pour créer un tout nouvel ingrédient, et un
+nom (insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs" ; ✕ pour l'effacer), un
+parcours par rayon (blocs repliables, **tous pliés à l'ouverture** — sinon trop de texte d'un coup,
+retour de Qassim ; ce que Qassim déplie le reste tant que l'appli est ouverte ; une recherche déplie
+tout pour montrer les résultats), un bouton pour créer un tout nouvel ingrédient, et un
 bouton pour gérer les rayons (renommer/supprimer/ajouter — voir "Rayons éditables" ci-dessus).
 
 Le Catalogue s'adapte à l'endroit d'où il est ouvert (même écran, trois comportements) :
@@ -610,10 +615,12 @@ derrière un bouton "➕ Plus de filtres" propre à ce panneau (avec badge de co
 Étiquettes uniquement), Favoris et Réalisable avec mon stock étant eux aussi directement cliquables
 sur le panneau créneau — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
 
-**Badge "➕ Filtres" du panneau créneau** : le repas du créneau, présélectionné d'office, ne compte
-pas comme un filtre actif (sinon le badge affichait "(1)" sans que Qassim ait rien touché —
-trompeur) ; seul ce qu'il a changé lui-même compte. Ce qui filtre réellement la liste est écrit en
-toutes lettres juste sous les pastilles ("Affiché : Petit-déjeuner · Sain").
+**Badge ➕ du panneau créneau** : **historique** — d'abord le repas présélectionné du créneau ne
+comptait pas comme filtre actif (un "(1)" sans rien avoir touché semblait trompeur) ; Qassim a
+ensuite demandé l'inverse : ➕ **vert dès qu'un filtre y est actif**, repas présélectionné compris,
+sombre seulement quand rien n'y est choisi (Repas "Tous", aucune étiquette). Ce qui filtre
+réellement la liste reste écrit en toutes lettres juste sous les pastilles ("Affiché :
+Petit-déjeuner · Sain").
 
 ## Passe ergonomie (auto-analyse + retours de Qassim)
 
@@ -633,6 +640,14 @@ téléphone), puis "améliore tout". Ce qui a changé, en plus des points détai
   trouver ; "📖 Recette" à côté des portions ; la note permanente sur les Repas prêts a disparu.
 - **Messages d'écran vide** qui expliquent quoi faire (Stock, Courses) plutôt que "rien à
   afficher".
+- **✕ dans les champs de recherche** (`ajouterBoutonEffacer` dans `app.js` : Plats & repas,
+  panneau créneau, Catalogue) pour tout effacer d'un coup, visible seulement quand le champ n'est
+  pas vide.
+- **Nouvel ingrédient = mêmes réglages que la modification** (demandé par Qassim) : nom, rayon,
+  unité, stock déjà présent, essentiel + minimum, équivalence cuillère (g/ml) dès la création
+  (`ajouterIngredient` les accepte tous).
+- **➕ vert dès qu'un filtre de son panneau est actif**, y compris le repas présélectionné d'un
+  créneau (qui filtre bel et bien) ; sombre seulement si rien n'y est choisi — voir "Badge ➕".
 - **Noms d'articles jamais coupés** (`.article-nom`) : affichés en entier, sur 2 lignes si
   besoin, au lieu d'un "…" — depuis l'ajout du −/+ sur Courses et Stock, il ne restait plus assez
   de place (ex. "Poulet (morceaux : filet/cuisse/pilon)"). Retour de Qassim.

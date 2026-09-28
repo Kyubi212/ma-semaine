@@ -928,7 +928,7 @@ function ouvrirPanneau(dateISO, creneau) {
       ${elements.length === 0 ? `<p class="panneau-vide">Rien de prévu pour l'instant.</p>` : ""}
 
       <div class="panneau-section-titre">Ajouter un plat</div>
-      <input type="search" id="recherche-plats-panneau" class="champ-texte" style="margin-bottom:8px;" placeholder="🔍 Chercher un plat..." value="${recherchePlatsPanneau}">
+      <div style="margin-bottom:8px;"><input type="search" id="recherche-plats-panneau" class="champ-texte" placeholder="🔍 Chercher un plat..." value="${recherchePlatsPanneau}"></div>
       <div class="filtres-rapides" style="margin-bottom:8px;">
         <button class="puce" id="panneau-filtre-favoris-rapide" type="button">⭐ Favoris</button>
         <button class="puce" id="panneau-filtre-realisable-rapide" type="button">🧺 Réalisable</button>
@@ -947,6 +947,7 @@ function ouvrirPanneau(dateISO, creneau) {
       recherchePlatsPanneau = evenement.target.value;
       rendreListePlatsPanneau();
     });
+    ajouterBoutonEffacer(panneauPlatEl.querySelector("#recherche-plats-panneau"));
 
     // ⭐ Favoris et 🧺 Réalisable avec mon stock : directement cliquables ici
     // (pas cachés dans "➕ Plus de filtres", demandé par Qassim) — même
@@ -968,11 +969,11 @@ function ouvrirPanneau(dateISO, creneau) {
     // multiple ET — mêmes filtres que l'écran Plats & repas, regroupés dans
     // un panneau à part pour ne pas prendre trop de place ici — voir
     // CLAUDE.md § Repas/Étiquettes éditables) ---
-    // Le repas du créneau, présélectionné d'office, ne compte PAS comme un
-    // filtre "actif" (sinon le badge affichait déjà (1) sans rien avoir
-    // touché, trompeur) : seul ce que Qassim a changé lui-même compte. Ce qui
-    // filtre la liste reste écrit en toutes lettres juste en dessous.
-    const nbFiltresActifs = (filtreRepasPanneau !== infos.repasId ? 1 : 0) + etiquettesSelectionneesPanneau.size;
+    // ➕ vert dès qu'un filtre de ce panneau restreint la liste — y compris
+    // le repas du créneau, présélectionné d'office (il filtre bel et bien) ;
+    // sombre seulement quand rien n'est choisi dedans (demandé par Qassim).
+    // Ce qui filtre est écrit en toutes lettres juste en dessous.
+    const nbFiltresActifs = (filtreRepasPanneau !== "tous" ? 1 : 0) + etiquettesSelectionneesPanneau.size;
     panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` ${nbFiltresActifs}` : "";
     panneauPlatEl.querySelector("#ouvrir-filtres-panneau").classList.toggle("selectionne", nbFiltresActifs > 0);
     rendreFiltreTemps(panneauPlatEl.querySelector("#panneau-filtre-temps"), tempsMaxPanneau, (valeur) => {
@@ -1180,6 +1181,31 @@ function htmlIngredientsRecette(plat, portions) {
   }).join("")}</ul>`;
 }
 
+// Ajoute un ✕ dans un champ de recherche pour effacer d'un coup ce qui est
+// écrit (demandé par Qassim). Visible seulement quand le champ n'est pas
+// vide ; effacer déclenche le même événement "input" qu'une saisie, donc la
+// liste filtrée se met à jour toute seule.
+function ajouterBoutonEffacer(champ) {
+  const enveloppe = document.createElement("div");
+  enveloppe.className = "champ-recherche";
+  champ.parentNode.insertBefore(enveloppe, champ);
+  enveloppe.appendChild(champ);
+  const bouton = document.createElement("button");
+  bouton.type = "button";
+  bouton.className = "champ-recherche-effacer";
+  bouton.setAttribute("aria-label", "Effacer la recherche");
+  bouton.textContent = "✕";
+  enveloppe.appendChild(bouton);
+  const actualiser = () => { bouton.hidden = champ.value === ""; };
+  champ.addEventListener("input", actualiser);
+  bouton.addEventListener("click", () => {
+    champ.value = "";
+    champ.dispatchEvent(new Event("input"));
+    champ.focus();
+  });
+  actualiser();
+}
+
 // "⚠️ Il manque : Pain de mie (2 pièces), Œufs (1 pièce)" — même texte
 // partout (panneau créneau, candidat, recette en lecture seule).
 function texteIngredientsManquants(manquants) {
@@ -1264,8 +1290,13 @@ function rendreEcranCourses() {
     });
     const summary = document.createElement("summary");
     summary.className = "rayon-titre";
+    // ✓ à côté du compteur quand tout le rayon est dans le panier : on peut
+    // le replier et savoir quand même, d'un coup d'œil, qu'il est fini
+    // (demandé par Qassim).
+    const rayonTermine = articles.every((a) => achetesSession.has(a.ingredientId));
+    groupe.classList.toggle("rayon-termine", rayonTermine);
     summary.innerHTML = `
-      <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span></span>
+      <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span>${rayonTermine ? ` <span class="rayon-coche" aria-label="Rayon terminé">✓</span>` : ""}</span>
     `;
     groupe.appendChild(summary);
 
@@ -1698,9 +1729,14 @@ document.getElementById("ajouter-ingredient").addEventListener("click", () => ou
 
 function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
   apresFermeturePanneau = rendreEcranStock;
-  const nouveau = { nom: "", rayon: null, unite: null };
+  // Mêmes réglages que le panneau "modifier un ingrédient" (demandé par
+  // Qassim : essentiel, minimum, équivalence cuillère dès la création), plus
+  // l'unité, qui ne se choisit qu'ici (la changer ensuite fausserait les
+  // quantités des recettes).
+  const nouveau = { nom: "", rayon: null, unite: null, enStock: "", essentiel: false, minimum: "", parCuillereACafe: "" };
 
   function rendrePanneau(messageErreur) {
+    const pese = nouveau.unite === "g" || nouveau.unite === "ml";
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">➕ Nouvel ingrédient</span>
@@ -1716,6 +1752,27 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
       <div class="panneau-section-titre">Unité</div>
       <div class="puces" id="liste-unites"></div>
 
+      <div class="panneau-section-titre">Déjà en stock${nouveau.unite ? ` (${nouveau.unite})` : ""}</div>
+      <input type="number" inputmode="decimal" id="nouveau-stock" class="champ-texte" value="${nouveau.enStock}" min="0" step="any" placeholder="0">
+
+      <div class="panneau-section-titre">Essentiel</div>
+      <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start;">
+        <input type="checkbox" id="nouveau-essentiel" ${nouveau.essentiel ? "checked" : ""}>
+        Toujours en avoir à la maison
+      </label>
+
+      ${nouveau.essentiel ? `
+        <div class="panneau-section-titre">Minimum à toujours avoir${nouveau.unite ? ` (${nouveau.unite})` : ""}</div>
+        <input type="number" inputmode="decimal" id="nouveau-minimum" class="champ-texte" value="${nouveau.minimum}" min="0" step="any" placeholder="Ex. 1">
+      ` : ""}
+
+      ${pese ? `
+        <div class="panneau-section-titre">Équivalence 1 c. à café (en ${nouveau.unite})</div>
+        <p class="panneau-note">Optionnel : permet ensuite de saisir cet ingrédient en cuillères dans
+          une recette (1 c. à soupe = 3 c. à café).</p>
+        <input type="number" inputmode="decimal" id="nouveau-cuillere" class="champ-texte" value="${nouveau.parCuillereACafe}" min="0" step="any" placeholder="Ex. 5">
+      ` : ""}
+
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
       <div class="panneau-actions">
@@ -1723,8 +1780,23 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
       </div>
     `;
 
-    panneauPlatEl.querySelector("#nouveau-nom").addEventListener("change", (evenement) => {
+    // "input" (pas seulement "change") : ce qui est tapé survit au
+    // redessin du panneau quand on choisit un rayon ou une unité ensuite.
+    panneauPlatEl.querySelector("#nouveau-nom").addEventListener("input", (evenement) => {
       nouveau.nom = evenement.target.value;
+    });
+    panneauPlatEl.querySelector("#nouveau-stock").addEventListener("input", (evenement) => {
+      nouveau.enStock = evenement.target.value;
+    });
+    panneauPlatEl.querySelector("#nouveau-essentiel").addEventListener("change", (evenement) => {
+      nouveau.essentiel = evenement.target.checked;
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#nouveau-minimum")?.addEventListener("input", (evenement) => {
+      nouveau.minimum = evenement.target.value;
+    });
+    panneauPlatEl.querySelector("#nouveau-cuillere")?.addEventListener("input", (evenement) => {
+      nouveau.parCuillereACafe = evenement.target.value;
     });
 
     const listeRayonsEl = panneauPlatEl.querySelector("#liste-rayons");
@@ -1767,7 +1839,15 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
         rendrePanneau("Choisis une unité.");
         return;
       }
-      ajouterIngredient(etat, { nom: nomSaisi, rayon: nouveau.rayon, unite: nouveau.unite });
+      ajouterIngredient(etat, {
+        nom: nomSaisi,
+        rayon: nouveau.rayon,
+        unite: nouveau.unite,
+        enStock: nouveau.enStock,
+        essentiel: nouveau.essentiel,
+        minimum: nouveau.essentiel ? nouveau.minimum : 0,
+        parCuillereACafe: nouveau.parCuillereACafe,
+      });
       sauvegarder();
       retour();
     });
@@ -1784,7 +1864,11 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
 // ou non essentiel), gérer les rayons, ou créer un tout nouvel ingrédient ---
 
 let rechercheCatalogue = "";
-const rayonsRepliesCatalogue = new Set();
+// Rayons OUVERTS dans le Catalogue : tous pliés par défaut (sinon trop de
+// texte d'un coup — retour de Qassim) ; Qassim déplie ce qu'il cherche, et
+// ça reste déplié tant que l'appli est ouverte. Pendant une recherche, tout
+// est déplié pour voir les résultats.
+const rayonsOuvertsCatalogue = new Set();
 
 // Ignore accents et ligatures (œ, æ) pour que taper "oeufs" trouve "Œufs".
 function normaliserRecherche(texte) {
@@ -1836,10 +1920,11 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
       const groupe = document.createElement("details");
       groupe.className = "rayon-groupe";
       // Pendant une recherche, tout reste ouvert pour voir les résultats.
-      groupe.open = recherche !== "" || !rayonsRepliesCatalogue.has(rayon.id);
+      groupe.open = recherche !== "" || rayonsOuvertsCatalogue.has(rayon.id);
       groupe.addEventListener("toggle", () => {
-        if (groupe.open) rayonsRepliesCatalogue.delete(rayon.id);
-        else rayonsRepliesCatalogue.add(rayon.id);
+        if (recherche !== "") return; // ouverture forcée par la recherche : ne pas la retenir
+        if (groupe.open) rayonsOuvertsCatalogue.add(rayon.id);
+        else rayonsOuvertsCatalogue.delete(rayon.id);
       });
 
       const summary = document.createElement("summary");
@@ -1911,6 +1996,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
     rechercheCatalogue = evenement.target.value;
     rendreListe();
   });
+  ajouterBoutonEffacer(panneauPlatEl.querySelector("#catalogue-recherche"));
   panneauPlatEl.querySelector("#catalogue-nouvel-ingredient").addEventListener("click", () => {
     ouvrirPanneauNouvelIngredient(retourVersCatalogue);
   });
@@ -2232,6 +2318,7 @@ recherchePlatsEl.addEventListener("input", (evenement) => {
   recherchePlats = evenement.target.value;
   rendreGrillePlats();
 });
+ajouterBoutonEffacer(recherchePlatsEl);
 
 function rendreEcranPlats() {
   filtreFavorisRapideEl.classList.toggle("selectionne", filtreFavorisActif);

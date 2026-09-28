@@ -1260,3 +1260,57 @@ textarea.champ-texte {
   font-weight: 400;
   color: var(--couleur-texte-discret);
 }
+
+/* Courses : rayon entièrement acheté. */
+.rayon-coche {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.rayon-termine > .rayon-titre .rayon-titre-texte {
+  color: var(--couleur-accent);
+}
+
+/* Champ de recherche avec ✕ pour tout effacer. */
+.champ-recherche {
+  position: relative;
+}
+
+.ligne-recherche .champ-recherche {
+  flex: 1;
+  min-width: 0;
+}
+
+.champ-recherche .champ-texte {
+  padding-right: 40px;
+}
+
+/* Le ✕ natif de certains navigateurs ferait doublon avec le nôtre. */
+.champ-recherche input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  display: none;
+}
+
+.champ-recherche-effacer {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--couleur-bordure);
+  color: var(--couleur-texte);
+  font-size: 0.8rem;
+  line-height: 1;
+}

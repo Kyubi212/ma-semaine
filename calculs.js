@@ -556,17 +556,19 @@ function genererIdIngredient(etat, nom) {
 // CLAUDE.md § Rayons et articles non-alimentaires). Pas besoin d'être
 // utilisé dans un plat pour exister : essentiel/minimum/extra démarrent à
 // zéro, à régler ensuite si besoin. Rend l'ingrédient créé.
-export function ajouterIngredient(etat, { nom, rayon, unite, enStock = 0 }) {
+export function ajouterIngredient(etat, { nom, rayon, unite, enStock = 0, essentiel = false, minimum = 0, parCuillereACafe = null }) {
+  const cuillere = clampPositif(parCuillereACafe);
   const ingredient = {
     id: genererIdIngredient(etat, nom),
     nom,
     rayon,
     unite,
     enStock: clampPositif(enStock),
-    essentiel: false,
-    minimum: 0,
+    essentiel: Boolean(essentiel),
+    minimum: clampPositif(minimum),
     extra: 0,
-    parCuillereACafe: null,
+    // Les cuillères n'ont de sens que pour un ingrédient pesé (g) ou mesuré (ml).
+    parCuillereACafe: (unite === "g" || unite === "ml") && cuillere > 0 ? cuillere : null,
   };
   etat.ingredients.push(ingredient);
   return ingredient;
