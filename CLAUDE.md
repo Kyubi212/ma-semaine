@@ -40,10 +40,10 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 
 | Écran | Rôle |
 |---|---|
-| **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
-| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Recherche par nom + ⭐ Favoris et 🧺 Réalisable avec mon stock directement cliquables (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) + bouton **"➕ Plus de filtres"** (compteur si actifs) ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
-| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock (même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
+| **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un petit point sous chaque jour qui a des plats prévus : creux = reste à manger, plein = tout mangé), 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
+| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités arrondies au paquet entier quand l'ingrédient a un conditionnement (voir "Conditionnement" ci-dessous), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
+| **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis ⭐ Favoris, 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) et **"➕ Filtres"** (compteur si actifs) en petites pastilles sur une seule ligne, ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, conditionnement, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
 propose "⬇️ Exporter une sauvegarde" / "⬆️ Importer une sauvegarde" (fichier JSON téléchargé/
@@ -233,7 +233,8 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (`parCuillereACafe`,
   éditable dans le panneau Stock pour les unités g/ml — voir "Cuillères dans les recettes" plus
-  bas).
+  bas), conditionnement (`conditionnement`, taille du paquet vendu en magasin, dans l'unité de
+  stock, ou null — voir "Conditionnement" plus bas).
 - **Plat** : id, nom, repas (id, un seul), étapes, portions de référence, favori (oui/non),
   étiquettes (liste d'ids, plusieurs à la fois), matériel (liste d'ids, plusieurs à la fois — voir
   "Matériel requis et temps de préparation/cuisson"), tempsPreparation, tempsCuisson (minutes),
@@ -249,8 +250,31 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   indépendante du modèle/historique (`etat.repasPrets`).
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 10 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10
+du format (actuellement 11 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11
 dans `storage.js` → `migrer`).
+
+### Conditionnement (taille du paquet, liste de courses)
+
+**Décision clé (auto-analyse ergonomique validée par Qassim, "améliore tout")** : la liste de
+courses proposait des quantités impossibles à acheter ("5 g de beurre", "0,5 g de cannelle").
+Chaque ingrédient peut désormais porter un `conditionnement` (ex. beurre : 250 g) : "À acheter"
+est alors arrondi au nombre de **paquets entiers** au-dessus (`calculerAAcheter` dans
+`calculs.js`), et la ligne de courses l'indique ("📦 vendu par 250 g"). Cocher "Acheté" ajoute donc
+un vrai paquet au stock — plus réaliste. Sans conditionnement (null, ou 0), quantité exacte comme
+avant : c'est le cas volontaire de ce qui se vend au poids (fruits et légumes frais, boucherie,
+poissonnerie à la coupe). Tailles génériques par défaut dans `conditionnementsParDefaut`
+(`data.js`), modifiables par ingrédient dans le panneau Stock ("Vendu par").
+
+**Exception assumée à "les migrations ne touchent jamais le contenu"** : la migration v10 → v11
+**remplit** le nouveau champ avec la taille par défaut de `data.js` pour les ingrédients de base
+reconnus (même id), sinon null — c'est un champ qui n'existait pas, aucune valeur déjà saisie par
+Qassim n'est modifiée. Sans ça, le changement serait resté invisible sur son téléphone.
+
+**Formatage des quantités** (`formaterQuantite` dans `calculs.js`) : partout où une quantité est
+écrite en toutes lettres (alerte "Il manque", recette, courses), virgule décimale et pluriel des
+unités en toutes lettres à partir de 2 ("2 pièces", "3 gousses", mais "1,5 pièce", "5 g",
+"2 c. à café"). Dans "📖 Voir la recette", une ligne en cuillères rappelle son équivalent en g/ml
+("1 c. à café (5 g) — Beurre"), le même chiffre que l'alerte et les courses.
 
 ### Portions de référence et saisie des quantités
 
@@ -304,7 +328,8 @@ impossible à calculer.
   cases effectives : historique si déjà consulté, sinon aperçu du modèle) avec un plat choisi et
   pas déjà mangés, de *portions × quantité par portion* (convertie en unité de base).
 - **À acheter** = maximum(0, besoin + minimum essentiel + extra − stock actuel). Arrondi au
-  supérieur pour les unités "pièce", inchangé pour les grammes/ml.
+  supérieur pour les unités "pièce", puis au paquet entier si l'ingrédient a un conditionnement
+  (voir "Conditionnement"), inchangé sinon pour les grammes/ml.
 - Cocher **🍽️ Mangé** sur une case : déduit immédiatement le stock des ingrédients du plat
   (portions × quantité par portion). Décocher : restitue (correction d'erreur uniquement). Même
   logique immédiate à la création d'un **repas prêt** lié à un plat (voir "Repas prêts").
@@ -395,17 +420,17 @@ rayon peut aussi être supprimé, **sauf** s'il contient encore au moins un ingr
 refusée, avec la liste des ingrédients concernés — même logique que la suppression d'un
 ingrédient utilisé par un plat).
 
-Accès à cette gestion (renommer/supprimer/ajouter un rayon) : le ✏️ est **toujours visible** sur
-chaque rayon affiché, dans l'écran **Catalogue** (voir ci-dessous) comme dans **Stock** et
-**Courses** — plus de mode "édition" à activer au préalable (décision revue avec Qassim : "plus
-ergonomique, plus visible" — un bouton caché derrière un mode supplémentaire n'était pas assez
-visible). Sur Stock, un bouton discret "👁️ Voir les rayons vides" reste utile pour un tout autre
-rôle : montrer exceptionnellement TOUS les rayons, même ceux vides sous le filtre courant (ex.
-Essentiels), sinon impossibles à retrouver pour les renommer — le ✏️, lui, est déjà là que ce
-bouton soit activé ou non. Sur Courses, seuls les rayons qui contiennent quelque chose à
-acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les 14
-rayons, même ceux encore vides comme "Hygiène" au départ — utile pour y ajouter un premier
-ingrédient ou pour le renommer).
+Accès à cette gestion (renommer/supprimer/ajouter un rayon) : un seul bouton **"⚙️ Gérer les
+rayons"**, sur **Stock** et dans le **Catalogue** (`ouvrirPanneauGererRayons` dans `app.js`, même
+panneau que "⚙️ Gérer les repas/étiquettes/matériel", voir "Panneau Filtres"). **Historique** :
+d'abord un mode "édition" caché, puis un ✏️ toujours visible sur chaque rayon — remplacé lors de
+la passe ergonomie par ce bouton unique, pour la même raison que les repas/étiquettes (trop de
+crayons partout). Ce panneau liste TOUS les rayons, même vides : l'ancien "👁️ Voir les rayons
+vides" de Stock, qui servait seulement à retrouver un rayon vide pour le renommer, a disparu.
+**Plus aucune gestion des rayons sur Courses** (ni ✏️, ni "+ Ajouter un rayon") : pendant les
+courses, ce n'est jamais le geste utile. Sur Courses, seuls les rayons qui contiennent quelque
+chose à acheter apparaissent (le Catalogue reste le seul endroit qui montre systématiquement les
+14 rayons en liste d'ingrédients, même ceux encore vides comme "Hygiène" au départ).
 
 ### Écran Catalogue (accessible depuis "+ Ajouter un ingrédient" dans Stock, "+ Ajouter un extra"
 dans Courses, et "➕ Ajouter un ingrédient" dans l'éditeur d'un plat)
@@ -511,8 +536,9 @@ la grille). Éditer un repas/une étiquette/un matériel depuis ce panneau y ram
 ultérieur de Qassim — ces deux-là sont les filtres du quotidien, pas besoin d'ouvrir un panneau
 pour y accéder. Boutons `#filtre-favoris-rapide`/`#filtre-realisable-rapide` (Plats & repas) et
 `#panneau-filtre-favoris-rapide`/`#panneau-filtre-realisable-rapide` (panneau créneau, Semaine)
-directement sur l'écran principal, juste sous la recherche — une simple rangée `.segmente`, pas
-un panneau à ouvrir. Le bouton restant (renommé **"➕ Plus de filtres"**, plus clair que "🔧 Filtres"
+directement sur l'écran principal, juste sous la recherche — une simple rangée de pastilles `.puces`, pas
+un panneau à ouvrir. Le bouton restant (renommé **"➕ Plus de filtres"**, plus clair que "🔧 Filtres", puis raccourci en
+**"➕ Filtres"** lors de la passe ergonomie pour tenir sur la même ligne de pastilles que les deux autres
 maintenant qu'il ne contient plus tout) ne regroupe donc plus que Repas/Étiquettes/Matériel — son
 compteur ne compte que ceux-là, Favoris/Réalisable étant déjà visibles à l'œil nu.
 
@@ -534,7 +560,7 @@ plutôt que deux affordances séparées. Fermer ce panneau de gestion revient au
 à l'écran principal), pour pouvoir enchaîner plusieurs réglages sans perdre le fil. Un tap sur
 l'option elle-même (dans la liste de choix, pas dans le panneau de gestion) la sélectionne
 (filtre) ou la bascule (repas à choix unique, étiquettes/matériel à choix multiple). Même principe
-pour les rayons (Stock, Courses, Catalogue) — voir "Rayons éditables".
+pour les rayons (Stock, Catalogue) — voir "Rayons éditables".
 
 **Même panneau Filtres réutilisé sur l'écran Semaine** : le panneau "choisir un plat" ouvert en
 tapant un créneau (ex. "Petit-déjeuner") applique le même traitement — ses filtres Repas/Favoris/
@@ -542,6 +568,30 @@ Réalisable/Étiquettes (mêmes filtres qu'ici, voir "Choisir un plat pour un cr
 derrière un bouton "➕ Plus de filtres" propre à ce panneau (avec badge de comptage, Repas/
 Étiquettes uniquement), Favoris et Réalisable avec mon stock étant eux aussi directement cliquables
 sur le panneau créneau — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
+
+**Badge "➕ Filtres" du panneau créneau** : le repas du créneau, présélectionné d'office, ne compte
+pas comme un filtre actif (sinon le badge affichait "(1)" sans que Qassim ait rien touché —
+trompeur) ; seul ce qu'il a changé lui-même compte. Ce qui filtre réellement la liste est écrit en
+toutes lettres juste sous les pastilles ("Affiché : Petit-déjeuner · Sain").
+
+## Passe ergonomie (auto-analyse + retours de Qassim)
+
+**Décision** : Qassim a demandé une auto-analyse ergonomique écran par écran (captures au format
+téléphone), puis "améliore tout". Ce qui a changé, en plus des points détaillés ailleurs
+(Conditionnement, Rayons éditables, badge Filtres) :
+- **Petites pastilles** (`.puces`/`.puce` dans `style.css`) au lieu de boutons pleine largeur
+  pour tous les choix dans une liste (repas, étiquettes, matériel, rayons, unités, filtres) :
+  3-4 par ligne au lieu d'une seule. C'était le retour de Qassim sur l'éditeur de plat ("trop gros,
+  il faut défiler") ; même traitement partout pour la cohérence. Dans l'éditeur, préparation et
+  cuisson côte à côte, un ingrédient de recette = une seule ligne.
+- **Champs texte** (`.champ-texte`) : alignés à gauche (ils étaient à droite par erreur, style
+  hérité des petites cases de quantité) et en 16px minimum — en dessous, Safari iPhone zoome
+  tout seul sur la page au toucher du champ.
+- **Panneau créneau** : choisir un plat amène directement à l'encadré "✔️ plat choisi" (portions +
+  boutons d'ajout, avec "Changer" pour revenir à la liste) au lieu de devoir défiler pour le
+  trouver ; "📖 Recette" à côté des portions ; la note permanente sur les Repas prêts a disparu.
+- **Messages d'écran vide** qui expliquent quoi faire (Stock, Courses) plutôt que "rien à
+  afficher".
 
 ## Suggestions selon le stock (écran Plats & repas)
 

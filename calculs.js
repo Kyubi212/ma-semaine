@@ -111,7 +111,11 @@ export function calculerBesoins(cases, plats, ingredients) {
 }
 
 // À acheter = max(0, besoin + minimum essentiel + extra − stock actuel).
-// Arrondi au supérieur uniquement pour l'unité "pièce", inchangé pour g/ml/etc.
+// Arrondi au supérieur pour l'unité "pièce". Si l'ingrédient a un
+// conditionnement (taille du paquet vendu en magasin, ex. beurre : 250 g),
+// arrondi au nombre de paquets entiers au-dessus — personne n'achète 5 g de
+// beurre ou 0,5 g de cannelle (voir CLAUDE.md § Conditionnement). Sans
+// conditionnement, inchangé pour g/ml/etc.
 export function calculerAAcheter(ingredients, besoins) {
   return ingredients.map((ingredient) => {
     const besoin = besoins.get(ingredient.id) ?? 0;
@@ -122,9 +126,26 @@ export function calculerAAcheter(ingredients, besoins) {
     if (ingredient.unite === "pièce" && quantite > 0) {
       quantite = Math.ceil(quantite);
     }
+    const conditionnement = clampPositif(ingredient.conditionnement);
+    if (conditionnement > 0 && quantite > 0) {
+      // Petite tolérance : 500.0000001 g (erreur d'arrondi d'un calcul en
+      // cuillères) ne doit pas faire acheter un 2e paquet de 500 g.
+      quantite = Math.ceil(quantite / conditionnement - 1e-9) * conditionnement;
+    }
 
     return { ingredientId: ingredient.id, aAcheter: quantite };
   });
+}
+
+// Texte lisible d'une quantité + unité, en français : virgule décimale,
+// arrondi au dixième, et pluriel des unités en toutes lettres à partir de
+// 2 ("2 pièces", "3 gousses", mais "1,5 pièce", "5 g", "2 c. à café").
+export function formaterQuantite(quantite, unite) {
+  const arrondi = Math.round(quantite * 10) / 10;
+  const nombre = String(arrondi).replace(".", ",");
+  const motEnToutesLettres = /^[a-zàâçéèêëîïôûùüÿœ]{3,}$/i.test(unite);
+  const pluriel = arrondi >= 2 && motEnToutesLettres && !/[sx]$/.test(unite);
+  return `${nombre} ${pluriel ? `${unite}s` : unite}`;
 }
 
 // Déduit (sens = -1) ou restitue (sens = +1) du stock les ingrédients d'un
@@ -511,6 +532,11 @@ export function modifierIngredient(etat, ingredientId, changements) {
     ingredient.parCuillereACafe =
       changements.parCuillereACafe === null ? null : clampPositif(changements.parCuillereACafe);
   }
+  if (changements.conditionnement !== undefined) {
+    // null (ou 0) = pas de conditionnement : quantité exacte dans les courses.
+    const valeur = changements.conditionnement === null ? 0 : clampPositif(changements.conditionnement);
+    ingredient.conditionnement = valeur > 0 ? valeur : null;
+  }
 
   return { ok: true };
 }
@@ -551,6 +577,7 @@ export function ajouterIngredient(etat, { nom, rayon, unite, enStock = 0 }) {
     minimum: 0,
     extra: 0,
     parCuillereACafe: null,
+    conditionnement: null,
   };
   etat.ingredients.push(ingredient);
   return ingredient;

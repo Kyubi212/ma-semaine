@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Ma Semaine">
   <link rel="icon" href="icons/icone-192.png">
   <link rel="apple-touch-icon" href="icons/icone-apple-touch.png">
-  <link rel="stylesheet" href="style.css?v=20260928b">
+  <link rel="stylesheet" href="style.css?v=20260928c">
 </head>
 <body>
   <header class="app-header">
@@ -28,7 +28,7 @@
   <main id="contenu">
     <!-- Le contenu de l'écran actif est affiché ici par app.js -->
     <section id="ecran-semaine" class="ecran">
-      <details id="repas-prets-groupe" class="rayon-groupe">
+      <details id="repas-prets-groupe" class="rayon-groupe" hidden>
         <summary class="rayon-titre">🍱 Repas prêts <span class="rayon-compte" id="repas-prets-compte"></span></summary>
         <div id="liste-repas-prets"></div>
         <button id="ajouter-repas-pret" class="bouton-discret">+ Ajouter un repas prêt</button>
@@ -41,23 +41,23 @@
       </div>
       <div id="jours-pastilles" class="jours-pastilles"></div>
       <div id="cartes-creneaux" class="cartes-creneaux"></div>
+      <button id="ajouter-repas-pret-bas" class="bouton-discret">🍱 Un repas déjà prêt (offert, batch-cook) ? L'ajouter</button>
     </section>
 
     <section id="ecran-courses" class="ecran" hidden>
       <button id="ajouter-extra" class="bouton-secondaire bouton-pleine-largeur">+ Ajouter un extra</button>
-      <button id="nouveau-rayon-courses" class="bouton-discret">+ Ajouter un rayon</button>
       <div id="liste-courses"></div>
     </section>
 
     <section id="ecran-plats" class="ecran" hidden>
-      <input type="text" id="recherche-plats" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat...">
-      <div class="segmente" style="margin-bottom:8px;">
-        <button class="segmente-bouton" id="filtre-favoris-rapide" type="button">⭐ Favoris</button>
-        <button class="segmente-bouton" id="filtre-realisable-rapide" type="button">🧺 Réalisable avec mon stock</button>
+      <div class="ligne-recherche">
+        <input type="search" id="recherche-plats" class="champ-texte" placeholder="🔍 Chercher un plat...">
+        <button id="ajouter-plat" class="bouton-principal">+ Nouveau</button>
       </div>
-      <div class="panneau-actions" style="margin-top:0; margin-bottom:8px;">
-        <button id="ouvrir-filtres-plats" class="bouton-secondaire">➕ Plus de filtres<span id="filtres-plats-compte"></span></button>
-        <button id="ajouter-plat" class="bouton-secondaire">+ Nouveau plat</button>
+      <div class="puces" style="margin-bottom:12px;">
+        <button class="puce" id="filtre-favoris-rapide" type="button">⭐ Favoris</button>
+        <button class="puce" id="filtre-realisable-rapide" type="button">🧺 Réalisable</button>
+        <button class="puce" id="ouvrir-filtres-plats" type="button">➕ Filtres<span id="filtres-plats-compte"></span></button>
       </div>
       <div id="grille-plats" class="liste-resultats"></div>
     </section>
@@ -68,7 +68,7 @@
         <button class="segmente-bouton" data-filtre="essentiels" type="button">Essentiels</button>
       </div>
       <button id="ajouter-ingredient" class="bouton-secondaire bouton-pleine-largeur">+ Ajouter un ingrédient</button>
-      <button id="voir-rayons-vides-stock" class="bouton-discret">👁️ Voir les rayons vides</button>
+      <button id="gerer-rayons-stock" class="bouton-discret">⚙️ Gérer les rayons</button>
       <div id="liste-stock"></div>
     </section>
   </main>
@@ -96,6 +96,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260928g"></script>
+  <script type="module" src="app.js?v=20260928h"></script>
 </body>
 </html>

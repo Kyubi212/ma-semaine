@@ -40,6 +40,8 @@ import {
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
+  formaterQuantite,
+  convertirVersUniteStock,
 } from "./calculs.js";
 import { JOURS, UNITES } from "./constantes.js";
 
@@ -211,7 +213,16 @@ document.getElementById("ajouter-repas-pret").addEventListener("click", () => {
   ouvrirPanneauNouveauRepasPret();
 });
 
+// Section "🍱 Repas prêts" en haut de l'écran seulement quand il y en a :
+// vide, elle prenait de la place pour rien. Pour en ajouter un premier, un
+// lien discret reste toujours disponible sous le planning.
+const repasPretsGroupeEl = document.getElementById("repas-prets-groupe");
+document.getElementById("ajouter-repas-pret-bas").addEventListener("click", () => {
+  ouvrirPanneauNouveauRepasPret();
+});
+
 function rendreRepasPrets() {
+  repasPretsGroupeEl.hidden = etat.repasPrets.length === 0;
   repasPretsCompteEl.textContent = etat.repasPrets.length;
   listeRepasPretsEl.innerHTML = "";
 
@@ -268,7 +279,7 @@ function ouvrirPanneauNouveauRepasPret() {
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="repas-pret-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Plat mongol (offert par le voisin)">
+      <input type="text" id="repas-pret-nom" class="champ-texte" value="${nouveau.nom}" placeholder="Ex. Plat mongol (offert par le voisin)">
 
       <button class="bouton-discret" id="repas-pret-toggle-plat">
         ${platChoisi ? `Lié à : ${platChoisi.nom} (toucher pour changer)` : "Lier à un plat déjà connu (ex. un batch-cook — déduit son stock d'ingrédients)"}
@@ -367,9 +378,21 @@ function rendreEcranSemaine() {
     bouton.className = "jour-pastille";
     if (dateISO === aujourdhuiISO) bouton.classList.add("aujourdhui");
     if (dateISO === dateSelectionnee) bouton.classList.add("actif");
+    // Petit point sous le numéro : ce jour a au moins un plat prévu (plein
+    // = tout est mangé, creux = il en reste à manger) — pour voir d'un coup
+    // d'œil quels jours sont remplis, sans les ouvrir un par un.
+    const elementsDuJour = ORDRE_CRENEAUX.flatMap((c) => obtenirElementsEffectifs(etat, dateISO, c));
+    let point = "";
+    if (elementsDuJour.length > 0) {
+      const toutMange = elementsDuJour.every((e) => e.cuisine);
+      point = `<span class="jour-pastille-point${toutMange ? " plein" : ""}" aria-label="${elementsDuJour.length} plat${elementsDuJour.length > 1 ? "s" : ""} prévu${elementsDuJour.length > 1 ? "s" : ""}"></span>`;
+    } else {
+      point = `<span class="jour-pastille-point vide" aria-hidden="true"></span>`;
+    }
     bouton.innerHTML = `
       <span class="jour-pastille-nom">${JOUR_LABELS[jourSemaine]}</span>
       <span class="jour-pastille-numero">${dateISO.split("-")[2]}</span>
+      ${point}
     `;
     bouton.addEventListener("click", () => {
       dateSelectionnee = dateISO;
@@ -427,20 +450,25 @@ function construireCarteCreneau(dateISO, creneau) {
 
   // La case "Mangé" directement sur la carte n'a de sens que pour UN seul
   // plat. Avec plusieurs plats, chacun a sa propre case, gérée dans le panneau.
+  // Case accompagnée de son libellé "Mangé" (seule, on ne savait pas à quoi
+  // elle servait sans ouvrir le panneau).
   if (elements.length === 1) {
     const [element] = elements;
-    const caseACocher = document.createElement("input");
-    caseACocher.type = "checkbox";
-    caseACocher.className = "carte-creneau-cuisine";
-    caseACocher.checked = element.cuisine;
-    caseACocher.setAttribute("aria-label", "Mangé (déduit le stock)");
+    const etiquette = document.createElement("label");
+    etiquette.className = "carte-creneau-mange";
+    etiquette.innerHTML = `
+      <input type="checkbox" class="carte-creneau-cuisine" ${element.cuisine ? "checked" : ""} aria-label="Mangé (déduit le stock)">
+      <span>Mangé</span>
+    `;
+    const caseACocher = etiquette.querySelector("input");
     caseACocher.addEventListener("change", () => {
       definirCuisine(etat, dateISO, creneau, element.id, caseACocher.checked);
       sauvegarder();
       rendreEcranSemaine();
     });
-    carte.appendChild(caseACocher);
+    carte.appendChild(etiquette);
   }
+  if (elements.length === 1 && elements[0].cuisine) carte.classList.add("mange");
 
   return carte;
 }
@@ -638,6 +666,10 @@ function ouvrirPanneau(dateISO, creneau) {
       item.addEventListener("click", () => {
         candidat = { platId: plat.id, portions: 1 };
         rendrePanneau();
+        // Portions + boutons "Ajouter" sont sous la liste : on y amène
+        // directement, sinon il fallait défiler pour les trouver (et on ne
+        // voyait pas que le choix avait été pris en compte).
+        panneauPlatEl.querySelector("#zone-candidat")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
       listePlatsEl.appendChild(item);
     }
@@ -660,21 +692,21 @@ function ouvrirPanneau(dateISO, creneau) {
         </div>
 
         <div class="panneau-section-titre">Repas</div>
-        <div class="segmente" id="panneau-filtres-repas-creneau"></div>
+        <div class="puces" id="panneau-filtres-repas-creneau"></div>
         <button class="bouton-discret" id="panneau-gerer-repas-creneau">⚙️ Gérer les repas</button>
 
         <div class="panneau-section-titre">Étiquettes</div>
-        <div class="segmente" id="panneau-filtres-etiquettes-creneau"></div>
+        <div class="puces" id="panneau-filtres-etiquettes-creneau"></div>
         <button class="bouton-discret" id="panneau-gerer-etiquettes-creneau">⚙️ Gérer les étiquettes</button>
       `;
 
       const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas-creneau");
-      construireListeChoixEl(filtresRepasEl, "segmente-bouton", etat.repas, (id) => id === filtreRepasPanneau, (repasId) => {
+      construireListeChoixEl(filtresRepasEl, "puce", etat.repas, (id) => id === filtreRepasPanneau, (repasId) => {
         filtreRepasPanneau = repasId;
         rendreFiltres();
       });
       const boutonTous = document.createElement("button");
-      boutonTous.className = "segmente-bouton";
+      boutonTous.className = "puce";
       if (filtreRepasPanneau === "tous") boutonTous.classList.add("selectionne");
       boutonTous.textContent = "Tous";
       boutonTous.addEventListener("click", () => {
@@ -688,7 +720,7 @@ function ouvrirPanneau(dateISO, creneau) {
 
       construireListeChoixEl(
         panneauPlatEl.querySelector("#panneau-filtres-etiquettes-creneau"),
-        "segmente-bouton",
+        "puce",
         etat.etiquettes,
         (id) => etiquettesSelectionneesPanneau.has(id),
         (etiquetteId) => {
@@ -731,7 +763,7 @@ function ouvrirPanneau(dateISO, creneau) {
       const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
       const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
       const texteManquants = manquants.length > 0
-        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        ? texteIngredientsManquants(manquants)
         : "";
       const detailMorceaux = [
         `${element.portions} portion${element.portions > 1 ? "s" : ""}`,
@@ -769,7 +801,14 @@ function ouvrirPanneau(dateISO, creneau) {
         : plat.ingredients.map((ligne) => {
             const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
             const quantite = ligne.quantitePortion * element.portions;
-            return `<p class="panneau-note">${formaterNombre(quantite)} ${ligne.unite} — ${ingredient ? ingredient.nom : ligne.ingredientId}</p>`;
+            // Ligne en cuillères : on rappelle l'équivalent en g/ml entre
+            // parenthèses, le même chiffre que l'alerte "Il manque" et la
+            // liste de courses (sinon "1 c. à café" ici et "5 g" là-bas
+            // semblent se contredire).
+            const equivalent = ingredient && ligne.unite !== ingredient.unite
+              ? ` (${formaterQuantite(convertirVersUniteStock(quantite, ligne.unite, ingredient), ingredient.unite)})`
+              : "";
+            return `<p class="panneau-note">${formaterQuantite(quantite, ligne.unite)}${equivalent} — ${ingredient ? ingredient.nom : ligne.ingredientId}</p>`;
           }).join("");
 
       panneauPlatEl.querySelector("#recette-cuisine").addEventListener("change", (evenement) => {
@@ -797,16 +836,15 @@ function ouvrirPanneau(dateISO, creneau) {
       <div class="panneau-section-titre">Plats prévus</div>
       <div class="liste-elements" id="liste-elements"></div>
       ${elements.length === 0 ? `<p class="panneau-vide">Rien de prévu pour l'instant.</p>` : ""}
-      <p class="panneau-note">Un repas déjà prêt (offert, batch-cook...) ? Vois plutôt
-        "🍱 Repas prêts" en haut de l'écran Semaine.</p>
 
       <div class="panneau-section-titre">Ajouter un plat</div>
-      <input type="text" id="recherche-plats-panneau" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat..." value="${recherchePlatsPanneau}">
-      <div class="segmente" style="margin-bottom:8px;">
-        <button class="segmente-bouton" id="panneau-filtre-favoris-rapide" type="button">⭐ Favoris</button>
-        <button class="segmente-bouton" id="panneau-filtre-realisable-rapide" type="button">🧺 Réalisable avec mon stock</button>
+      <input type="search" id="recherche-plats-panneau" class="champ-texte" style="margin-bottom:8px;" placeholder="🔍 Chercher un plat..." value="${recherchePlatsPanneau}">
+      <div class="puces" style="margin-bottom:8px;">
+        <button class="puce" id="panneau-filtre-favoris-rapide" type="button">⭐ Favoris</button>
+        <button class="puce" id="panneau-filtre-realisable-rapide" type="button">🧺 Réalisable</button>
+        <button class="puce" id="ouvrir-filtres-panneau" type="button">➕ Filtres<span id="filtres-panneau-compte"></span></button>
       </div>
-      <button class="bouton-secondaire bouton-pleine-largeur" id="ouvrir-filtres-panneau" style="margin-bottom:8px;">➕ Plus de filtres<span id="filtres-panneau-compte"></span></button>
+      <p class="panneau-note" id="filtres-panneau-resume" style="margin:0 0 8px;"></p>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
@@ -839,8 +877,20 @@ function ouvrirPanneau(dateISO, creneau) {
     // multiple ET — mêmes filtres que l'écran Plats & repas, regroupés dans
     // un panneau à part pour ne pas prendre trop de place ici — voir
     // CLAUDE.md § Repas/Étiquettes éditables) ---
-    const nbFiltresActifs = (filtreRepasPanneau !== "tous" ? 1 : 0) + etiquettesSelectionneesPanneau.size;
+    // Le repas du créneau, présélectionné d'office, ne compte PAS comme un
+    // filtre "actif" (sinon le badge affichait déjà (1) sans rien avoir
+    // touché, trompeur) : seul ce que Qassim a changé lui-même compte. Ce qui
+    // filtre la liste reste écrit en toutes lettres juste en dessous.
+    const nbFiltresActifs = (filtreRepasPanneau !== infos.repasId ? 1 : 0) + etiquettesSelectionneesPanneau.size;
     panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
+    const nomRepasFiltre = filtreRepasPanneau === "tous"
+      ? "tous les repas"
+      : etat.repas.find((r) => r.id === filtreRepasPanneau)?.nom ?? filtreRepasPanneau;
+    const nomsEtiquettesFiltre = [...etiquettesSelectionneesPanneau]
+      .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
+      .filter(Boolean);
+    panneauPlatEl.querySelector("#filtres-panneau-resume").textContent =
+      `Affiché : ${nomRepasFiltre}${nomsEtiquettesFiltre.length > 0 ? ` · ${nomsEtiquettesFiltre.join(" + ")}` : ""}`;
     panneauPlatEl.querySelector("#ouvrir-filtres-panneau").addEventListener("click", () => {
       ouvrirPanneauFiltresCreneau();
     });
@@ -853,7 +903,7 @@ function ouvrirPanneau(dateISO, creneau) {
 
       const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
       const texteManquants = manquants.length > 0
-        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        ? texteIngredientsManquants(manquants)
         : "";
 
       ligne.innerHTML = `
@@ -861,13 +911,13 @@ function ouvrirPanneau(dateISO, creneau) {
           <span class="element-nom">${nomPlat(element.platId)}</span>
           <button class="element-retirer" aria-label="Retirer">✕</button>
         </div>
-        <button class="bouton-discret" data-action="voir-recette">📖 Voir la recette</button>
         <div class="element-prevu-ligne2">
           <div class="stepper stepper-compact">
             <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
             <span class="stepper-valeur">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
             <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
           </div>
+          <button class="bouton-secondaire bouton-petit" data-action="voir-recette">📖 Recette</button>
         </div>
         ${texteManquants ? `<p class="panneau-note" style="color:#c0392b;">${texteManquants}</p>` : ""}
         <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start; margin-top:8px;">
@@ -910,14 +960,18 @@ function ouvrirPanneau(dateISO, creneau) {
 
     // --- Zone du candidat sélectionné (portions, avertissement stock, boutons d'ajout) ---
     const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat");
+    zoneCandidatEl.className = candidat ? "zone-candidat" : "";
     if (candidat) {
       const manquants = ingredientsManquantsPourPlat(etat, candidat.platId, candidat.portions);
       const texteManquants = manquants.length > 0
-        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        ? texteIngredientsManquants(manquants)
         : "";
 
       zoneCandidatEl.innerHTML = `
-        <div class="panneau-section-titre">${nomPlat(candidat.platId)}</div>
+        <div class="candidat-entete">
+          <span class="candidat-nom">✔️ ${nomPlat(candidat.platId)}</span>
+          <button class="bouton-discret" id="candidat-annuler">Changer</button>
+        </div>
         <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
         <div class="stepper">
           <button class="stepper-bouton" id="candidat-moins" aria-label="Moins de portions">−</button>
@@ -935,6 +989,11 @@ function ouvrirPanneau(dateISO, creneau) {
         </p>
       `;
 
+      zoneCandidatEl.querySelector("#candidat-annuler").addEventListener("click", () => {
+        candidat = null;
+        rendrePanneau();
+        panneauPlatEl.querySelector("#liste-plats")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
       zoneCandidatEl.querySelector("#candidat-moins").addEventListener("click", () => {
         candidat.portions = Math.max(0, candidat.portions - 1);
         rendrePanneau();
@@ -983,14 +1042,16 @@ const achetesSession = new Map();
 // coche, sinon Qassim devrait tout replier à nouveau à chaque action.
 const rayonsReplies = new Set();
 
-// Mode "Éditer les rayons" : masqué par défaut (pas un geste du quotidien —
-// voir CLAUDE.md § Rayons éditables) : un ✏️ TOUJOURS visible sur chaque
-// titre de rayon permet de le renommer/supprimer (plus de mode "édition" à
-// activer au préalable — retour de Qassim : plus ergonomique, plus visible).
-const nouveauRayonCoursesEl = document.getElementById("nouveau-rayon-courses");
-nouveauRayonCoursesEl.addEventListener("click", () => {
-  ouvrirPanneauNouveauRayon(fermerPanneau, rendreEcranCourses);
-});
+// Pas de gestion des rayons ici (plus de ✏️ par rayon ni de "+ Ajouter un
+// rayon") : pendant les courses, ce n'est jamais le geste utile — ça se fait
+// depuis Stock ou le Catalogue ("⚙️ Gérer les rayons", voir CLAUDE.md
+// § Rayons éditables).
+
+// "⚠️ Il manque : Pain de mie (2 pièces), Œufs (1 pièce)" — même texte
+// partout (panneau créneau, candidat, recette en lecture seule).
+function texteIngredientsManquants(manquants) {
+  return `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterQuantite(m.manque, m.unite)})`).join(", ")}`;
+}
 
 function formaterNombre(n) {
   const arrondi = Math.round(n * 10) / 10;
@@ -1008,14 +1069,23 @@ function trierParNom(liste) {
 }
 
 function formaterDetail(article) {
-  if (article.detail.length > 0) {
-    return article.detail
-      .map((d) => `${d.platNom} : ${formaterNombre(d.quantite)} ${article.unite}`)
-      .join(" · ");
-  }
   const ingredient = etat.ingredients.find((i) => i.id === article.ingredientId);
-  if (ingredient?.essentiel) return "⭐ Stock minimum";
-  return "Envie ponctuelle";
+  let texte;
+  if (article.detail.length > 0) {
+    texte = article.detail
+      .map((d) => `${d.platNom} : ${formaterQuantite(d.quantite, article.unite)}`)
+      .join(" · ");
+  } else if (ingredient?.essentiel) {
+    texte = "⭐ Stock minimum";
+  } else {
+    texte = "Envie ponctuelle";
+  }
+  // Quantité arrondie au paquet entier (voir calculerAAcheter) : on le dit,
+  // sinon "250 g" à côté de "Pain perdu : 5 g" semblerait une erreur.
+  if (ingredient?.conditionnement) {
+    texte += ` · 📦 vendu par ${formaterQuantite(ingredient.conditionnement, ingredient.unite)}`;
+  }
+  return texte;
 }
 
 const listeCoursesEl = document.getElementById("liste-courses");
@@ -1044,9 +1114,19 @@ function rendreEcranCourses() {
   listeCoursesEl.innerHTML = "";
 
   if (liste.length === 0) {
-    listeCoursesEl.innerHTML = `<p class="liste-vide">Rien à acheter pour l'instant.</p>`;
+    listeCoursesEl.innerHTML = `<p class="liste-vide">Rien à acheter pour l'instant.<br>
+      Prévois des plats dans Semaine, ou ajoute une envie avec "+ Ajouter un extra".</p>`;
     return;
   }
+
+  // Avancement pendant les courses : "3 / 6 dans le panier".
+  const nbAchetes = liste.filter((a) => achetesSession.has(a.ingredientId)).length;
+  const progression = document.createElement("p");
+  progression.className = "courses-progression";
+  progression.textContent = nbAchetes === liste.length
+    ? `✅ Tout est dans le panier (${liste.length}/${liste.length})`
+    : `🛒 ${nbAchetes} / ${liste.length} dans le panier`;
+  listeCoursesEl.appendChild(progression);
 
   for (const rayon of etat.rayons) {
     const articles = trierParNom(liste.filter((a) => a.rayon === rayon.id));
@@ -1073,12 +1153,7 @@ function rendreEcranCourses() {
     summary.className = "rayon-titre";
     summary.innerHTML = `
       <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${articles.length}</span></span>
-      <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
     `;
-    summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
-      evenement.preventDefault();
-      ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranCourses);
-    });
     groupe.appendChild(summary);
 
     const articlesEl = document.createElement("div");
@@ -1208,17 +1283,72 @@ filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
   });
 });
 
-// "Voir les rayons vides" : masqué par défaut (voir CLAUDE.md § Rayons
-// éditables). Une fois activé, montre TOUS les rayons, même ceux vides sous
-// le filtre courant (le ✏️ pour renommer/supprimer un rayon, lui, est
-// TOUJOURS visible sur chaque rayon affiché — plus de mode "édition" séparé
-// à activer, retour de Qassim : plus ergonomique, plus visible).
-let voirRayonsVidesStock = false;
-const voirRayonsVidesStockEl = document.getElementById("voir-rayons-vides-stock");
-voirRayonsVidesStockEl.addEventListener("click", () => {
-  voirRayonsVidesStock = !voirRayonsVidesStock;
-  rendreEcranStock();
+// Un seul bouton "⚙️ Gérer les rayons" (renommer/supprimer/ajouter), au lieu
+// d'un ✏️ sur chaque rayon — même principe que "⚙️ Gérer les repas/
+// étiquettes/matériel" (retour de Qassim : trop de crayons). Il liste TOUS
+// les rayons, même vides : plus besoin de l'ancien "👁️ Voir les rayons vides".
+document.getElementById("gerer-rayons-stock").addEventListener("click", () => {
+  ouvrirPanneauGererRayons(fermerPanneau, rendreEcranStock);
 });
+
+function ouvrirPanneauGererRayons(retour = fermerPanneau, ecranSousJacent = rendreEcranStock) {
+  ouvrirPanneauGererListe(
+    "⚙️ Gérer les rayons",
+    () => etat.rayons,
+    ouvrirPanneauRayon,
+    ouvrirPanneauNouveauRayon,
+    "+ Ajouter un rayon",
+    retour,
+    ecranSousJacent
+  );
+}
+
+// Une ligne d'ingrédient avec son stock réglable sur place (écran Stock et
+// Catalogue ouvert depuis Stock) : +/− pour les petits ajustements, ET la
+// valeur elle-même est un champ où taper directement la quantité (ex. 1000 g
+// de riz d'un coup, au lieu de 20 appuis sur + de 50 g). Le nom reste un
+// bouton à part qui ouvre le panneau complet (essentiel, minimum, rayon...).
+function construireLigneStock(ingredient, onOuvrir, apresChangement) {
+  const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
+  const pas = pasStock(ingredient.unite);
+  const ligne = document.createElement("div");
+  ligne.className = "article-course";
+  ligne.innerHTML = `
+    <span aria-hidden="true">${infosEtat.icone}</span>
+    <button type="button" class="article-info article-info-bouton">
+      <span class="article-nom">${ingredient.nom}</span>
+      <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
+    </button>
+    <div class="stepper stepper-compact">
+      <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
+      <label class="stepper-saisie">
+        <input type="number" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(Math.max(0, ingredient.enStock))}" min="0" step="any" aria-label="Stock de ${ingredient.nom}">
+        <span class="article-unite">${ingredient.unite}</span>
+      </label>
+      <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
+    </div>
+  `;
+  ligne.querySelector(".article-info-bouton").addEventListener("click", onOuvrir);
+  ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
+    modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock - pas) });
+    sauvegarder();
+    apresChangement();
+  });
+  ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
+    modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock) + pas });
+    sauvegarder();
+    apresChangement();
+  });
+  const champ = ligne.querySelector(".stepper-saisie-input");
+  // Tout sélectionner au toucher : on tape directement la nouvelle valeur.
+  champ.addEventListener("focus", () => champ.select());
+  champ.addEventListener("change", () => {
+    modifierIngredient(etat, ingredient.id, { enStock: champ.value });
+    sauvegarder();
+    apresChangement();
+  });
+  return ligne;
+}
 
 function ingredientsFiltres() {
   switch (filtreStock) {
@@ -1235,19 +1365,26 @@ function rendreEcranStock() {
   filtresStockEl.querySelectorAll(".segmente-bouton").forEach((bouton) => {
     bouton.classList.toggle("selectionne", bouton.dataset.filtre === filtreStock);
   });
-  voirRayonsVidesStockEl.textContent = voirRayonsVidesStock ? "✓ Terminé" : "👁️ Voir les rayons vides";
 
   const liste = ingredientsFiltres();
   listeStockEl.innerHTML = "";
 
-  if (liste.length === 0 && !voirRayonsVidesStock) {
-    listeStockEl.innerHTML = `<p class="liste-vide">Rien à afficher pour ce filtre.</p>`;
+  if (liste.length === 0) {
+    // Écran vide (ex. premier lancement) : on explique quoi faire plutôt
+    // qu'un simple "rien à afficher".
+    listeStockEl.innerHTML = filtreStock === "essentiels"
+      ? `<p class="liste-vide">Aucun essentiel pour l'instant.<br>
+          Un essentiel, c'est ce que tu veux toujours avoir à la maison (sel, huile,
+          dentifrice...) : touche le nom d'un ingrédient puis coche "Essentiel".</p>`
+      : `<p class="liste-vide">Ton stock est vide.<br>
+          Touche "+ Ajouter un ingrédient" pour noter ce que tu as déjà chez toi —
+          il suffit d'appuyer sur + à côté de chaque produit.</p>`;
     return;
   }
 
   for (const rayon of etat.rayons) {
     const ingredients = trierParNom(liste.filter((i) => i.rayon === rayon.id));
-    if (ingredients.length === 0 && !voirRayonsVidesStock) continue;
+    if (ingredients.length === 0) continue;
 
     const groupe = document.createElement("details");
     groupe.className = "rayon-groupe";
@@ -1261,46 +1398,16 @@ function rendreEcranStock() {
     summary.className = "rayon-titre";
     summary.innerHTML = `
       <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredients.length}</span></span>
-      <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
     `;
-    summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
-      evenement.preventDefault();
-      ouvrirPanneauRayon(rayon.id, fermerPanneau, rendreEcranStock);
-    });
     groupe.appendChild(summary);
 
     const articlesEl = document.createElement("div");
     articlesEl.className = "rayon-articles";
 
     for (const ingredient of ingredients) {
-      const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
-      const pas = pasStock(ingredient.unite);
-      const ligne = document.createElement("div");
-      ligne.className = "article-course";
-      ligne.innerHTML = `
-        <span aria-hidden="true">${infosEtat.icone}</span>
-        <button type="button" class="article-info article-info-bouton">
-          <span class="article-nom">${ingredient.nom}</span>
-          <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
-        </button>
-        <div class="stepper stepper-compact">
-          <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
-          <span class="stepper-valeur">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
-          <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
-        </div>
-      `;
-      ligne.querySelector(".article-info-bouton").addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id));
-      ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
-        modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock - pas) });
-        sauvegarder();
-        rendreEcranStock();
-      });
-      ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
-        modifierIngredient(etat, ingredient.id, { enStock: ingredient.enStock + pas });
-        sauvegarder();
-        rendreEcranStock();
-      });
-      articlesEl.appendChild(ligne);
+      articlesEl.appendChild(
+        construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id), rendreEcranStock)
+      );
     }
 
     groupe.appendChild(articlesEl);
@@ -1324,10 +1431,10 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="ingredient-nom" class="article-quantite-input" style="width:100%;" value="${ingredient.nom}">
+      <input type="text" id="ingredient-nom" class="champ-texte" value="${ingredient.nom}">
 
       <div class="panneau-section-titre">Rayon</div>
-      <div class="liste-plats" id="ingredient-liste-rayons"></div>
+      <div class="puces" id="ingredient-liste-rayons"></div>
 
       <div class="panneau-section-titre">Stock actuel (${ingredient.unite})</div>
       <div class="stepper">
@@ -1343,14 +1450,20 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       </label>
 
       <div class="panneau-section-titre">Minimum à toujours avoir (${ingredient.unite})</div>
-      <input type="number" id="ingredient-minimum" class="article-quantite-input" value="${formaterNombre(ingredient.minimum)}" min="0" step="any" style="width:100%;">
+      <input type="number" id="ingredient-minimum" class="champ-texte" value="${formaterNombre(ingredient.minimum)}" min="0" step="any">
+
+      <div class="panneau-section-titre">Vendu par (taille du paquet, en ${ingredient.unite})</div>
+      <p class="panneau-note">Optionnel : la liste de courses proposera alors un paquet entier
+        (ex. 250 g de beurre) plutôt que la quantité exacte de la recette. Laisse vide pour ce qui
+        s'achète au poids ou à l'unité.</p>
+      <input type="number" id="ingredient-conditionnement" class="champ-texte" value="${ingredient.conditionnement ?? ""}" min="0" step="any" placeholder="Ex. 250">
 
       ${ingredient.unite === "g" || ingredient.unite === "ml" ? `
         <div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
         <p class="panneau-note">Optionnel : à régler une fois, permet ensuite de saisir les
           quantités de cet ingrédient dans une recette en cuillères (comme la recette d'origine
           te les donne) plutôt qu'en ${ingredient.unite}.</p>
-        <input type="number" id="ingredient-cuillere" class="article-quantite-input" style="width:100%;" value="${ingredient.parCuillereACafe ?? ""}" min="0" step="any" placeholder="Ex. 5">
+        <input type="number" id="ingredient-cuillere" class="champ-texte" value="${ingredient.parCuillereACafe ?? ""}" min="0" step="any" placeholder="Ex. 5">
       ` : ""}
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
@@ -1369,7 +1482,7 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
     const listeRayonsIngredientEl = panneauPlatEl.querySelector("#ingredient-liste-rayons");
     for (const rayon of etat.rayons) {
       const item = document.createElement("button");
-      item.className = "plat-choix";
+      item.className = "puce";
       if (rayon.id === ingredient.rayon) item.classList.add("selectionne");
       item.textContent = rayon.nom;
       item.addEventListener("click", () => {
@@ -1402,6 +1515,12 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
     });
     panneauPlatEl.querySelector("#ingredient-minimum").addEventListener("change", (evenement) => {
       modifierIngredient(etat, ingredientId, { minimum: evenement.target.value });
+      sauvegarder();
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#ingredient-conditionnement").addEventListener("change", (evenement) => {
+      const valeurBrute = evenement.target.value.trim();
+      modifierIngredient(etat, ingredientId, { conditionnement: valeurBrute === "" ? null : valeurBrute });
       sauvegarder();
       rendrePanneau();
     });
@@ -1453,13 +1572,13 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="nouveau-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Déodorant">
+      <input type="text" id="nouveau-nom" class="champ-texte" value="${nouveau.nom}" placeholder="Ex. Déodorant">
 
       <div class="panneau-section-titre">Rayon</div>
-      <div class="liste-plats" id="liste-rayons"></div>
+      <div class="puces" id="liste-rayons"></div>
 
       <div class="panneau-section-titre">Unité</div>
-      <div class="liste-plats" id="liste-unites"></div>
+      <div class="puces" id="liste-unites"></div>
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -1475,7 +1594,7 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
     const listeRayonsEl = panneauPlatEl.querySelector("#liste-rayons");
     for (const rayon of etat.rayons) {
       const item = document.createElement("button");
-      item.className = "plat-choix";
+      item.className = "puce";
       if (rayon.id === nouveau.rayon) item.classList.add("selectionne");
       item.textContent = rayon.nom;
       item.addEventListener("click", () => {
@@ -1488,7 +1607,7 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
     const listeUnitesEl = panneauPlatEl.querySelector("#liste-unites");
     for (const unite of UNITES) {
       const item = document.createElement("button");
-      item.className = "plat-choix";
+      item.className = "puce";
       if (unite === nouveau.unite) item.classList.add("selectionne");
       item.textContent = unite;
       item.addEventListener("click", () => {
@@ -1591,12 +1710,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
       summary.className = "rayon-titre";
       summary.innerHTML = `
         <span class="rayon-titre-texte">${rayon.nom} <span class="rayon-compte">${ingredientsDuRayon.length}</span></span>
-        <button class="rayon-editer" aria-label="Modifier le rayon ${rayon.nom}">✏️</button>
       `;
-      summary.querySelector(".rayon-editer").addEventListener("click", (evenement) => {
-        evenement.preventDefault();
-        ouvrirPanneauRayon(rayon.id, retourVersCatalogue, ecranSousJacent);
-      });
       groupe.appendChild(summary);
 
       const articlesEl = document.createElement("div");
@@ -1613,35 +1727,9 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
         // ("➕ Ajouter un ingrédient"), le stock n'est pas le geste principal :
         // toute la ligne reste cliquable comme avant, pas de +/−.
         if (!onChoisirIngredient) {
-          const pas = pasStock(ingredient.unite);
-          const ligne = document.createElement("div");
-          ligne.className = "article-course";
-          ligne.innerHTML = `
-            <span aria-hidden="true">${infosEtat.icone}</span>
-            <button type="button" class="article-info article-info-bouton">
-              <span class="article-nom">${ingredient.nom}</span>
-              <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
-            </button>
-            <div class="stepper stepper-compact">
-              <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
-              <span class="stepper-valeur">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
-              <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
-            </div>
-          `;
-          ligne.querySelector(".article-info-bouton").addEventListener("click", () => {
-            ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue);
-          });
-          ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
-            modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock - pas) });
-            sauvegarder();
-            rendreListe();
-          });
-          ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
-            modifierIngredient(etat, ingredient.id, { enStock: ingredient.enStock + pas });
-            sauvegarder();
-            rendreListe();
-          });
-          articlesEl.appendChild(ligne);
+          articlesEl.appendChild(
+            construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue), rendreListe)
+          );
           continue;
         }
 
@@ -1654,7 +1742,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
             <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
           </div>
           <div class="article-quantite">
-            <span class="article-unite">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+            <span class="article-unite">${formaterQuantite(Math.max(0, ingredient.enStock), ingredient.unite)}</span>
           </div>
         `;
         ligne.addEventListener("click", () => {
@@ -1673,11 +1761,11 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
       <button class="panneau-fermer" aria-label="Fermer">✕</button>
     </div>
 
-    <input type="text" id="catalogue-recherche" class="article-quantite-input" style="width:100%;" placeholder="Chercher un ingrédient..." value="${rechercheCatalogue}">
+    <input type="search" id="catalogue-recherche" class="champ-texte" placeholder="🔍 Chercher un ingrédient..." value="${rechercheCatalogue}">
 
     <div class="panneau-actions" style="margin: 12px 0;">
       <button class="bouton-secondaire" id="catalogue-nouvel-ingredient">➕ Créer un nouvel ingrédient</button>
-      <button class="bouton-secondaire" id="catalogue-nouveau-rayon">➕ Ajouter un rayon</button>
+      <button class="bouton-secondaire" id="catalogue-gerer-rayons">⚙️ Gérer les rayons</button>
     </div>
 
     <div id="catalogue-liste"></div>
@@ -1690,8 +1778,8 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
   panneauPlatEl.querySelector("#catalogue-nouvel-ingredient").addEventListener("click", () => {
     ouvrirPanneauNouvelIngredient(retourVersCatalogue);
   });
-  panneauPlatEl.querySelector("#catalogue-nouveau-rayon").addEventListener("click", () => {
-    ouvrirPanneauNouveauRayon(retourVersCatalogue, ecranSousJacent);
+  panneauPlatEl.querySelector("#catalogue-gerer-rayons").addEventListener("click", () => {
+    ouvrirPanneauGererRayons(retourVersCatalogue, ecranSousJacent);
   });
   panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retourPropre);
 
@@ -1715,7 +1803,7 @@ function ouvrirPanneauRayon(rayonId, retour = fermerPanneau, ecranSousJacent = r
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="rayon-nom" class="article-quantite-input" style="width:100%;" value="${rayon.nom}">
+      <input type="text" id="rayon-nom" class="champ-texte" value="${rayon.nom}">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -1765,7 +1853,7 @@ function ouvrirPanneauNouveauRayon(retour = fermerPanneau, ecranSousJacent = ren
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="rayon-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Marché du dimanche">
+      <input type="text" id="rayon-nom" class="champ-texte" placeholder="Ex. Marché du dimanche">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -1859,15 +1947,15 @@ function ouvrirPanneauFiltresPlats() {
       </div>
 
       <div class="panneau-section-titre">Repas</div>
-      <div class="segmente" id="panneau-filtres-repas"></div>
+      <div class="puces" id="panneau-filtres-repas"></div>
       <button class="bouton-discret" id="panneau-gerer-repas">⚙️ Gérer les repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
-      <div class="segmente" id="panneau-filtres-etiquettes"></div>
+      <div class="puces" id="panneau-filtres-etiquettes"></div>
       <button class="bouton-discret" id="panneau-gerer-etiquettes">⚙️ Gérer les étiquettes</button>
 
       <div class="panneau-section-titre">Matériel</div>
-      <div class="segmente" id="panneau-filtres-materiel"></div>
+      <div class="puces" id="panneau-filtres-materiel"></div>
       <button class="bouton-discret" id="panneau-gerer-materiel">⚙️ Gérer le matériel</button>
     `;
 
@@ -1875,13 +1963,13 @@ function ouvrirPanneauFiltresPlats() {
       ouvrirPanneauGererRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
     });
     const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas");
-    construireListeChoixEl(filtresRepasEl, "segmente-bouton", etat.repas, (id) => id === filtreRepas, (repasId) => {
+    construireListeChoixEl(filtresRepasEl, "puce", etat.repas, (id) => id === filtreRepas, (repasId) => {
       filtreRepas = repasId;
       rendrePanneau();
     });
     // "Tous" n'est pas un vrai repas éditable : ajouté à part, en tête.
     const boutonTous = document.createElement("button");
-    boutonTous.className = "segmente-bouton";
+    boutonTous.className = "puce";
     if (filtreRepas === "tous") boutonTous.classList.add("selectionne");
     boutonTous.textContent = "Tous";
     boutonTous.addEventListener("click", () => {
@@ -1895,7 +1983,7 @@ function ouvrirPanneauFiltresPlats() {
     });
     construireListeChoixEl(
       panneauPlatEl.querySelector("#panneau-filtres-etiquettes"),
-      "segmente-bouton",
+      "puce",
       etat.etiquettes,
       (id) => etiquettesSelectionnees.has(id),
       (etiquetteId) => {
@@ -1910,7 +1998,7 @@ function ouvrirPanneauFiltresPlats() {
     });
     construireListeChoixEl(
       panneauPlatEl.querySelector("#panneau-filtres-materiel"),
-      "segmente-bouton",
+      "puce",
       etat.materiel,
       (id) => materielSelectionnes.has(id),
       (materielId) => {
@@ -1968,12 +2056,14 @@ function rendreGrillePlats() {
       .map((id) => etat.materiel.find((m) => m.id === id)?.nom)
       .filter(Boolean);
     const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
+    // Deux lignes au lieu d'une seule coupée par "…" : l'essentiel d'abord
+    // (repas · temps · ingrédients · matériel), les étiquettes à part en
+    // dessous, qui peuvent passer à la ligne — elles étaient souvent cachées.
     const morceaux = [
       nomRepas,
+      tempsTotal > 0 ? `⏱️ ${tempsTotal} min` : null,
       `${nbIngredients} ingrédient${nbIngredients > 1 ? "s" : ""}`,
-      tempsTotal > 0 ? `${tempsTotal} min` : null,
       nomsMateriel.length > 0 ? nomsMateriel.join(", ") : null,
-      nomsEtiquettes.length > 0 ? nomsEtiquettes.join(", ") : null,
     ].filter(Boolean);
     const carte = document.createElement("div");
     carte.className = "article-course";
@@ -1981,7 +2071,8 @@ function rendreGrillePlats() {
       <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
       <div class="article-info">
         <span class="article-nom">${plat.nom}</span>
-        <span class="article-detail">${morceaux.join(" · ")}</span>
+        <span class="article-detail article-detail-multiligne">${morceaux.join(" · ")}</span>
+        ${nomsEtiquettes.length > 0 ? `<span class="plat-etiquettes">${nomsEtiquettes.map((n) => `<span class="plat-etiquette">${n}</span>`).join("")}</span>` : ""}
       </div>
     `;
     carte.querySelector(".plat-favori").addEventListener("click", (evenement) => {
@@ -2022,7 +2113,7 @@ function rendreEcranPlats() {
 // matériel" plus bas : un seul endroit cliquable pour ajouter ET modifier,
 // plutôt qu'un ✏️ à côté de chaque option — retour de Qassim, "ça fait
 // beaucoup"). `classeChoix` : "plat-choix" (liste verticale) ou
-// "segmente-bouton" (rangée de pastilles) selon le contexte d'appel.
+// "puce" (petites pastilles côte à côte) selon le contexte d'appel.
 function construireListeChoixEl(conteneurEl, classeChoix, liste, estSelectionne, onChoisir) {
   conteneurEl.innerHTML = "";
   for (const item of liste) {
@@ -2115,7 +2206,7 @@ function ouvrirPanneauEtiquette(etiquetteId, retour = fermerPanneau, ecranSousJa
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="etiquette-nom" class="article-quantite-input" style="width:100%;" value="${etiquette.nom}">
+      <input type="text" id="etiquette-nom" class="champ-texte" value="${etiquette.nom}">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2165,7 +2256,7 @@ function ouvrirPanneauNouvelleEtiquette(retour = fermerPanneau, ecranSousJacent 
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="etiquette-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Sans gluten">
+      <input type="text" id="etiquette-nom" class="champ-texte" placeholder="Ex. Sans gluten">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2207,7 +2298,7 @@ function ouvrirPanneauMateriel(materielId, retour = fermerPanneau, ecranSousJace
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="materiel-nom" class="article-quantite-input" style="width:100%;" value="${materiel.nom}">
+      <input type="text" id="materiel-nom" class="champ-texte" value="${materiel.nom}">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2257,7 +2348,7 @@ function ouvrirPanneauNouveauMateriel(retour = fermerPanneau, ecranSousJacent = 
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="materiel-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Blender">
+      <input type="text" id="materiel-nom" class="champ-texte" placeholder="Ex. Blender">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2299,7 +2390,7 @@ function ouvrirPanneauRepas(repasId, retour = fermerPanneau, ecranSousJacent = r
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="repas-nom" class="article-quantite-input" style="width:100%;" value="${repas.nom}">
+      <input type="text" id="repas-nom" class="champ-texte" value="${repas.nom}">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2349,7 +2440,7 @@ function ouvrirPanneauNouveauRepas(retour = fermerPanneau, ecranSousJacent = ren
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="repas-nom" class="article-quantite-input" style="width:100%;" placeholder="Ex. Brunch">
+      <input type="text" id="repas-nom" class="champ-texte" placeholder="Ex. Brunch">
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2391,10 +2482,10 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="nouveau-plat-nom" class="article-quantite-input" style="width:100%;" value="${nouveau.nom}" placeholder="Ex. Curry de poulet">
+      <input type="text" id="nouveau-plat-nom" class="champ-texte" value="${nouveau.nom}" placeholder="Ex. Curry de poulet">
 
       <div class="panneau-section-titre">Repas</div>
-      <div class="liste-plats" id="nouveau-plat-repas"></div>
+      <div class="puces" id="nouveau-plat-repas"></div>
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
@@ -2409,7 +2500,7 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
 
     construireListeChoixEl(
       panneauPlatEl.querySelector("#nouveau-plat-repas"),
-      "plat-choix",
+      "puce",
       etat.repas,
       (id) => id === nouveau.repas,
       (repas) => {
@@ -2458,21 +2549,19 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       </div>
 
       <div class="panneau-section-titre">Nom</div>
-      <input type="text" id="plat-nom" class="article-quantite-input" style="width:100%;" value="${plat.nom}">
+      <input type="text" id="plat-nom" class="champ-texte" value="${plat.nom}">
 
       <div class="panneau-section-titre">Repas</div>
-      <div class="liste-plats" id="plat-repas"></div>
+      <div class="puces" id="plat-repas"></div>
       <button class="bouton-discret" id="plat-gerer-repas">⚙️ Gérer les repas</button>
 
       <div class="panneau-section-titre">Étiquettes</div>
-      <div class="liste-plats" id="plat-etiquettes"></div>
+      <div class="puces" id="plat-etiquettes"></div>
       <button class="bouton-discret" id="plat-gerer-etiquettes">⚙️ Gérer les étiquettes</button>
 
       <div class="panneau-section-titre">Portions de référence</div>
-      <p class="panneau-note">Ex. si la recette qu'on t'a donnée est pour 4 personnes, mets 4 ici
-        AVANT d'ajouter les ingrédients : les quantités saisies ci-dessous seront comprises comme
-        "pour ${plat.portionsReference} portion${plat.portionsReference > 1 ? "s" : ""}" et
-        ramenées automatiquement à 1 portion.</p>
+      <p class="panneau-note">Pour combien de personnes est la recette d'origine ? Les quantités
+        des ingrédients se saisissent pour ce nombre-là, telles que la recette les donne.</p>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-portions-moins" aria-label="Moins">−</button>
         <input type="number" id="plat-portions-valeur" class="article-quantite-input" value="${plat.portionsReference}" min="1" step="1">
@@ -2480,26 +2569,31 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       </div>
 
       <div class="panneau-section-titre">Matériel requis</div>
-      <div class="liste-plats" id="plat-materiel"></div>
+      <div class="puces" id="plat-materiel"></div>
       <button class="bouton-discret" id="plat-gerer-materiel">⚙️ Gérer le matériel</button>
 
-      <div class="panneau-section-titre">Temps de préparation (min)</div>
-      <div class="stepper">
-        <button class="stepper-bouton" id="plat-prepa-moins" aria-label="Moins">−</button>
-        <input type="number" id="plat-prepa-valeur" class="article-quantite-input" value="${plat.tempsPreparation}" min="0" step="1">
-        <button class="stepper-bouton" id="plat-prepa-plus" aria-label="Plus">+</button>
+      <div class="deux-colonnes">
+        <div>
+          <div class="panneau-section-titre">⏱️ Préparation (min)</div>
+          <div class="stepper stepper-compact">
+            <button class="stepper-bouton" id="plat-prepa-moins" aria-label="Moins">−</button>
+            <input type="number" inputmode="numeric" id="plat-prepa-valeur" class="article-quantite-input" value="${plat.tempsPreparation}" min="0" step="1">
+            <button class="stepper-bouton" id="plat-prepa-plus" aria-label="Plus">+</button>
+          </div>
+        </div>
+        <div>
+          <div class="panneau-section-titre">🔥 Cuisson (min)</div>
+          <div class="stepper stepper-compact">
+            <button class="stepper-bouton" id="plat-cuisson-moins" aria-label="Moins">−</button>
+            <input type="number" inputmode="numeric" id="plat-cuisson-valeur" class="article-quantite-input" value="${plat.tempsCuisson}" min="0" step="1">
+            <button class="stepper-bouton" id="plat-cuisson-plus" aria-label="Plus">+</button>
+          </div>
+        </div>
       </div>
-
-      <div class="panneau-section-titre">Temps de cuisson (min)</div>
-      <p class="panneau-note">0 si le plat ne demande aucune cuisson.</p>
-      <div class="stepper">
-        <button class="stepper-bouton" id="plat-cuisson-moins" aria-label="Moins">−</button>
-        <input type="number" id="plat-cuisson-valeur" class="article-quantite-input" value="${plat.tempsCuisson}" min="0" step="1">
-        <button class="stepper-bouton" id="plat-cuisson-plus" aria-label="Plus">+</button>
-      </div>
+      <p class="panneau-note">Cuisson à 0 si le plat ne se cuit pas.</p>
 
       <div class="panneau-section-titre">Étapes / recette</div>
-      <textarea id="plat-etapes" class="article-quantite-input" style="width:100%; min-height:100px;" placeholder="Ex. Faire revenir l'oignon, ajouter le poulet...">${plat.etapes ?? ""}</textarea>
+      <textarea id="plat-etapes" class="champ-texte" style="min-height:120px;" placeholder="Ex. Faire revenir l'oignon, ajouter le poulet...">${plat.etapes ?? ""}</textarea>
 
       <div class="panneau-section-titre">Ingrédients (quantités pour ${plat.portionsReference} portion${plat.portionsReference > 1 ? "s" : ""})</div>
       <div id="plat-ingredients"></div>
@@ -2520,7 +2614,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
     construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-repas"),
-      "plat-choix",
+      "puce",
       etat.repas,
       (id) => id === plat.repas,
       (repas) => {
@@ -2532,7 +2626,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
     construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-etiquettes"),
-      "plat-choix",
+      "puce",
       etat.etiquettes,
       (id) => plat.etiquettes.includes(id),
       (etiquetteId) => {
@@ -2547,7 +2641,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
 
     construireListeChoixEl(
       panneauPlatEl.querySelector("#plat-materiel"),
-      "plat-choix",
+      "puce",
       etat.materiel,
       (id) => plat.materiel.includes(id),
       (materielId) => {
@@ -2634,16 +2728,12 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         // sous "Portions de référence" plus haut.
         const quantitePourReference = ligne.quantitePortion * plat.portionsReference;
         const ligneEl = document.createElement("div");
-        ligneEl.className = "element-prevu";
+        ligneEl.className = "element-prevu ligne-ingredient-recette";
         ligneEl.innerHTML = `
-          <div class="element-prevu-ligne1">
-            <span class="element-nom">${ingredient ? ingredient.nom : ligne.ingredientId}</span>
-            <button class="element-retirer" aria-label="Retirer cet ingrédient">✕</button>
-          </div>
-          <div class="element-prevu-ligne2">
-            <input type="number" class="article-quantite-input" value="${formaterNombre(quantitePourReference)}" min="0" step="any" style="width:100px;">
-            <span class="article-unite">${ligne.unite}</span>
-          </div>
+          <span class="element-nom">${ingredient ? ingredient.nom : ligne.ingredientId}</span>
+          <input type="number" inputmode="decimal" class="article-quantite-input" value="${formaterNombre(quantitePourReference)}" min="0" step="any" aria-label="Quantité">
+          <span class="article-unite">${ligne.unite}</span>
+          <button class="element-retirer" aria-label="Retirer cet ingrédient">✕</button>
         `;
         ligneEl.querySelector(".element-retirer").addEventListener("click", () => {
           modifierPlat(etat, platId, { ingredients: plat.ingredients.filter((l) => l !== ligne) });
@@ -2723,7 +2813,7 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
 
       ${unitesDisponibles.length > 1 ? `
         <div class="panneau-section-titre">Unité (comme la recette te la donne)</div>
-        <div class="liste-plats" id="plat-qte-unites"></div>
+        <div class="puces" id="plat-qte-unites"></div>
       ` : ""}
 
       ${uniteCompatibleCuillere && !cuillereReglee ? (
@@ -2754,7 +2844,7 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
       const listeUnitesEl = panneauPlatEl.querySelector("#plat-qte-unites");
       for (const unite of unitesDisponibles) {
         const item = document.createElement("button");
-        item.className = "plat-choix";
+        item.className = "puce";
         if (unite === uniteChoisie) item.classList.add("selectionne");
         item.textContent = unite;
         item.addEventListener("click", () => {

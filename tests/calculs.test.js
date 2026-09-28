@@ -6,6 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  formaterQuantite,
   clampPositif,
   convertirVersUniteStock,
   caseCompte,
@@ -185,6 +186,62 @@ test("calculerAAcheter : arrondit au supérieur pour l'unité 'pièce', pas pour
   const resultats = calculerAAcheter(ingredients, besoins);
   assert.equal(resultats.find((r) => r.ingredientId === "oeuf").aAcheter, 3);
   assert.equal(resultats.find((r) => r.ingredientId === "riz").aAcheter, 133.3);
+});
+
+test("calculerAAcheter : arrondit au paquet entier si l'ingrédient a un conditionnement", () => {
+  const ingredients = [
+    { id: "beurre", unite: "g", enStock: 0, essentiel: false, minimum: 0, extra: 0, conditionnement: 250 },
+    { id: "cannelle", unite: "g", enStock: 0, essentiel: false, minimum: 0, extra: 0, conditionnement: 40 },
+    { id: "lait", unite: "ml", enStock: 200, essentiel: false, minimum: 0, extra: 0, conditionnement: 1000 },
+    { id: "riz", unite: "g", enStock: 0, essentiel: false, minimum: 0, extra: 0, conditionnement: null },
+  ];
+  const besoins = new Map([["beurre", 5], ["cannelle", 0.5], ["lait", 1500], ["riz", 133.3]]);
+  const resultats = calculerAAcheter(ingredients, besoins);
+  const aAcheter = (id) => resultats.find((r) => r.ingredientId === id).aAcheter;
+  assert.equal(aAcheter("beurre"), 250, "5 g de beurre → 1 plaquette de 250 g");
+  assert.equal(aAcheter("cannelle"), 40, "0,5 g de cannelle → 1 pot de 40 g");
+  assert.equal(aAcheter("lait"), 2000, "1500 − 200 ml en stock = 1300 ml → 2 bouteilles de 1 L");
+  assert.equal(aAcheter("riz"), 133.3, "sans conditionnement, quantité exacte comme avant");
+});
+
+test("calculerAAcheter : un besoin pile égal à un paquet n'en fait pas acheter un 2e (arrondi flottant)", () => {
+  const ingredients = [{ id: "miel", unite: "g", enStock: 0, essentiel: false, minimum: 0, extra: 0, conditionnement: 500 }];
+  const besoins = new Map([["miel", 500.0000000001]]);
+  assert.equal(calculerAAcheter(ingredients, besoins)[0].aAcheter, 500);
+});
+
+test("calculerAAcheter : rien à acheter reste à 0, même avec un conditionnement", () => {
+  const ingredients = [{ id: "sel", unite: "g", enStock: 900, essentiel: false, minimum: 0, extra: 0, conditionnement: 1000 }];
+  const besoins = new Map([["sel", 10]]);
+  assert.equal(calculerAAcheter(ingredients, besoins)[0].aAcheter, 0);
+});
+
+// --- formaterQuantite ---
+
+test("formaterQuantite : pluriel des unités en toutes lettres à partir de 2", () => {
+  assert.equal(formaterQuantite(2, "pièce"), "2 pièces");
+  assert.equal(formaterQuantite(3, "gousse"), "3 gousses");
+  assert.equal(formaterQuantite(1, "pièce"), "1 pièce");
+  assert.equal(formaterQuantite(1.5, "tranche"), "1,5 tranche");
+});
+
+test("formaterQuantite : abréviations et cuillères restent invariables, virgule décimale", () => {
+  assert.equal(formaterQuantite(5, "g"), "5 g");
+  assert.equal(formaterQuantite(250, "ml"), "250 ml");
+  assert.equal(formaterQuantite(2, "c. à café"), "2 c. à café");
+  assert.equal(formaterQuantite(0.5, "g"), "0,5 g");
+  assert.equal(formaterQuantite(3, "dose"), "3 doses");
+  assert.equal(formaterQuantite(2.04, "g"), "2 g");
+});
+
+test("modifierIngredient : règle ou retire le conditionnement (0 ou vide = aucun)", () => {
+  const etat = { ingredients: [{ id: "beurre", unite: "g", enStock: 0, parCuillereACafe: 5, conditionnement: null }], plats: [] };
+  modifierIngredient(etat, "beurre", { conditionnement: "250" });
+  assert.equal(etat.ingredients[0].conditionnement, 250);
+  modifierIngredient(etat, "beurre", { conditionnement: 0 });
+  assert.equal(etat.ingredients[0].conditionnement, null);
+  modifierIngredient(etat, "beurre", { conditionnement: -3 });
+  assert.equal(etat.ingredients[0].conditionnement, null);
 });
 
 // --- marquerAchete ---

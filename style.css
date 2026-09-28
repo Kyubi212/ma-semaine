@@ -748,3 +748,245 @@ body {
   text-align: center;
   margin-top: 40px;
 }
+
+/* ============================================================
+   Passe ergonomie (voir CLAUDE.md § Passe ergonomie)
+   ============================================================ */
+
+/* Champs texte pleine largeur : alignés à gauche (ils l'étaient à droite,
+   comme les petites cases de quantité), et en 16px minimum — en dessous,
+   Safari iPhone zoome tout seul sur la page au toucher du champ. */
+.champ-texte {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  font-family: inherit;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+textarea.champ-texte {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.champ-texte:focus,
+.article-quantite-input:focus,
+.stepper-saisie-input:focus {
+  outline: 2px solid var(--couleur-accent);
+  outline-offset: 1px;
+}
+
+/* Recherche + "Nouveau" sur une seule ligne (écran Plats). */
+.ligne-recherche {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ligne-recherche .champ-texte {
+  flex: 1;
+  min-width: 0;
+}
+
+.ligne-recherche .bouton-principal {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Petites pastilles côte à côte (filtres, repas, étiquettes, matériel,
+   rayons, unités) : prennent la largeur de leur texte, pas toute la
+   ligne — 3 à 4 par ligne au lieu d'une seule, beaucoup moins de
+   défilement (éditeur de plat notamment). */
+.puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.puce {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  font-size: 0.85rem;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.puce.selectionne {
+  border-color: var(--couleur-accent);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+}
+
+/* Point sous chaque jour : plats prévus (creux) / tout mangé (plein). */
+.jour-pastille-point {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--couleur-accent);
+  box-sizing: border-box;
+}
+
+.jour-pastille-point.plein {
+  background: var(--couleur-accent);
+}
+
+.jour-pastille-point.vide {
+  border-color: transparent;
+}
+
+.jour-pastille.actif .jour-pastille-point {
+  border-color: var(--couleur-accent-texte);
+}
+
+.jour-pastille.actif .jour-pastille-point.plein {
+  background: var(--couleur-accent-texte);
+}
+
+.jour-pastille.actif .jour-pastille-point.vide {
+  border-color: transparent;
+}
+
+/* Case "Mangé" de la carte, avec son libellé. */
+.carte-creneau-mange {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--couleur-texte-discret);
+  flex-shrink: 0;
+}
+
+.carte-creneau.mange .carte-creneau-plat {
+  text-decoration: line-through;
+  color: var(--couleur-texte-discret);
+}
+
+#ajouter-repas-pret-bas {
+  display: block;
+  margin: 16px auto 0;
+}
+
+/* Courses : avancement. */
+.courses-progression {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--couleur-accent);
+  margin: 0 0 12px;
+}
+
+/* Stock : valeur du stepper directement modifiable au clavier. */
+.stepper-saisie {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.stepper-saisie-input {
+  width: 52px;
+  text-align: right;
+  padding: 4px 4px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--couleur-bordure);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--couleur-texte);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  -moz-appearance: textfield;
+}
+
+.stepper-saisie-input::-webkit-outer-spin-button,
+.stepper-saisie-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bouton-petit {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+/* Panneau créneau : plat choisi mis en avant, portions + ajout. */
+.zone-candidat {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1.5px solid var(--couleur-accent);
+  border-radius: var(--rayon);
+  background: color-mix(in srgb, var(--couleur-accent) 6%, var(--couleur-carte));
+  scroll-margin-top: 12px;
+}
+
+.candidat-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.candidat-nom {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Cartes de plats : détail sur plusieurs lignes, étiquettes en pastilles. */
+.article-detail-multiligne {
+  white-space: normal;
+}
+
+.plat-etiquettes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.plat-etiquette {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--couleur-accent) 12%, var(--couleur-carte));
+  color: var(--couleur-texte);
+}
+
+/* Éditeur de plat : préparation et cuisson côte à côte. */
+.deux-colonnes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.deux-colonnes .article-quantite-input {
+  width: 48px;
+  text-align: center;
+  font-size: 16px;
+}
+
+/* Éditeur de plat : un ingrédient = une seule ligne. */
+.ligne-ingredient-recette {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ligne-ingredient-recette .article-quantite-input {
+  width: 72px;
+  font-size: 16px;
+}
+
+/* Courses : la case de quantité doit tenir "1000" sans être coupée. */
+.article-quantite .article-quantite-input {
+  width: 64px;
+  font-size: 16px;
+}
