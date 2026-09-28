@@ -545,6 +545,31 @@ hors-ligne, aucun service externe :
   rien écraser. Une confirmation ("⚠️ Importer cette sauvegarde ?", même style que la
   réinitialisation) précède l'écrasement, irréversible, de tout ce qui est déjà enregistré.
 
+## PWA (installable sur l'écran d'accueil, hors connexion)
+
+**Décision clé (choisie par Qassim plutôt qu'un vrai backend avec comptes)** : pour une "vraie
+appli" qui s'installe et marche sans réseau sur chantier, sans les coûts/la complexité d'un
+serveur, d'un compte développeur App Store/Play Store ou de la modération que demanderait un
+partage de recettes entre inconnus (vision à plus long terme, voir Roadmap) — une PWA (*Progressive
+Web App*, un site qui se comporte comme une appli installée) suffit et ne ferme aucune porte :
+rien de ce qui est construit ici n'est perdu si un vrai backend est ajouté plus tard.
+
+- **`manifest.json`** : nom, icônes (`icons/`, générées en aplat vert `#2e7d32` assorti à la
+  couleur d'accent), couleur de thème, `display: "standalone"` (pas de barre d'adresse une fois
+  installée). Référencé depuis `index.html` (`<link rel="manifest">`), plus les meta/`<link>`
+  spécifiques à Safari iOS (`apple-mobile-web-app-capable`, `apple-touch-icon`) — sans ça,
+  "Ajouter à l'écran d'accueil" sur iPhone/iPad utilise une capture d'écran de la page au lieu
+  d'une vraie icône.
+- **`service-worker.js`** : stratégie "réseau d'abord, secours sur le cache" — chaque requête
+  essaie d'abord le réseau (pour rester à jour, cohérent avec le paramètre anti-cache `?v=`), et ne
+  sert le cache que si le réseau échoue. Pas de liste de fichiers à maintenir à la main : tout ce
+  qui charge avec succès est mis en cache au passage. Enregistré depuis `app.js` (`if
+  ("serviceWorker" in navigator)`), échoue silencieusement sur un navigateur qui ne le supporte
+  pas — l'appli reste utilisable en ligne, juste sans le mode hors-ligne.
+- **Toujours mono-appareil** : la PWA ne synchronise rien entre deux appareils (téléphone et
+  iPad restent deux installations séparées) — seul l'export/import de sauvegarde permet de
+  transférer les données de l'un à l'autre à la main (voir ci-dessus).
+
 ## Sécurité et vie privée
 
 - **Dépôt public** (contrainte de GitHub Pages gratuit) : ce fichier et tout le code sont visibles
@@ -564,8 +589,12 @@ hors-ligne, aucun service externe :
 - Suggestions de plats selon le stock disponible.
 - Dates de péremption et alertes.
 - Historique des repas mangés et plats préférés.
-- Accès multi-appareil → migrer `storage.js` vers un vrai backend.
-- Mode hors-ligne, application installable sur l'écran d'accueil (PWA).
+- Accès multi-appareil avec compte utilisateur, partage de recettes entre personnes (notes,
+  recettes reçues d'un proche) et publication sur l'App Store/Play Store → nécessite un vrai
+  backend (serveur, base de données, authentification, modération du contenu partagé) : un projet
+  à part entière, à planifier séparément le moment venu, pas une évolution incrémentale de
+  `storage.js`. En attendant, le multi-appareil se fait à la main via l'export/import de
+  sauvegarde (voir "Export/import de sauvegarde" plus haut).
 
 ## Méthode de travail (impérative)
 

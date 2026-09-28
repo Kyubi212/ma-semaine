@@ -2646,3 +2646,16 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
 // --- Démarrage ---
 
 rendreEcranSemaine();
+
+// --- PWA : installable sur l'écran d'accueil, utilisable hors connexion
+// (chantier, zone sans réseau...) une fois ouverte au moins une fois avec
+// du réseau — voir manifest.json et service-worker.js. Pas grave si le
+// navigateur ne supporte pas les service workers (Safari très ancien...) :
+// l'appli continue de fonctionner normalement, juste sans le mode hors-ligne.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {
+      // Échec silencieux : l'appli reste utilisable en ligne sans ce confort.
+    });
+  });
+}
