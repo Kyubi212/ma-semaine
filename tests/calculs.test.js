@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  supprimerPlusieurs,
   viderPourPartirDeZero,
   ajouterAPrevoir,
   modifierPortionsAPrevoir,
@@ -1254,4 +1255,25 @@ test("viderPourPartirDeZero : vide le contenu, garde rayons, repas et créneaux 
   assert.equal(etat.repas.length, repas);
   assert.deepEqual(etat.creneauxAffiches, ["lunch", "diner"]);
   assert.equal(construireListeCourses(etat, LUNDI).length, 0);
+});
+
+// --- Suppression multiple ---
+
+test("supprimerPlusieurs : supprime ce qui peut l'être, garde et explique le reste", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 });
+  const { supprimes, refuses } = supprimerPlusieurs(["plat-test", "plat-test-2"], (id) => supprimerPlat(etat, id));
+  assert.deepEqual(supprimes, ["plat-test-2"]);
+  assert.equal(refuses.length, 1);
+  assert.equal(refuses[0].id, "plat-test");
+  assert.deepEqual(refuses[0].resultat.datesHistorique, ["2026-09-21"]);
+  assert.deepEqual(etat.plats.map((p) => p.id), ["plat-test"]);
+});
+
+test("supprimerPlusieurs : un ingrédient utilisé par un plat n'est jamais supprimé", () => {
+  const etat = etatDeTest();
+  const { supprimes, refuses } = supprimerPlusieurs(["riz"], (id) => supprimerIngredient(etat, id));
+  assert.deepEqual(supprimes, []);
+  assert.ok(refuses[0].resultat.plats.length > 0);
+  assert.ok(etat.ingredients.some((i) => i.id === "riz"));
 });

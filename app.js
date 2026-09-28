@@ -46,6 +46,7 @@ import {
   retirerAPrevoir,
   cuisinerAPrevoir,
   viderPourPartirDeZero,
+  supprimerPlusieurs,
   changerTempsMax,
   platDansTempsMax,
   ajouterRepasPret,
@@ -1649,7 +1650,8 @@ function ouvrirPanneauGererRayons(retour = fermerPanneau, ecranSousJacent = rend
     ouvrirPanneauNouveauRayon,
     "+ Ajouter un rayon",
     retour,
-    ecranSousJacent
+    ecranSousJacent,
+    { quoi: { un: "rayon", des: "rayons" }, supprimerUn: (id) => supprimerRayon(etat, id), expliquerRefus: EXPLIQUER_REFUS.rayon }
   );
 }
 
@@ -2064,12 +2066,51 @@ function normaliserRecherche(texte) {
 function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIngredient = null, retourPropre = fermerPanneau) {
   apresFermeturePanneau = ecranSousJacent;
   const retourVersCatalogue = () => ouvrirPanneauCatalogue(ecranSousJacent, onChoisirIngredient, retourPropre);
+  // Sélection multiple pour supprimer des ingrédients (seulement depuis
+  // Stock, pas quand on choisit un ingrédient pour un extra ou une recette).
+  let selection = null;
+
+  function ingredientsAffiches() {
+    const recherche = normaliserRecherche(rechercheCatalogue.trim());
+    return recherche
+      ? etat.ingredients.filter((i) => normaliserRecherche(i.nom).includes(recherche))
+      : etat.ingredients;
+  }
+
+  function rendreBarreSelection() {
+    const barreEl = panneauPlatEl.querySelector("#catalogue-barre");
+    const boutonEl = panneauPlatEl.querySelector("#catalogue-selectionner");
+    if (boutonEl) boutonEl.hidden = selection !== null || etat.ingredients.length === 0;
+    if (!barreEl) return;
+    barreEl.hidden = selection === null;
+    if (!selection) return;
+    const affiches = ingredientsAffiches();
+    barreEl.innerHTML = htmlBarreSelection(selection.size, affiches.length);
+    brancherBarreSelection(barreEl, {
+      surTout: () => {
+        const tousCoches = affiches.every((i) => selection.has(i.id));
+        affiches.forEach((i) => (tousCoches ? selection.delete(i.id) : selection.add(i.id)));
+        rendreListe();
+      },
+      surSupprimer: () => ouvrirPanneauSuppressionMultiple({
+        quoi: { un: "ingrédient", des: "ingrédients" },
+        elements: etat.ingredients.filter((i) => selection.has(i.id)),
+        supprimerUn: (id) => supprimerIngredient(etat, id),
+        expliquerRefus: EXPLIQUER_REFUS.parPlats,
+        retour: retourVersCatalogue,
+        ecranSousJacent,
+      }),
+      surAnnuler: () => {
+        selection = null;
+        rendreListe();
+      },
+    });
+  }
 
   function rendreListe() {
     const recherche = normaliserRecherche(rechercheCatalogue.trim());
-    const ingredients = recherche
-      ? etat.ingredients.filter((i) => normaliserRecherche(i.nom).includes(recherche))
-      : etat.ingredients;
+    const ingredients = ingredientsAffiches();
+    rendreBarreSelection();
 
     const listeEl = panneauPlatEl.querySelector("#catalogue-liste");
     listeEl.innerHTML = "";
@@ -2120,6 +2161,26 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
         // Depuis Courses ("+ Ajouter un extra") ou l'éditeur d'un plat
         // ("➕ Ajouter un ingrédient"), le stock n'est pas le geste principal :
         // toute la ligne reste cliquable comme avant, pas de +/−.
+        if (selection) {
+          const coche = selection.has(ingredient.id);
+          const ligne = document.createElement("button");
+          ligne.type = "button";
+          ligne.className = `article-course${coche ? " selection-cochee" : ""}`;
+          ligne.innerHTML = `
+            <span class="case-selection">${coche ? "☑" : "☐"}</span>
+            <div class="article-info">
+              <span class="article-nom">${ingredient.nom}</span>
+              <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
+            </div>
+          `;
+          ligne.addEventListener("click", () => {
+            if (selection.has(ingredient.id)) selection.delete(ingredient.id);
+            else selection.add(ingredient.id);
+            rendreListe();
+          });
+          articlesEl.appendChild(ligne);
+          continue;
+        }
         if (!onChoisirIngredient) {
           articlesEl.appendChild(
             construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue), rendreListe)
@@ -2161,9 +2222,15 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
       <button class="bouton-secondaire" id="catalogue-nouvel-ingredient">➕ Créer un nouvel ingrédient</button>
       <button class="bouton-secondaire" id="catalogue-gerer-rayons">⚙️ Gérer les rayons</button>
     </div>
+    ${onChoisirIngredient ? "" : `<button class="bouton-discret" id="catalogue-selectionner" style="padding-left:0;">☑️ Sélectionner pour supprimer</button>`}
 
     <div id="catalogue-liste"></div>
+    ${onChoisirIngredient ? "" : `<div class="barre-selection" id="catalogue-barre" hidden></div>`}
   `;
+  panneauPlatEl.querySelector("#catalogue-selectionner")?.addEventListener("click", () => {
+    selection = new Set();
+    rendreListe();
+  });
 
   panneauPlatEl.querySelector("#catalogue-recherche").addEventListener("input", (evenement) => {
     rechercheCatalogue = evenement.target.value;
@@ -2433,11 +2500,55 @@ function platsFiltres() {
   return trierParNom(liste);
 }
 
+// Sélection multiple de plats à supprimer : null = mode normal (fiche au
+// toucher, glisser pour les actions), Set d'ids = mode sélection.
+let selectionPlats = null;
+const platsBarreEl = document.getElementById("plats-barre");
+const platsSelectionnerEl = document.getElementById("plats-selectionner");
+platsSelectionnerEl.addEventListener("click", () => {
+  selectionPlats = new Set();
+  rendreGrillePlats();
+});
+
+function rendreBarreSelectionPlats(liste) {
+  platsSelectionnerEl.hidden = selectionPlats !== null || etat.plats.length === 0;
+  platsBarreEl.hidden = selectionPlats === null;
+  // Place en bas de l'écran pour que la barre ne cache pas les derniers plats.
+  document.getElementById("ecran-plats").classList.toggle("en-selection", selectionPlats !== null);
+  if (!selectionPlats) return;
+  platsBarreEl.innerHTML = htmlBarreSelection(selectionPlats.size, liste.length);
+  brancherBarreSelection(platsBarreEl, {
+    surTout: () => {
+      const tousCoches = liste.every((p) => selectionPlats.has(p.id));
+      liste.forEach((p) => (tousCoches ? selectionPlats.delete(p.id) : selectionPlats.add(p.id)));
+      rendreGrillePlats();
+    },
+    surSupprimer: () => ouvrirPanneauSuppressionMultiple({
+      quoi: { un: "plat", des: "plats" },
+      elements: etat.plats.filter((p) => selectionPlats.has(p.id)),
+      supprimerUn: (id) => supprimerPlat(etat, id),
+      expliquerRefus: EXPLIQUER_REFUS.plat,
+      retour: () => {
+        selectionPlats = null;
+        fermerPanneau();
+      },
+      ecranSousJacent: rendreEcranPlats,
+    }),
+    surAnnuler: () => {
+      selectionPlats = null;
+      rendreGrillePlats();
+    },
+  });
+}
+
 // Ne reconstruit QUE la grille (pas les filtres) — appelée seule depuis la
 // recherche, sinon le champ perdrait le focus à chaque lettre tapée.
 function rendreGrillePlats() {
   const liste = platsFiltres();
   grillePlatsEl.innerHTML = "";
+  document.getElementById("plats-compte").textContent =
+    `${liste.length} plat${liste.length > 1 ? "s" : ""}${liste.length !== etat.plats.length ? ` sur ${etat.plats.length}` : ""}`;
+  rendreBarreSelectionPlats(liste);
 
   if (liste.length === 0) {
     grillePlatsEl.innerHTML = etat.plats.length === 0
@@ -2467,6 +2578,25 @@ function rendreGrillePlats() {
     ].filter(Boolean);
     const carte = document.createElement("div");
     carte.className = "article-course";
+    if (selectionPlats) {
+      // Mode sélection : une case à la place de l'étoile, toucher coche/décoche.
+      const coche = selectionPlats.has(plat.id);
+      if (coche) carte.classList.add("selection-cochee");
+      carte.innerHTML = `
+        <span class="case-selection">${coche ? "☑" : "☐"}</span>
+        <div class="article-info">
+          <span class="article-nom">${plat.nom}</span>
+          <span class="article-detail article-detail-multiligne">${morceaux.join(" · ")}</span>
+        </div>
+      `;
+      carte.addEventListener("click", () => {
+        if (selectionPlats.has(plat.id)) selectionPlats.delete(plat.id);
+        else selectionPlats.add(plat.id);
+        rendreGrillePlats();
+      });
+      grillePlatsEl.appendChild(carte);
+      continue;
+    }
     carte.innerHTML = `
       <button class="plat-favori" aria-label="${plat.favori ? "Retirer des favoris" : "Marquer comme favori"}">${plat.favori ? "⭐" : "☆"}</button>
       <div class="article-info">
@@ -2597,12 +2727,106 @@ function rendreGlissable(carte, actions, surToucher) {
   return conteneur;
 }
 
+// --- Sélection multiple pour mettre à la poubelle (demandé par Qassim) :
+// "☑️ Sélectionner" → toucher les éléments (ou "Tout sélectionner") →
+// "🗑️ Supprimer (n)" → confirmation → bilan. Ce qui est encore utilisé
+// n'est jamais supprimé (voir supprimerPlusieurs dans calculs.js) : le bilan
+// dit quoi et pourquoi. Utilisé par la liste des plats, le Catalogue
+// (ingrédients) et les panneaux "⚙️ Gérer..." (repas, étiquettes, matériel,
+// rayons). ---
+
+// Barre d'actions de la sélection (Tout / Supprimer (n) / Annuler).
+function htmlBarreSelection(nbSelectionnes, nbTotal) {
+  const tout = nbSelectionnes === nbTotal && nbTotal > 0;
+  return `
+    <button type="button" class="bouton-secondaire bouton-petit" data-selection="tout">${tout ? "Tout désélectionner" : "Tout sélectionner"}</button>
+    <button type="button" class="bouton-principal bouton-danger bouton-petit" data-selection="supprimer" ${nbSelectionnes === 0 ? "disabled" : ""}>🗑️ Supprimer (${nbSelectionnes})</button>
+    <button type="button" class="bouton-secondaire bouton-petit" data-selection="annuler">Annuler</button>
+  `;
+}
+
+function brancherBarreSelection(barreEl, { surTout, surSupprimer, surAnnuler }) {
+  barreEl.querySelector('[data-selection="tout"]').addEventListener("click", surTout);
+  barreEl.querySelector('[data-selection="supprimer"]').addEventListener("click", surSupprimer);
+  barreEl.querySelector('[data-selection="annuler"]').addEventListener("click", surAnnuler);
+}
+
+// Confirmation puis bilan d'une suppression multiple.
+// quoi : { un: "plat", des: "plats" } ; elements : [{ id, nom }] ;
+// supprimerUn(id) → réponse de la fonction de suppression habituelle ;
+// expliquerRefus(réponse) → pourquoi ça n'a pas été supprimé ;
+// retour() : ce qu'on rouvre après (Annuler ou OK).
+function ouvrirPanneauSuppressionMultiple({ quoi, elements, supprimerUn, expliquerRefus, retour, ecranSousJacent }) {
+  apresFermeturePanneau = ecranSousJacent;
+  let bilan = null;
+  const nomDe = new Map(elements.map((e) => [e.id, e.nom]));
+
+  function rendrePanneau() {
+    if (!bilan) {
+      const noms = elements.map((e) => e.nom);
+      const apercu = noms.length > 8 ? `${noms.slice(0, 8).join(", ")} et ${noms.length - 8} autre${noms.length - 8 > 1 ? "s" : ""}` : noms.join(", ");
+      panneauPlatEl.innerHTML = `
+        <div class="panneau-entete">
+          <span class="panneau-titre">🗑️ Supprimer ${elements.length} ${elements.length > 1 ? quoi.des : quoi.un} ?</span>
+          <button class="panneau-fermer" aria-label="Fermer">✕</button>
+        </div>
+        <p class="fiche-texte">${apercu}</p>
+        <p class="panneau-note">Suppression définitive. Ce qui est encore utilisé ailleurs sera gardé,
+          et je te dirai pourquoi.</p>
+        <div class="panneau-actions">
+          <button class="bouton-principal bouton-danger" id="multi-confirmer">Oui, supprimer</button>
+          <button class="bouton-secondaire" id="multi-annuler">Annuler</button>
+        </div>
+      `;
+      panneauPlatEl.querySelector("#multi-confirmer").addEventListener("click", () => {
+        bilan = supprimerPlusieurs(elements.map((e) => e.id), supprimerUn);
+        sauvegarder();
+        rendrePanneau();
+      });
+      panneauPlatEl.querySelector("#multi-annuler").addEventListener("click", retour);
+      panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+      return;
+    }
+    const n = bilan.supprimes.length;
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">${n > 0 ? `✅ ${n} ${n > 1 ? `${quoi.des} supprimés` : `${quoi.un} supprimé`}` : "Rien n'a été supprimé"}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+      ${bilan.refuses.length > 0 ? `
+        <p class="fiche-texte">Gardé${bilan.refuses.length > 1 ? "s" : ""}, car encore utilisé${bilan.refuses.length > 1 ? "s" : ""} :</p>
+        <ul class="bilan-refus">${bilan.refuses.map((r) => `<li><strong>${nomDe.get(r.id)}</strong> — ${expliquerRefus(r.resultat)}</li>`).join("")}</ul>
+      ` : ""}
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="multi-ok">OK</button>
+      </div>
+    `;
+    panneauPlatEl.querySelector("#multi-ok").addEventListener("click", retour);
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// "2026-09-28" → "lundi 28 sept."
+function dateLisible(dateISO) {
+  return `${jourDeLaSemaine(dateISO)} ${joursMoisLisible(dateISO)}`;
+}
+
+const EXPLIQUER_REFUS = {
+  plat: (r) => `au planning : ${[...r.joursModele.map((j) => `${j} (semaine type)`), ...r.datesHistorique.map(dateLisible)].join(", ")}`,
+  parPlats: (r) => `utilisé par ${r.plats.join(", ")}`,
+  rayon: (r) => `contient ${r.ingredients.join(", ")}`,
+};
+
 // --- Supprimer un plat, avec confirmation (depuis la liste ou la fiche) ---
 
 function messageSuppressionPlatRefusee(resultat) {
   const morceaux = [];
   if (resultat.joursModele.length > 0) morceaux.push(`prévu le ${resultat.joursModele.join(", ")} (semaine type)`);
-  if (resultat.datesHistorique.length > 0) morceaux.push(`utilisé le ${resultat.datesHistorique.join(", ")}`);
+  if (resultat.datesHistorique.length > 0) morceaux.push(`utilisé le ${resultat.datesHistorique.map(dateLisible).join(", ")}`);
   return `Impossible de le supprimer : ${morceaux.join(" et ")}. Retire-le d'abord du planning.`;
 }
 
@@ -2903,8 +3127,11 @@ function construireListeChoixEl(conteneurEl, classeChoix, liste, estSelectionne,
 // chaque ligne ouvre directement le renommage/suppression, plus un
 // "+ Ajouter" toujours en bas — un seul endroit cliquable pour ajouter ET
 // éditer (retour de Qassim), au lieu d'un ✏️ à côté de chaque filtre.
-function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouveau, labelAjouter, retour, ecranSousJacent) {
+// suppression : { quoi: { un, des }, supprimerUn(id), expliquerRefus(réponse) }
+// — active "☑️ Sélectionner" pour en supprimer plusieurs d'un coup.
+function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouveau, labelAjouter, retour, ecranSousJacent, suppression = null) {
   apresFermeturePanneau = ecranSousJacent;
+  let selection = null; // null = mode normal ; Set d'ids = mode sélection
 
   function rendrePanneau() {
     const liste = obtenirListe();
@@ -2914,23 +3141,59 @@ function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouve
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
 
+      ${suppression && liste.length > 0 && !selection ? `<button class="bouton-discret" id="gerer-selectionner" style="padding-left:0;">☑️ Sélectionner pour supprimer</button>` : ""}
       <div class="liste-plats" id="gerer-liste"></div>
       ${liste.length === 0 ? `<p class="panneau-vide">Rien pour l'instant.</p>` : ""}
-      <button class="bouton-secondaire bouton-pleine-largeur" id="gerer-ajouter" style="margin-top:8px;">${labelAjouter}</button>
+      ${selection
+        ? `<div class="barre-selection" id="gerer-barre">${htmlBarreSelection(selection.size, liste.length)}</div>`
+        : `<button class="bouton-secondaire bouton-pleine-largeur" id="gerer-ajouter" style="margin-top:8px;">${labelAjouter}</button>`}
     `;
 
     const listeEl = panneauPlatEl.querySelector("#gerer-liste");
     for (const item of liste) {
       const bouton = document.createElement("button");
       bouton.className = "plat-choix";
-      bouton.textContent = item.nom;
-      bouton.addEventListener("click", () => ouvrirEdition(item.id, () => rendrePanneau(), ecranSousJacent));
+      if (selection) {
+        const coche = selection.has(item.id);
+        if (coche) bouton.classList.add("selectionne");
+        bouton.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${item.nom}</span>`;
+        bouton.addEventListener("click", () => {
+          if (selection.has(item.id)) selection.delete(item.id);
+          else selection.add(item.id);
+          rendrePanneau();
+        });
+      } else {
+        bouton.textContent = item.nom;
+        bouton.addEventListener("click", () => ouvrirEdition(item.id, () => rendrePanneau(), ecranSousJacent));
+      }
       listeEl.appendChild(bouton);
     }
 
-    panneauPlatEl.querySelector("#gerer-ajouter").addEventListener("click", () => {
-      ouvrirNouveau(() => rendrePanneau(), ecranSousJacent);
+    panneauPlatEl.querySelector("#gerer-selectionner")?.addEventListener("click", () => {
+      selection = new Set();
+      rendrePanneau();
     });
+    if (selection) {
+      brancherBarreSelection(panneauPlatEl.querySelector("#gerer-barre"), {
+        surTout: () => {
+          selection = selection.size === liste.length ? new Set() : new Set(liste.map((i) => i.id));
+          rendrePanneau();
+        },
+        surSupprimer: () => ouvrirPanneauSuppressionMultiple({
+          quoi: suppression.quoi,
+          elements: liste.filter((i) => selection.has(i.id)),
+          supprimerUn: suppression.supprimerUn,
+          expliquerRefus: suppression.expliquerRefus,
+          retour: () => { selection = null; rendrePanneau(); },
+          ecranSousJacent,
+        }),
+        surAnnuler: () => { selection = null; rendrePanneau(); },
+      });
+    } else {
+      panneauPlatEl.querySelector("#gerer-ajouter").addEventListener("click", () => {
+        ouvrirNouveau(() => rendrePanneau(), ecranSousJacent);
+      });
+    }
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
@@ -2943,7 +3206,8 @@ function ouvrirPanneauGererRepas(retour = fermerPanneau, ecranSousJacent = rendr
   ouvrirPanneauGererListe(
     "⚙️ Gérer les repas", () => etat.repas,
     ouvrirPanneauRepas, ouvrirPanneauNouveauRepas, "+ Ajouter un repas",
-    retour, ecranSousJacent
+    retour, ecranSousJacent,
+    { quoi: { un: "repas", des: "repas" }, supprimerUn: (id) => supprimerRepas(etat, id), expliquerRefus: EXPLIQUER_REFUS.parPlats }
   );
 }
 
@@ -2951,7 +3215,8 @@ function ouvrirPanneauGererEtiquettes(retour = fermerPanneau, ecranSousJacent = 
   ouvrirPanneauGererListe(
     "⚙️ Gérer les étiquettes", () => etat.etiquettes,
     ouvrirPanneauEtiquette, ouvrirPanneauNouvelleEtiquette, "+ Ajouter une étiquette",
-    retour, ecranSousJacent
+    retour, ecranSousJacent,
+    { quoi: { un: "étiquette", des: "étiquettes" }, supprimerUn: (id) => supprimerEtiquette(etat, id), expliquerRefus: EXPLIQUER_REFUS.parPlats }
   );
 }
 
@@ -2959,7 +3224,8 @@ function ouvrirPanneauGererMateriel(retour = fermerPanneau, ecranSousJacent = re
   ouvrirPanneauGererListe(
     "⚙️ Gérer le matériel", () => etat.materiel,
     ouvrirPanneauMateriel, ouvrirPanneauNouveauMateriel, "+ Ajouter un matériel",
-    retour, ecranSousJacent
+    retour, ecranSousJacent,
+    { quoi: { un: "matériel", des: "matériels" }, supprimerUn: (id) => supprimerMateriel(etat, id), expliquerRefus: EXPLIQUER_REFUS.parPlats }
   );
 }
 

@@ -1372,3 +1372,85 @@ textarea.champ-texte {
 #liste-a-prevoir .element-nom {
   text-align: left;
 }
+
+/* Sélection multiple (☑️ Sélectionner → 🗑️ Supprimer). */
+.barre-liste {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--couleur-texte-discret);
+  margin-top: 4px;
+}
+
+.barre-liste .bouton-discret {
+  padding-right: 0;
+}
+
+.liste-resultats {
+  margin-top: 4px;
+}
+
+.case-selection {
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--couleur-accent);
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.selection-cochee {
+  border-color: var(--couleur-accent);
+  background: color-mix(in srgb, var(--couleur-accent) 10%, var(--couleur-carte));
+}
+
+.barre-selection {
+  display: flex;
+  gap: 6px;
+  padding: 10px 0;
+  background: var(--couleur-fond);
+}
+
+.barre-selection > * {
+  flex: 1;
+}
+
+.barre-selection[hidden] {
+  display: none;
+}
+
+/* Dans un panneau : collée en bas pendant qu'on défile. */
+.panneau-plat .barre-selection {
+  position: sticky;
+  bottom: calc(-16px - env(safe-area-inset-bottom));
+  margin: 8px -16px 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+/* Sur l'écran Plats : fixée juste au-dessus de la barre d'onglets. */
+.barre-selection-ecran {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--hauteur-tabbar) + env(safe-area-inset-bottom));
+  padding: 10px 16px;
+  border-top: 1px solid var(--couleur-bordure);
+  z-index: 15;
+}
+
+.bouton-principal:disabled {
+  opacity: 0.4;
+}
+
+.bilan-refus {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+#ecran-plats.en-selection {
+  padding-bottom: calc(var(--hauteur-tabbar) + 90px);
+}

@@ -1065,3 +1065,21 @@ export function viderPourPartirDeZero(etat) {
   etat.repasPrets = [];
   etat.aPrevoir = [];
 }
+
+// --- Suppression multiple (sélection "☑️" dans les listes) ---
+//
+// Applique la fonction de suppression habituelle d'un type (supprimerPlat,
+// supprimerIngredient, supprimerEtiquette...) à chaque id choisi, sans
+// jamais contourner ses refus : ce qui est encore utilisé (plat au
+// planning, ingrédient d'une recette...) reste en place et est rendu dans
+// `refuses`, avec la réponse de la fonction pour expliquer pourquoi.
+export function supprimerPlusieurs(ids, supprimerUn) {
+  const supprimes = [];
+  const refuses = [];
+  for (const id of ids) {
+    const resultat = supprimerUn(id);
+    if (resultat.ok) supprimes.push(id);
+    else refuses.push({ id, resultat });
+  }
+  return { supprimes, refuses };
+}

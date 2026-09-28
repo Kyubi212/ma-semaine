@@ -717,6 +717,28 @@ recette (📅, ✏️, 🗑️) pour qui ne pense pas à glisser.
   le défaut du …"). Une confirmation propose "Voir dans Semaine" (`allerAuJour`, qui se place sur
   la bonne semaine et le bon jour).
 
+## Sélection multiple pour supprimer (demandée par Qassim)
+
+Pour faire le ménage (ou partir d'une base presque vide) sans supprimer un par un : **"☑️
+Sélectionner"** → toucher les éléments à supprimer (ou "Tout sélectionner", qui prend tout ce qui
+est **affiché**, donc filtré par la recherche/les filtres) → **"🗑️ Supprimer (n)"** → confirmation
+(aperçu des noms) → **bilan**. Disponible sur :
+- **Plats & repas** : lien "☑️ Sélectionner" à droite du compteur "30 plats" au-dessus de la liste ;
+  en mode sélection, une case remplace l'étoile, le glissement est désactivé, et la barre d'actions
+  est fixée au-dessus des onglets ;
+- **Catalogue** (ouvert depuis Stock uniquement — pas depuis un extra ou une recette) : ingrédients,
+  la sélection est gardée pendant qu'on change la recherche ;
+- **"⚙️ Gérer..."** : repas, étiquettes, matériel, rayons (`ouvrirPanneauGererListe`, paramètre
+  `suppression`).
+
+**Jamais de suppression forcée** : `supprimerPlusieurs` (`calculs.js`) applique la fonction de
+suppression habituelle de chaque type à chaque élément, avec ses refus ; ce qui est encore utilisé
+(plat au planning, ingrédient d'une recette, étiquette/matériel/repas porté par un plat, rayon
+non vide) est **gardé**, et le bilan dit lequel et pourquoi ("Chili con carne — au planning :
+lundi 28 sept."). Mécanisme commun dans `app.js` : `htmlBarreSelection`/`brancherBarreSelection`,
+`ouvrirPanneauSuppressionMultiple`, `EXPLIQUER_REFUS`. Les dates sont écrites en toutes lettres
+(`dateLisible`), plus jamais "2026-09-28".
+
 ## Filtre temps "⏱️ max" (écran Plats & repas et panneau créneau)
 
 **Décision (demandée par Qassim)** : remplacer l'étiquette "Rapide à préparer" par un vrai réglage
