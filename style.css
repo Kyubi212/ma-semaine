@@ -994,3 +994,14 @@ textarea.champ-texte {
 .stepper-bouton:disabled {
   opacity: 0.35;
 }
+
+/* Nom d'article affiché en entier, sur 2 lignes si besoin, au lieu d'être
+   coupé par "…" — depuis l'ajout du −/+ sur Courses et Stock, il restait
+   trop peu de place (ex. "Poulet (morceaux : fi…"). Retour de Qassim. */
+.article-nom {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}

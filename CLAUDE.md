@@ -594,6 +594,9 @@ téléphone), puis "améliore tout". Ce qui a changé, en plus des points détai
   trouver ; "📖 Recette" à côté des portions ; la note permanente sur les Repas prêts a disparu.
 - **Messages d'écran vide** qui expliquent quoi faire (Stock, Courses) plutôt que "rien à
   afficher".
+- **Noms d'articles jamais coupés** (`.article-nom`) : affichés en entier, sur 2 lignes si
+  besoin, au lieu d'un "…" — depuis l'ajout du −/+ sur Courses et Stock, il ne restait plus assez
+  de place (ex. "Poulet (morceaux : filet/cuisse/pilon)"). Retour de Qassim.
 
 ## Suggestions selon le stock (écran Plats & repas)
 
