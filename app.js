@@ -1510,6 +1510,48 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
       articlesEl.className = "rayon-articles";
       for (const ingredient of ingredientsDuRayon) {
         const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
+
+        // Depuis Stock (onChoisirIngredient non fourni) : +/− directement sur
+        // la ligne pour ajuster le stock sans ouvrir le panneau complet — le
+        // geste du quotidien (Qassim change son stock tous les jours, mais
+        // ne touche au rayon/essentiel/minimum qu'occasionnellement). Le nom
+        // reste un bouton à part, pour garder l'accès à l'édition complète.
+        // Depuis Courses ("+ Ajouter un extra") ou l'éditeur d'un plat
+        // ("➕ Ajouter un ingrédient"), le stock n'est pas le geste principal :
+        // toute la ligne reste cliquable comme avant, pas de +/−.
+        if (!onChoisirIngredient) {
+          const pas = pasStock(ingredient.unite);
+          const ligne = document.createElement("div");
+          ligne.className = "article-course";
+          ligne.innerHTML = `
+            <span aria-hidden="true">${infosEtat.icone}</span>
+            <button type="button" class="article-info article-info-bouton">
+              <span class="article-nom">${ingredient.nom}</span>
+              <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
+            </button>
+            <div class="stepper stepper-compact">
+              <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
+              <span class="stepper-valeur">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+              <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
+            </div>
+          `;
+          ligne.querySelector(".article-info-bouton").addEventListener("click", () => {
+            ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue);
+          });
+          ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
+            modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock - pas) });
+            sauvegarder();
+            rendreListe();
+          });
+          ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
+            modifierIngredient(etat, ingredient.id, { enStock: ingredient.enStock + pas });
+            sauvegarder();
+            rendreListe();
+          });
+          articlesEl.appendChild(ligne);
+          continue;
+        }
+
         const ligne = document.createElement("button");
         ligne.className = "article-course";
         ligne.innerHTML = `
@@ -1523,8 +1565,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
           </div>
         `;
         ligne.addEventListener("click", () => {
-          if (onChoisirIngredient) onChoisirIngredient(ingredient.id, retourVersCatalogue);
-          else ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue);
+          onChoisirIngredient(ingredient.id, retourVersCatalogue);
         });
         articlesEl.appendChild(ligne);
       }

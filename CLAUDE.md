@@ -397,14 +397,18 @@ nom (insensible aux accents et à la ligature œ, ex. "oeufs" trouve "Œufs"), u
 bouton pour gérer les rayons (renommer/supprimer/ajouter — voir "Rayons éditables" ci-dessus).
 
 Le Catalogue s'adapte à l'endroit d'où il est ouvert (même écran, trois comportements) :
-- depuis **Stock** ("+ Ajouter un ingrédient") : toucher un ingrédient ouvre son panneau d'édition
-  habituel (stock, essentiel, minimum, suppression), pour lui redonner du stock (sinon un
-  ingrédient à 0 g et pas essentiel deviendrait injoignable) ;
+- depuis **Stock** ("+ Ajouter un ingrédient") : **+/− directement sur la ligne** pour ajuster le
+  stock sur-le-champ (pas de panneau à ouvrir) — demandé par Qassim : le stock, il le change tous
+  les jours, contrairement au rayon/essentiel/minimum qu'il touche rarement. Le nom (+ rayon,
+  état) reste un bouton à part sur la même ligne, qui ouvre le panneau d'édition habituel (stock,
+  essentiel, minimum, suppression) pour ces réglages plus occasionnels ;
 - depuis **Courses** ("+ Ajouter un extra") : toucher un ingrédient ouvre une étape quantité +
   "Ajouter cet extra", pour un ingrédient qu'on n'a pas à la maison mais qu'on sait exister dans le
-  catalogue ;
+  catalogue — toute la ligne reste cliquable ici, pas de +/− (le stock n'est pas le geste
+  principal dans ce contexte) ;
 - depuis l'éditeur d'un **plat** ("➕ Ajouter un ingrédient", écran Plats & repas) : toucher un
-  ingrédient ouvre une étape "quantité par portion", puis ajoute la ligne à la recette.
+  ingrédient ouvre une étape "quantité par portion", puis ajoute la ligne à la recette — toute la
+  ligne cliquable, même raison qu'au-dessus.
 
 Dans tous les cas, fermer ce panneau d'action revient au Catalogue (pas à l'écran de départ), pour
 en enchaîner plusieurs à la suite ; fermer le Catalogue lui-même revient à l'écran de départ (ou,

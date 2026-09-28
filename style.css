@@ -680,6 +680,20 @@ body {
   gap: 2px;
 }
 
+/* Reset nécessaire quand .article-info est un <button> (Catalogue depuis
+   Stock : le nom reste cliquable pour l'édition complète, à côté du
+   +/− de stock qui, lui, n'ouvre rien) — sans ça le navigateur impose sa
+   propre apparence de bouton. */
+.article-info-bouton {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
 .article-nom {
   font-size: 0.9rem;
   font-weight: 600;
