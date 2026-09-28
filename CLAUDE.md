@@ -69,6 +69,16 @@ migrations (`storage.js` → `migrer`) ne touchent que la STRUCTURE des données
 contenu. Écran d'ouverture : Semaine, sur le jour d'aujourd'hui. Mode sombre automatique selon le
 réglage du téléphone. Style sobre, couleur d'accent verte.
 
+**Icônes de la barre d'onglets** (bug réel corrigé, remonté par Qassim, "je n'aime pas comment
+sont affichées les icônes en bas") : les 4 emoji (🗓️ 🛒 📖 🧺) ont des tailles "dessinées" très
+différentes dans la police d'emoji du téléphone (le calendrier et le panier remplissent tout leur
+carré, le chariot et le livre beaucoup moins) — à la même taille de police, la rangée paraissait
+visiblement déséquilibrée. Chaque icône est maintenant dans une boîte de taille fixe
+(`.tab-icone`, 26×26px, centrée), avec une taille de police ajustée PAR icône (`.tab[data-ecran=…]
+.tab-icone`) pour paraître du même poids visuel malgré les tailles "dessinées" différentes de la
+police d'emoji — pas une vraie garantie (dépend de la police du téléphone), mais un bon compromis
+visuel vérifié dans Chromium, clair comme sombre.
+
 ## Semaines réelles et modèle (décision clé, remplace un système "Nouvelle semaine" à bouton)
 
 **Historique de la décision** : on est passé par deux versions avant celle-ci. D'abord une
@@ -142,6 +152,28 @@ plus nulle part** (`creneauxAffiches` : écran Semaine, repère du jour, liste d
 projeté) — sinon Qassim, qui ne prend que 3 repas, n'atteindrait jamais le cercle plein. Ses plats
 déjà prévus ne sont **jamais supprimés** : mis de côté (le panneau le signale, avec leur nombre
 sur les 7 prochains jours) et de retour s'il réaffiche le créneau.
+
+### Sélection multiple de plats à ajouter (panneau créneau)
+
+**Décision (demandée par Qassim, "je peux en sélectionner qu'un par un")** : dans "Ajouter un
+plat", un bouton **"☑️ Choisir plusieurs plats à la fois"** bascule un mode sélection —
+`selectionMultiplePlats` (un `Set` d'ids, `null` = mode normal, exclusif avec le `candidat` du mode
+normal). En mode sélection, toucher un plat le coche/décoche (☑/☐) au lieu d'ouvrir la zone
+portions ; une barre en bas — **"Tout sélectionner" / "Ajouter (n)" / "Annuler"**, même formule que
+la sélection multiple pour supprimer (Plats & repas, Catalogue, "⚙️ Gérer...") — ajoute tous les
+plats cochés d'un coup, chacun à **1 portion, juste ce jour** (jamais "en faire le défaut" : ça
+n'aurait pas de sens pour plusieurs plats en une fois). Les portions de chacun s'ajustent ensuite
+séparément dans "Plats prévus", comme n'importe quel plat déjà là.
+
+### Mangé, un par plat quand il y en a plusieurs (carte de créneau, écran Semaine)
+
+**Bug réel corrigé (remonté par Qassim)** : la case "🍽️ Mangé" n'apparaissait sur la carte que pour
+UN SEUL plat par créneau (`elements.length === 1`) — avec plusieurs plats, elle disparaissait
+purement et simplement, aucune coche visible sans ouvrir le panneau. Désormais, avec plusieurs
+plats, la carte passe en colonne (`.carte-creneau-plusieurs`) et affiche **une ligne par plat**,
+chacune avec son propre nom, ses portions et sa propre case à cocher (barre le nom une fois coché),
+directement sous le résumé "N plats" — même mécanisme que pour un seul plat (`definirCuisine`),
+juste répété une fois par plat, sans devoir ouvrir le panneau créneau.
 
 ### Voir la recette (lecture seule, depuis un plat déjà prévu)
 

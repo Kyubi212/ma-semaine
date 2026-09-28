@@ -664,21 +664,20 @@ function construireCarteCreneau(dateISO, creneau) {
     `;
   } else {
     // Plusieurs plats pour ce créneau (voir CLAUDE.md § Plusieurs plats par
-    // créneau) : la carte résume, le détail (portions, Mangé par plat) se
-    // gère dans le panneau.
+    // créneau) : la carte résume juste le nombre, chaque plat a sa propre
+    // ligne + case "Mangé" juste en dessous (voir plus bas) — plus besoin
+    // d'ouvrir le panneau pour cocher (retour de Qassim : la coche
+    // disparaissait dès qu'il y avait plusieurs plats).
     infoBouton.innerHTML = `
       <span class="carte-creneau-entete">${infos.icone} ${infos.label}</span>
-      <span class="carte-creneau-plat">${elements.map((e) => nomPlat(e.platId)).join(" · ")}</span>
       <span class="carte-creneau-detail">${elements.length} plats</span>
     `;
   }
   carte.appendChild(infoBouton);
 
-  // La case "Mangé" directement sur la carte n'a de sens que pour UN seul
-  // plat. Avec plusieurs plats, chacun a sa propre case, gérée dans le panneau.
-  // Case accompagnée de son libellé "Mangé" (seule, on ne savait pas à quoi
-  // elle servait sans ouvrir le panneau).
   if (elements.length === 1) {
+    // Un seul plat : la case "Mangé" avec son libellé, directement sur la
+    // carte (on ne savait pas à quoi elle servait sans ouvrir le panneau).
     const [element] = elements;
     const etiquette = document.createElement("label");
     etiquette.className = "carte-creneau-mange";
@@ -693,8 +692,31 @@ function construireCarteCreneau(dateISO, creneau) {
       rendreEcranSemaine();
     });
     carte.appendChild(etiquette);
+    if (element.cuisine) carte.classList.add("mange");
+  } else if (elements.length > 1) {
+    // Plusieurs plats : une case "Mangé" PAR PLAT, sous la carte — chacune
+    // indépendante (on peut cocher un plat sans l'autre), demandé par
+    // Qassim ("je vois pas la coche quand il y a plusieurs repas").
+    carte.classList.add("carte-creneau-plusieurs");
+    const listeEl = document.createElement("div");
+    listeEl.className = "carte-creneau-multi";
+    for (const element of elements) {
+      const ligne = document.createElement("label");
+      ligne.className = `carte-creneau-multi-ligne${element.cuisine ? " mange" : ""}`;
+      ligne.innerHTML = `
+        <input type="checkbox" ${element.cuisine ? "checked" : ""} aria-label="${nomPlat(element.platId)} — Mangé (déduit le stock)">
+        <span class="carte-creneau-multi-nom">${nomPlat(element.platId)}</span>
+        <span class="carte-creneau-multi-portions">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
+      `;
+      ligne.querySelector("input").addEventListener("change", (evenement) => {
+        definirCuisine(etat, dateISO, creneau, element.id, evenement.target.checked);
+        sauvegarder();
+        rendreEcranSemaine();
+      });
+      listeEl.appendChild(ligne);
+    }
+    carte.appendChild(listeEl);
   }
-  if (elements.length === 1 && elements[0].cuisine) carte.classList.add("mange");
 
   return carte;
 }
@@ -891,6 +913,14 @@ function ouvrirPanneau(dateISO, creneau) {
   // Qassim n'a pas tapé sur un plat de la liste "Ajouter un plat".
   let candidat = null;
 
+  // Sélection multiple (demandé par Qassim, "je peux en sélectionner qu'un
+  // par un") : null = mode normal (un tap = candidat unique, avec portions
+  // et le choix "juste ce jour"/"défaut"). Set d'ids = mode sélection :
+  // plusieurs plats à la fois, ajoutés d'un coup à 1 portion chacun, juste
+  // ce jour (les portions s'ajustent ensuite un par un dans "Plats prévus",
+  // comme n'importe quel plat déjà là).
+  let selectionMultiplePlats = null;
+
   // Filtres de la liste "Ajouter un plat" — par défaut sur le repas de ce
   // créneau, mais entièrement changeables (mêmes filtres que l'écran
   // Plats & repas) pour pouvoir ex. mettre un plat "Petit-déjeuner" au
@@ -930,16 +960,27 @@ function ouvrirPanneau(dateISO, creneau) {
     for (const plat of platsAffiches()) {
       const item = document.createElement("button");
       item.className = "plat-choix";
-      if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
-      item.textContent = plat.nom;
-      item.addEventListener("click", () => {
-        candidat = { platId: plat.id, portions: 1 };
-        rendrePanneau();
-        // Portions + boutons "Ajouter" sont sous la liste : on y amène
-        // directement, sinon il fallait défiler pour les trouver (et on ne
-        // voyait pas que le choix avait été pris en compte).
-        panneauPlatEl.querySelector("#zone-candidat")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      if (selectionMultiplePlats) {
+        const coche = selectionMultiplePlats.has(plat.id);
+        if (coche) item.classList.add("selectionne");
+        item.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${plat.nom}</span>`;
+        item.addEventListener("click", () => {
+          if (selectionMultiplePlats.has(plat.id)) selectionMultiplePlats.delete(plat.id);
+          else selectionMultiplePlats.add(plat.id);
+          rendrePanneau();
+        });
+      } else {
+        if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
+        item.textContent = plat.nom;
+        item.addEventListener("click", () => {
+          candidat = { platId: plat.id, portions: 1 };
+          rendrePanneau();
+          // Portions + boutons "Ajouter" sont sous la liste : on y amène
+          // directement, sinon il fallait défiler pour les trouver (et on ne
+          // voyait pas que le choix avait été pris en compte).
+          panneauPlatEl.querySelector("#zone-candidat")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
       listePlatsEl.appendChild(item);
     }
   }
@@ -1108,10 +1149,22 @@ function ouvrirPanneau(dateISO, creneau) {
         <button class="puce puce-plus" id="ouvrir-filtres-panneau" type="button" aria-label="Plus de filtres">➕<span id="filtres-panneau-compte"></span></button>
       </div>
       <p class="panneau-note" id="filtres-panneau-resume" style="margin:0 0 8px;"></p>
+      <button class="bouton-discret" id="toggle-selection-multiple" style="padding-left:0;">${selectionMultiplePlats ? "✕ Annuler la sélection multiple" : "☑️ Choisir plusieurs plats à la fois"}</button>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
+      <div class="barre-selection" id="multi-plats-barre" hidden></div>
     `;
+
+    panneauPlatEl.querySelector("#toggle-selection-multiple").addEventListener("click", () => {
+      if (selectionMultiplePlats) {
+        selectionMultiplePlats = null;
+      } else {
+        selectionMultiplePlats = new Set();
+        candidat = null; // les deux modes sont exclusifs
+      }
+      rendrePanneau();
+    });
 
     // Ne reconstruit QUE la liste de résultats (pas tout le panneau) à
     // chaque lettre tapée, sinon le champ perdrait le focus en boucle.
@@ -1297,6 +1350,40 @@ function ouvrirPanneau(dateISO, creneau) {
       });
     } else {
       zoneCandidatEl.innerHTML = "";
+    }
+
+    // --- Barre de sélection multiple : "Tout sélectionner" / "Ajouter (n)"
+    // / "Annuler" — mêmes trois actions que la sélection multiple pour
+    // supprimer (Plats & repas, Catalogue), pour rester cohérent, mais
+    // "Ajouter" plutôt que "Supprimer" ici. ---
+    const multiPlatsBarreEl = panneauPlatEl.querySelector("#multi-plats-barre");
+    multiPlatsBarreEl.hidden = !selectionMultiplePlats;
+    if (selectionMultiplePlats) {
+      const liste = platsAffiches();
+      const n = selectionMultiplePlats.size;
+      multiPlatsBarreEl.innerHTML = `
+        <button type="button" class="bouton-secondaire bouton-petit" data-action="tout">${n === liste.length && liste.length > 0 ? "Tout désélectionner" : "Tout sélectionner"}</button>
+        <button type="button" class="bouton-principal bouton-petit" data-action="ajouter" ${n === 0 ? "disabled" : ""}>Ajouter (${n})</button>
+        <button type="button" class="bouton-secondaire bouton-petit" data-action="annuler">Annuler</button>
+      `;
+      multiPlatsBarreEl.querySelector('[data-action="tout"]').addEventListener("click", () => {
+        const tousCoches = liste.every((p) => selectionMultiplePlats.has(p.id));
+        liste.forEach((p) => (tousCoches ? selectionMultiplePlats.delete(p.id) : selectionMultiplePlats.add(p.id)));
+        rendrePanneau();
+      });
+      multiPlatsBarreEl.querySelector('[data-action="ajouter"]').addEventListener("click", () => {
+        for (const platId of selectionMultiplePlats) {
+          ajouterPlatAuJour(etat, dateISO, creneau, { platId, portions: 1 }, false);
+        }
+        sauvegarder();
+        selectionMultiplePlats = null;
+        rendrePanneau();
+        panneauPlatEl.querySelector("#liste-elements")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      multiPlatsBarreEl.querySelector('[data-action="annuler"]').addEventListener("click", () => {
+        selectionMultiplePlats = null;
+        rendrePanneau();
+      });
     }
 
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);

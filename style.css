@@ -112,9 +112,34 @@ body {
   padding: 6px 0;
 }
 
+/* Boîte de taille fixe pour chaque icône : les emoji ont des tailles
+   "dessinées" très différentes à la même taille de police (le calendrier
+   et le panier remplissent tout leur carré, le chariot et le livre non) —
+   ça donnait une rangée d'icônes visiblement inégale (retour de Qassim).
+   On les recentre toutes dans le même carré, avec une taille de police
+   ajustée par icône (voir plus bas) pour qu'elles paraissent du même
+   poids visuel. */
 .tab-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   font-size: 1.3rem;
   line-height: 1;
+}
+
+.tab[data-ecran="semaine"] .tab-icone {
+  font-size: 1.1rem;
+}
+
+.tab[data-ecran="stock"] .tab-icone {
+  font-size: 1.2rem;
+}
+
+.tab[data-ecran="courses"] .tab-icone,
+.tab[data-ecran="plats"] .tab-icone {
+  font-size: 1.45rem;
 }
 
 .tab[aria-current="true"] {
@@ -985,6 +1010,56 @@ textarea.champ-texte {
 }
 
 .carte-creneau.mange .carte-creneau-plat {
+  text-decoration: line-through;
+  color: var(--couleur-texte-discret);
+}
+
+/* Plusieurs plats sur un créneau : la carte passe en colonne (infoBouton
+   en haut, une case "Mangé" par plat en dessous, pleine largeur) — sinon
+   la liste des plats se retrouvait compressée à côté du bouton. */
+.carte-creneau.carte-creneau-plusieurs {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.carte-creneau-multi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.carte-creneau-multi-ligne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.carte-creneau-multi-ligne input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.carte-creneau-multi-nom {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carte-creneau-multi-portions {
+  font-size: 0.72rem;
+  color: var(--couleur-texte-discret);
+  flex-shrink: 0;
+}
+
+.carte-creneau-multi-ligne.mange .carte-creneau-multi-nom {
   text-decoration: line-through;
   color: var(--couleur-texte-discret);
 }
