@@ -1037,6 +1037,13 @@ function ouvrirPanneau(dateISO, creneau) {
 // que de le faire disparaître instantanément (décision prise avec lui).
 const achetesSession = new Map();
 
+// Quantité changée à la main (−/+ ou clavier) PENDANT cette visite de
+// l'écran, pas encore cochée "Acheté" : ingredientId → quantité. Sert à ne
+// pas la perdre quand la liste se redessine (ex. après avoir coché un autre
+// article). Ex. la liste dit 2 carottes, Qassim en prend 3 : il met 3 puis
+// coche, et c'est 3 qui entre dans le stock.
+const quantitesModifieesSession = new Map();
+
 // Rayons repliés PENDANT cette visite de l'écran (pas persisté non plus) :
 // un rayon replié doit le rester quand la liste se redessine après une
 // coche, sinon Qassim devrait tout replier à nouveau à chaque action.
@@ -1068,24 +1075,11 @@ function trierParNom(liste) {
   return [...liste].sort((a, b) => a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" }));
 }
 
-function formaterDetail(article) {
-  const ingredient = etat.ingredients.find((i) => i.id === article.ingredientId);
-  let texte;
-  if (article.detail.length > 0) {
-    texte = article.detail
-      .map((d) => `${d.platNom} : ${formaterQuantite(d.quantite, article.unite)}`)
-      .join(" · ");
-  } else if (ingredient?.essentiel) {
-    texte = "⭐ Stock minimum";
-  } else {
-    texte = "Envie ponctuelle";
-  }
-  // Quantité arrondie au paquet entier (voir calculerAAcheter) : on le dit,
-  // sinon "250 g" à côté de "Pain perdu : 5 g" semblerait une erreur.
-  if (ingredient?.conditionnement) {
-    texte += ` · 📦 vendu par ${formaterQuantite(ingredient.conditionnement, ingredient.unite)}`;
-  }
-  return texte;
+// Pas de −/+ fixe pour tout : un paquet entier si l'ingrédient a un
+// conditionnement (ex. +250 g de beurre = une plaquette de plus), sinon le
+// même pas que sur Stock (1 pièce, 50 g/ml).
+function pasCourses(ingredient) {
+  return ingredient?.conditionnement || pasStock(ingredient?.unite);
 }
 
 const listeCoursesEl = document.getElementById("liste-courses");
@@ -1161,29 +1155,64 @@ function rendreEcranCourses() {
 
     for (const article of articles) {
       const achete = achetesSession.has(article.ingredientId);
+      const ingredientArticle = etat.ingredients.find((i) => i.id === article.ingredientId);
+      const pas = pasCourses(ingredientArticle);
+      // Déjà acheté : on montre ce qui a réellement été ajouté au stock.
+      // Sinon : la quantité changée à la main s'il y en a une, sinon le calcul.
+      const quantiteAffichee = achete
+        ? achetesSession.get(article.ingredientId)
+        : quantitesModifieesSession.get(article.ingredientId) ?? article.aAcheter;
       const ligne = document.createElement("div");
       ligne.className = `article-course${achete ? " achete" : ""}`;
+      // Juste le nom : plus de ligne de détail en dessous ("Blanquette de
+      // poulet : 1,5 pièce"...) — retour de Qassim, "moi j'ai juste mes
+      // courses". −/+ autour de la quantité pour l'ajuster en magasin avant
+      // de cocher (ex. 3 carottes au lieu de 2).
       ligne.innerHTML = `
         <input type="checkbox" class="article-checkbox" aria-label="Acheté" ${achete ? "checked" : ""}>
         <div class="article-info">
           <span class="article-nom">${article.nom}</span>
-          <span class="article-detail">${formaterDetail(article)}</span>
         </div>
-        <div class="article-quantite">
-          <input type="number" class="article-quantite-input" value="${formaterNombre(article.aAcheter)}" min="0" step="any" ${achete ? "disabled" : ""}>
-          <span class="article-unite">${article.unite}</span>
+        <div class="stepper stepper-compact">
+          <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${article.nom}" ${achete ? "disabled" : ""}>−</button>
+          <label class="stepper-saisie">
+            <input type="number" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(quantiteAffichee)}" min="0" step="any" aria-label="Quantité de ${article.nom}" ${achete ? "disabled" : ""}>
+            <span class="article-unite">${article.unite}</span>
+          </label>
+          <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${article.nom}" ${achete ? "disabled" : ""}>+</button>
         </div>
       `;
 
       const caseACocher = ligne.querySelector(".article-checkbox");
-      const champQuantite = ligne.querySelector(".article-quantite-input");
+      const champQuantite = ligne.querySelector(".stepper-saisie-input");
+
+      // −/+ ne redessinent que ce champ (pas toute la liste) : rien ne saute
+      // à l'écran pendant qu'on ajuste en magasin.
+      function changerQuantite(nouvelleQuantite) {
+        const quantite = Math.max(0, nouvelleQuantite);
+        quantitesModifieesSession.set(article.ingredientId, quantite);
+        champQuantite.value = formaterNombre(quantite);
+      }
+      ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
+        changerQuantite(clampPositif(champQuantite.value) - pas);
+      });
+      ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
+        changerQuantite(clampPositif(champQuantite.value) + pas);
+      });
+      champQuantite.addEventListener("focus", () => champQuantite.select());
+      champQuantite.addEventListener("change", () => {
+        changerQuantite(clampPositif(champQuantite.value));
+      });
 
       caseACocher.addEventListener("change", () => {
-        const ingredient = etat.ingredients.find((i) => i.id === article.ingredientId);
+        const ingredient = ingredientArticle;
         if (caseACocher.checked) {
-          const quantite = clampPositif(champQuantite.value) || article.aAcheter;
+          // 0 volontaire (rien trouvé en magasin) : on n'ajoute rien, mais
+          // l'article est quand même coché.
+          const quantite = clampPositif(champQuantite.value);
           marquerAchete(ingredient, quantite);
           achetesSession.set(article.ingredientId, quantite);
+          quantitesModifieesSession.delete(article.ingredientId);
         } else {
           // On décoche : correction d'erreur, on retire du stock exactement
           // ce qui avait été ajouté.

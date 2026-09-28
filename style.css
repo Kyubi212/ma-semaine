@@ -990,3 +990,7 @@ textarea.champ-texte {
   width: 64px;
   font-size: 16px;
 }
+
+.stepper-bouton:disabled {
+  opacity: 0.35;
+}

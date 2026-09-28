@@ -111,7 +111,7 @@ export function calculerBesoins(cases, plats, ingredients) {
 }
 
 // À acheter = max(0, besoin + minimum essentiel + extra − stock actuel).
-// Arrondi au supérieur pour l'unité "pièce". Si l'ingrédient a un
+// Arrondi au supérieur pour toutes les unités qui se comptent (pas g/ml). Si l'ingrédient a un
 // conditionnement (taille du paquet vendu en magasin, ex. beurre : 250 g),
 // arrondi au nombre de paquets entiers au-dessus — personne n'achète 5 g de
 // beurre ou 0,5 g de cannelle (voir CLAUDE.md § Conditionnement). Sans
@@ -123,8 +123,10 @@ export function calculerAAcheter(ingredients, besoins) {
     const extra = clampPositif(ingredient.extra);
 
     let quantite = Math.max(0, besoin + minimumEssentiel + extra - ingredient.enStock);
-    if (ingredient.unite === "pièce" && quantite > 0) {
-      quantite = Math.ceil(quantite);
+    // Tout ce qui se compte (pièce, cube, boîte, gousse...) s'achète entier :
+    // jamais "0,3 cube" ou "1,5 carotte". Seuls g et ml restent au détail.
+    if (ingredient.unite !== "g" && ingredient.unite !== "ml" && quantite > 0) {
+      quantite = Math.ceil(quantite - 1e-9);
     }
     const conditionnement = clampPositif(ingredient.conditionnement);
     if (conditionnement > 0 && quantite > 0) {

@@ -216,6 +216,20 @@ test("calculerAAcheter : rien à acheter reste à 0, même avec un conditionneme
   assert.equal(calculerAAcheter(ingredients, besoins)[0].aAcheter, 0);
 });
 
+test("calculerAAcheter : toute unité qui se compte (cube, boîte...) est arrondie au supérieur", () => {
+  const ingredients = [
+    { id: "bouillon", unite: "cube", enStock: 0, essentiel: false, minimum: 0, extra: 0 },
+    { id: "carotte", unite: "pièce", enStock: 0, essentiel: false, minimum: 0, extra: 0 },
+    { id: "ail", unite: "gousse", enStock: 0, essentiel: false, minimum: 0, extra: 0 },
+  ];
+  const besoins = new Map([["bouillon", 0.3], ["carotte", 1.5], ["ail", 2]]);
+  const resultats = calculerAAcheter(ingredients, besoins);
+  const aAcheter = (id) => resultats.find((r) => r.ingredientId === id).aAcheter;
+  assert.equal(aAcheter("bouillon"), 1);
+  assert.equal(aAcheter("carotte"), 2);
+  assert.equal(aAcheter("ail"), 2, "un nombre déjà entier ne bouge pas");
+});
+
 // --- formaterQuantite ---
 
 test("formaterQuantite : pluriel des unités en toutes lettres à partir de 2", () => {
