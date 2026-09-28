@@ -45,6 +45,7 @@ import {
   renommerRepas,
   supprimerRepas,
   ingredientsManquantsPourPlat,
+  platEstRealisableAvecStock,
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
@@ -916,6 +917,20 @@ test("ingredientsManquantsPourPlat : liste les ingrédients dont le stock actuel
 test("ingredientsManquantsPourPlat : rend un tableau vide si le plat n'existe pas (pas de plantage)", () => {
   const etat = etatDeTest();
   assert.deepEqual(ingredientsManquantsPourPlat(etat, "plat-inconnu", 1), []);
+});
+
+// --- platEstRealisableAvecStock (filtre "🧺 Réalisable avec mon stock", écran Plats & repas) ---
+
+test("platEstRealisableAvecStock : true quand le stock couvre 1 portion, false sinon", () => {
+  const etat = etatDeTest();
+  // plat-test a besoin de 100 g de riz par portion ; le riz de etatDeTest a 200 g en stock.
+  assert.equal(platEstRealisableAvecStock(etat, "plat-test", 1), true);
+  assert.equal(platEstRealisableAvecStock(etat, "plat-test", 3), false); // besoin 300g, stock 200g
+});
+
+test("platEstRealisableAvecStock : 1 portion par défaut si non précisé", () => {
+  const etat = etatDeTest();
+  assert.equal(platEstRealisableAvecStock(etat, "plat-test"), true);
 });
 
 // --- Repas prêts (ajouterRepasPret / mangerRepasPret / retirerRepasPret) ---

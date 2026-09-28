@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Recherche par nom + bouton **"🔧 Filtres"** (compteur si actifs) ouvrant un panneau à part avec Favoris (case indépendante), Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Recherche par nom + bouton **"🔧 Filtres"** (compteur si actifs) ouvrant un panneau à part avec Favoris (case indépendante), **🧺 Réalisable avec mon stock** (case indépendante — voir "Suggestions selon le stock" ci-dessous), Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
@@ -505,6 +505,16 @@ tapant un créneau (ex. "Petit-déjeuner") applique le même traitement — ses 
 Étiquettes (mêmes filtres qu'ici, voir "Choisir un plat pour un créneau") sont regroupés derrière
 un bouton "🔧 Filtres" propre à ce panneau (avec badge de comptage), plutôt qu'empilés directement
 sous la recherche — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
+
+## Suggestions selon le stock (écran Plats & repas)
+
+**Décision clé** : répondre à "qu'est-ce que je peux cuisiner avec ce que j'ai déjà ?" — un filtre
+indépendant **"🧺 Réalisable avec mon stock"** (même case indépendante que ⭐ Favoris, combinable
+avec les autres filtres), qui ne montre que les plats dont le stock actuel couvre TOUS les
+ingrédients pour 1 portion (`platEstRealisableAvecStock` dans `calculs.js`, réutilise
+`ingredientsManquantsPourPlat` : réalisable = aucun ingrédient manquant). 1 portion par défaut
+(pas la recette entière ni `portionsReference`) — cohérent avec le reste de l'app, où une portion
+est toujours **par personne**.
 
 ## Matériel requis et temps de préparation/cuisson (écran Plats & repas)
 

@@ -795,6 +795,15 @@ export function ingredientsManquantsPourPlat(etat, platId, portions) {
   return manquants;
 }
 
+// Un plat est "réalisable" quand le stock actuel couvre tous ses
+// ingrédients pour le nombre de portions donné (1 par défaut, portions
+// toujours par personne — voir CLAUDE.md § Semaine). Réutilise
+// ingredientsManquantsPourPlat : réalisable = aucun ingrédient manquant.
+// Sert au filtre "🧺 Réalisable avec mon stock" (écran Plats & repas).
+export function platEstRealisableAvecStock(etat, platId, portions = 1) {
+  return ingredientsManquantsPourPlat(etat, platId, portions).length === 0;
+}
+
 // --- Repas prêts (écran Semaine) ---
 //
 // Des portions déjà prêtes à manger, SANS lien avec un jour précis du

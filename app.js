@@ -36,6 +36,7 @@ import {
   renommerRepas,
   supprimerRepas,
   ingredientsManquantsPourPlat,
+  platEstRealisableAvecStock,
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
@@ -1653,6 +1654,10 @@ let filtreRepas = "tous"; // "tous" | un id de repas (sélection UNIQUE)
 // favoris — demandé par Qassim (ce n'était pas possible avant, les deux
 // étaient dans le même groupe à choix unique).
 let filtreFavorisActif = false;
+// Même principe, indépendant lui aussi : "qu'est-ce que je peux cuisiner
+// avec ce que j'ai déjà ?" (1 portion, stock actuel — voir
+// platEstRealisableAvecStock dans calculs.js).
+let filtreRealisableActif = false;
 // Étiquettes cochées en même temps (logique ET, décidée avec Qassim : un
 // plat doit porter TOUTES les étiquettes cochées pour apparaître).
 const etiquettesSelectionnees = new Set();
@@ -1689,6 +1694,7 @@ function ouvrirPanneauFiltresPlats() {
       </div>
 
       <button class="segmente-bouton" id="panneau-filtre-favoris" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
+      <button class="segmente-bouton" id="panneau-filtre-realisable" type="button" style="margin-bottom:8px;">🧺 Réalisable avec mon stock</button>
 
       <div class="panneau-section-titre">Repas</div>
       <div class="segmente" id="panneau-filtres-repas"></div>
@@ -1707,6 +1713,13 @@ function ouvrirPanneauFiltresPlats() {
     favorisEl.classList.toggle("selectionne", filtreFavorisActif);
     favorisEl.addEventListener("click", () => {
       filtreFavorisActif = !filtreFavorisActif;
+      rendrePanneau();
+    });
+
+    const realisableEl = panneauPlatEl.querySelector("#panneau-filtre-realisable");
+    realisableEl.classList.toggle("selectionne", filtreRealisableActif);
+    realisableEl.addEventListener("click", () => {
+      filtreRealisableActif = !filtreRealisableActif;
       rendrePanneau();
     });
 
@@ -1771,6 +1784,7 @@ function platsFiltres() {
   let liste = filtreRepas === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepas);
 
   if (filtreFavorisActif) liste = liste.filter((p) => p.favori);
+  if (filtreRealisableActif) liste = liste.filter((p) => platEstRealisableAvecStock(etat, p.id));
 
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
@@ -1841,6 +1855,7 @@ recherchePlatsEl.addEventListener("input", (evenement) => {
 function rendreEcranPlats() {
   const nbFiltresActifs =
     (filtreFavorisActif ? 1 : 0) +
+    (filtreRealisableActif ? 1 : 0) +
     (filtreRepas !== "tous" ? 1 : 0) +
     etiquettesSelectionnees.size +
     materielSelectionnes.size;
