@@ -10,7 +10,7 @@
 // partout dans app.js) permet, si un jour un vrai serveur remplace le
 // stockage du téléphone, de ne changer QUE ce fichier.
 
-import { ingredients as ingredientsParDefaut, plats as platsParDefaut, conditionnementsParDefaut } from "./data.js";
+import { ingredients as ingredientsParDefaut, plats as platsParDefaut } from "./data.js";
 import { RAYONS, genererSlug } from "./constantes.js";
 
 // Une seule clé, un seul objet JSON dedans : plus simple à inspecter
@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 11;
+const VERSION_FORMAT = 12;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -141,7 +141,6 @@ export function creerEtatInitial() {
     ingredients: ingredientsParDefaut.map((ingredient) => ({
       ...ingredient,
       rayon: idRayonParNom.get(ingredient.rayon) ?? ingredient.rayon,
-      conditionnement: conditionnementsParDefaut[ingredient.id] ?? null,
     })),
     plats: platsParDefaut.map(({ assemblage, ...plat }) => ({
       ...plat,
@@ -345,16 +344,19 @@ function migrer(etat) {
   }
 
   if (etat.version === 10) {
-    // v10 → v11 : conditionnement (taille du paquet vendu en magasin), pour
-    // que la liste de courses propose un paquet entier plutôt que "5 g de
-    // beurre". Nouveau champ : on le remplit avec la taille par défaut de
-    // data.js pour les ingrédients de base reconnus (même id), sinon null
-    // (quantité exacte, comme avant). Ne touche à aucune valeur existante.
-    const ingredients = etat.ingredients.map((ingredient) => ({
-      ...ingredient,
-      conditionnement: ingredient.conditionnement ?? conditionnementsParDefaut[ingredient.id] ?? null,
-    }));
-    etat = { ...etat, ingredients, version: 11 };
+    // v10 → v11 : ajoutait un "conditionnement" (taille du paquet) aux
+    // ingrédients, abandonné juste après (voir v11 → v12). Un état encore en
+    // v10 n'a donc rien à gagner à le recevoir : simple passage de version.
+    etat = { ...etat, version: 11 };
+  }
+
+  if (etat.version === 11) {
+    // v11 → v12 : retire le "conditionnement" — la liste de courses revient
+    // aux quantités exactes, Qassim saisit en magasin ce qu'il a vraiment
+    // acheté (voir CLAUDE.md § Quantités exactes dans les courses). Aucune
+    // autre valeur n'est touchée (stock, minimum...).
+    const ingredients = etat.ingredients.map(({ conditionnement, ...ingredient }) => ingredient);
+    etat = { ...etat, ingredients, version: 12 };
   }
 
   return etat;

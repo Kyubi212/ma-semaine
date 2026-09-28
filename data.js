@@ -1959,39 +1959,6 @@ export const ingredients = [
   },
 ];
 
-// --- Conditionnements par défaut (taille du paquet vendu en magasin, dans
-// l'unité de stock de l'ingrédient) ---
-// Sert à la liste de courses : on achète un paquet entier (ex. 250 g de
-// beurre), jamais "5 g de beurre" ou "0,5 g de cannelle" (voir CLAUDE.md
-// § Conditionnement). Volontairement absent pour ce qui se vend au poids
-// (fruits et légumes frais, boucherie, poissonnerie à la coupe) : là, la
-// quantité exacte reste la bonne. Tailles génériques de supermarché,
-// modifiables ingrédient par ingrédient dans l'écran Stock.
-export const conditionnementsParDefaut = {
-  "paprika": 40, "poivre": 50, "cumin": 40, "sel": 1000, "ail-en-poudre": 40,
-  "curcuma": 40, "gingembre-moulu": 30, "graines-de-nigelle": 50, "chili-en-poudre": 40,
-  "piment-doux": 40, "cannelle": 40, "muscade": 40, "herbes-de-provence": 30,
-  "origan": 15, "thym": 20, "laurier": 10,
-  "huile-d-olive": 1000, "pois-chiches": 400, "riz": 1000, "pates-spaghetti": 500,
-  "orge-perle": 500, "lentilles": 500, "concentre-de-tomate": 140, "tomates-concassees": 400,
-  "haricots-rouges-ou-noirs": 400, "poisson-en-boite-thon-sardines-maquereau": 140,
-  "farine": 1000, "sauce-soja": 250, "moutarde": 200, "mayonnaise": 250, "vinaigre": 500,
-  "semoule": 500, "quinoa": 500, "sauce-tomate": 500, "lait-de-coco": 400,
-  "beurre-de-cacahuete-100-arachide": 350, "graines-de-chia": 250, "miel": 500,
-  "flocons-d-avoine": 500, "noix-et-amandes": 200, "sucre": 1000, "confiture": 350,
-  "pate-a-tartiner": 400, "chocolat-en-poudre": 500, "cereales": 500, "biscuits": 200,
-  "levure-chimique": 50, "sirop-d-erable": 250, "pruneaux": 250, "chocolat-noir": 200,
-  "feta-de-brebis": 200, "yaourt-grec-nature": 500, "houmous": 200, "fromage-rape": 200,
-  "fromage-de-chevre": 150, "fromage-de-brebis": 150, "parmesan-rape": 100,
-  "pecorino-rape": 100, "lait": 1000, "kefir": 1000, "beurre": 250, "creme-fraiche": 200,
-  "mozzarella": 125,
-  "bacon-de-boeuf": 150, "bacon-de-dinde": 150, "saumon-fume": 150,
-  "epinards": 750, "fruits-rouges": 500, "legumes-surgeles-melanges": 1000,
-  "frites-surgelees": 1000, "petits-pois-surgeles": 1000, "glace": 500,
-  "eau-minerale": 1500, "jus-d-orange": 1000, "the": 100, "soda": 1500, "sirop": 750,
-  "whey-proteine": 1000,
-};
-
 // --- Catalogue des plats ---
 // repas : nom du repas éditable (voir CLAUDE.md § Repas éditables) — "Petit-déjeuner",
 //   "Snack/Goûter", "Déjeuner/Dîner", "Dessert", "Entrée", "Accompagnement",

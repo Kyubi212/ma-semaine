@@ -1075,13 +1075,6 @@ function trierParNom(liste) {
   return [...liste].sort((a, b) => a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" }));
 }
 
-// Pas de −/+ fixe pour tout : un paquet entier si l'ingrédient a un
-// conditionnement (ex. +250 g de beurre = une plaquette de plus), sinon le
-// même pas que sur Stock (1 pièce, 50 g/ml).
-function pasCourses(ingredient) {
-  return ingredient?.conditionnement || pasStock(ingredient?.unite);
-}
-
 const listeCoursesEl = document.getElementById("liste-courses");
 
 function rendreEcranCourses() {
@@ -1156,7 +1149,7 @@ function rendreEcranCourses() {
     for (const article of articles) {
       const achete = achetesSession.has(article.ingredientId);
       const ingredientArticle = etat.ingredients.find((i) => i.id === article.ingredientId);
-      const pas = pasCourses(ingredientArticle);
+      const pas = pasStock(article.unite);
       // Déjà acheté : on montre ce qui a réellement été ajouté au stock.
       // Sinon : la quantité changée à la main s'il y en a une, sinon le calcul.
       const quantiteAffichee = achete
@@ -1481,12 +1474,6 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       <div class="panneau-section-titre">Minimum à toujours avoir (${ingredient.unite})</div>
       <input type="number" id="ingredient-minimum" class="champ-texte" value="${formaterNombre(ingredient.minimum)}" min="0" step="any">
 
-      <div class="panneau-section-titre">Vendu par (taille du paquet, en ${ingredient.unite})</div>
-      <p class="panneau-note">Optionnel : la liste de courses proposera alors un paquet entier
-        (ex. 250 g de beurre) plutôt que la quantité exacte de la recette. Laisse vide pour ce qui
-        s'achète au poids ou à l'unité.</p>
-      <input type="number" id="ingredient-conditionnement" class="champ-texte" value="${ingredient.conditionnement ?? ""}" min="0" step="any" placeholder="Ex. 250">
-
       ${ingredient.unite === "g" || ingredient.unite === "ml" ? `
         <div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
         <p class="panneau-note">Optionnel : à régler une fois, permet ensuite de saisir les
@@ -1544,12 +1531,6 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
     });
     panneauPlatEl.querySelector("#ingredient-minimum").addEventListener("change", (evenement) => {
       modifierIngredient(etat, ingredientId, { minimum: evenement.target.value });
-      sauvegarder();
-      rendrePanneau();
-    });
-    panneauPlatEl.querySelector("#ingredient-conditionnement").addEventListener("change", (evenement) => {
-      const valeurBrute = evenement.target.value.trim();
-      modifierIngredient(etat, ingredientId, { conditionnement: valeurBrute === "" ? null : valeurBrute });
       sauvegarder();
       rendrePanneau();
     });

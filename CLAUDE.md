@@ -41,9 +41,9 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | Écran | Rôle |
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un petit point sous chaque jour qui a des plats prévus : creux = reste à manger, plein = tout mangé), 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
-| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités arrondies au paquet entier quand l'ingrédient a un conditionnement (voir "Conditionnement" ci-dessous). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2 ; le pas vaut un paquet entier si conditionnement, sinon 1 pièce/50 g-ml), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
+| **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités **exactes** pour les g/ml (10 g de sucre, pas un paquet — voir "Quantités exactes dans les courses" ci-dessous), arrondies à l'unité supérieure pour ce qui se compte (2 pommes, pas 1,5). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2, ou 500 g de sucre trouvés en rayon au lieu des 10 g demandés ; pas de 1 pièce/50 g-ml, ou saisie directe), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
 | **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis ⭐ Favoris, 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) et **"➕ Filtres"** (compteur si actifs) en petites pastilles sur une seule ligne, ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
-| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, conditionnement, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
+| **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
 propose "⬇️ Exporter une sauvegarde" / "⬆️ Importer une sauvegarde" (fichier JSON téléchargé/
@@ -233,8 +233,7 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
 - **Ingrédient** : id, nom, rayon, unité, quantité en stock, essentiel (oui/non), minimum à
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (`parCuillereACafe`,
   éditable dans le panneau Stock pour les unités g/ml — voir "Cuillères dans les recettes" plus
-  bas), conditionnement (`conditionnement`, taille du paquet vendu en magasin, dans l'unité de
-  stock, ou null — voir "Conditionnement" plus bas).
+  bas).
 - **Plat** : id, nom, repas (id, un seul), étapes, portions de référence, favori (oui/non),
   étiquettes (liste d'ids, plusieurs à la fois), matériel (liste d'ids, plusieurs à la fois — voir
   "Matériel requis et temps de préparation/cuisson"), tempsPreparation, tempsCuisson (minutes),
@@ -250,26 +249,26 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   indépendante du modèle/historique (`etat.repasPrets`).
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 11 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11
+du format (actuellement 12 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12
 dans `storage.js` → `migrer`).
 
-### Conditionnement (taille du paquet, liste de courses)
+### Quantités exactes dans les courses (le conditionnement a été abandonné)
 
-**Décision clé (auto-analyse ergonomique validée par Qassim, "améliore tout")** : la liste de
-courses proposait des quantités impossibles à acheter ("5 g de beurre", "0,5 g de cannelle").
-Chaque ingrédient peut désormais porter un `conditionnement` (ex. beurre : 250 g) : "À acheter"
-est alors arrondi au nombre de **paquets entiers** au-dessus (`calculerAAcheter` dans
-`calculs.js`) (la ligne de courses affiche directement 250 g). Cocher "Acheté" ajoute donc
-un vrai paquet au stock — plus réaliste. Sans conditionnement (null, ou 0), quantité exacte comme
-avant : c'est le cas volontaire de ce qui se vend au poids (fruits et légumes frais, boucherie,
-poissonnerie à la coupe). Sur la liste de courses elle-même, rien ne l'indique (juste le nom et la
-quantité à acheter) : le "vendu par" n'est visible que dans le panneau de l'ingrédient. Tailles génériques par défaut dans `conditionnementsParDefaut`
-(`data.js`), modifiables par ingrédient dans le panneau Stock ("Vendu par").
+**Historique de la décision** : lors de la passe ergonomie, la liste de courses proposait des
+quantités jugées "impossibles à acheter" ("10 g de sucre", "0,5 g de cannelle") ; une première
+version a ajouté à chaque ingrédient un `conditionnement` (taille du paquet, ex. sucre : 1000 g)
+et arrondissait au paquet entier. Qassim l'a testé sur un cas concret (compote de pommes : 1000 g
+de sucre et 40 g de cannelle proposés pour 10 g et 0,5 g) et préféré l'inverse : *"mets juste ce
+dont j'ai besoin ; au magasin je regarde le poids, et je renseigne ce que j'achète vraiment"*.
 
-**Exception assumée à "les migrations ne touchent jamais le contenu"** : la migration v10 → v11
-**remplit** le nouveau champ avec la taille par défaut de `data.js` pour les ingrédients de base
-reconnus (même id), sinon null — c'est un champ qui n'existait pas, aucune valeur déjà saisie par
-Qassim n'est modifiée. Sans ça, le changement serait resté invisible sur son téléphone.
+**Décision** : "À acheter" reste **exact** pour les g/ml (`calculerAAcheter` dans `calculs.js`) ;
+seules les unités qui se comptent (pièce, cube, boîte, gousse...) sont arrondies au supérieur (2
+pommes, jamais 1,5). En magasin, Qassim ajuste la quantité avec −/+ ou au clavier (ex. 500 g de
+sucre trouvés en rayon) avant de cocher "Acheté" : c'est cette quantité réelle qui entre dans le
+stock. Meilleur ainsi : les tailles de paquet étaient des suppositions génériques, lui voit le
+vrai rayon, et un stock juste (490 g de sucre restants) évite ensuite de racheter pour rien les
+semaines suivantes. Le champ `conditionnement` a été retiré (migration v11 → v12 ; la
+v10 → v11, qui le remplissait, est devenue un simple passage de version).
 
 **Formatage des quantités** (`formaterQuantite` dans `calculs.js`) : partout où une quantité est
 écrite en toutes lettres (alerte "Il manque", recette), virgule décimale et pluriel des
@@ -330,8 +329,8 @@ impossible à calculer.
   pas déjà mangés, de *portions × quantité par portion* (convertie en unité de base).
 - **À acheter** = maximum(0, besoin + minimum essentiel + extra − stock actuel). Arrondi au
   supérieur pour toutes les unités qui se comptent (pièce, cube, boîte, gousse... — tout sauf
-  g/ml : jamais "0,3 cube"), puis au paquet entier si l'ingrédient a un conditionnement
-  (voir "Conditionnement"), inchangé sinon pour les grammes/ml.
+  g/ml : jamais "0,3 cube"), exact pour les grammes/ml (voir "Quantités exactes dans les
+  courses").
 - Cocher **🍽️ Mangé** sur une case : déduit immédiatement le stock des ingrédients du plat
   (portions × quantité par portion). Décocher : restitue (correction d'erreur uniquement). Même
   logique immédiate à la création d'un **repas prêt** lié à un plat (voir "Repas prêts").
@@ -580,7 +579,7 @@ toutes lettres juste sous les pastilles ("Affiché : Petit-déjeuner · Sain").
 
 **Décision** : Qassim a demandé une auto-analyse ergonomique écran par écran (captures au format
 téléphone), puis "améliore tout". Ce qui a changé, en plus des points détaillés ailleurs
-(Conditionnement, Rayons éditables, badge Filtres) :
+(Rayons éditables, badge Filtres) :
 - **Petites pastilles** (`.puces`/`.puce` dans `style.css`) au lieu de boutons pleine largeur
   pour tous les choix dans une liste (repas, étiquettes, matériel, rayons, unités, filtres) :
   3-4 par ligne au lieu d'une seule. C'était le retour de Qassim sur l'éditeur de plat ("trop gros,
