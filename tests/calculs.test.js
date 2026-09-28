@@ -7,6 +7,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  changerTempsMax,
+  tempsTotalPlat,
+  platDansTempsMax,
   creneauxAffiches,
   basculerCreneauAffiche,
   etatDuJour,
@@ -1048,6 +1051,28 @@ test("ingredientsManquantsPourPlat : n'annonce jamais plus que ce que le plat de
   const projete = etatAvecStockProjete(etat, "2026-09-24", "snack", { dateReference: LUNDI });
   const manquants = ingredientsManquantsPourPlat(projete, "plat-test", 1);
   assert.equal(manquants.find((m) => m.nom === "Riz").manque, 100);
+});
+
+// --- Filtre temps max ---
+
+test("changerTempsMax : démarre à 30 min, avance par paliers, s'éteint après 120", () => {
+  assert.equal(changerTempsMax(null, +1), 30);
+  assert.equal(changerTempsMax(null, -1), 30);
+  assert.equal(changerTempsMax(30, -1), 20);
+  assert.equal(changerTempsMax(20, -1), 15);
+  assert.equal(changerTempsMax(10, -1), 10, "ne descend jamais sous le premier palier");
+  assert.equal(changerTempsMax(30, +1), 45);
+  assert.equal(changerTempsMax(90, +1), 120);
+  assert.equal(changerTempsMax(120, +1), null, "au-delà de 120 : plus de limite");
+});
+
+test("platDansTempsMax : préparation + cuisson ≤ limite ; sans limite, tout passe", () => {
+  const plat = { tempsPreparation: 10, tempsCuisson: 15 };
+  assert.equal(tempsTotalPlat(plat), 25);
+  assert.equal(platDansTempsMax(plat, 30), true);
+  assert.equal(platDansTempsMax(plat, 25), true, "pile la limite : gardé");
+  assert.equal(platDansTempsMax(plat, 20), false);
+  assert.equal(platDansTempsMax(plat, null), true);
 });
 
 // --- Repas affichés et état du jour ---

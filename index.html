@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Ma Semaine">
   <link rel="icon" href="icons/icone-192.png">
   <link rel="apple-touch-icon" href="icons/icone-apple-touch.png">
-  <link rel="stylesheet" href="style.css?v=20260928m">
+  <link rel="stylesheet" href="style.css?v=20260928n">
 </head>
 <body>
   <header class="app-header">
@@ -55,10 +55,11 @@
         <input type="search" id="recherche-plats" class="champ-texte" placeholder="🔍 Chercher un plat...">
         <button id="ajouter-plat" class="bouton-principal">+ Nouveau</button>
       </div>
-      <div class="puces" style="margin-bottom:12px;">
+      <div class="filtres-rapides" style="margin-bottom:12px;">
         <button class="puce" id="filtre-favoris-rapide" type="button">⭐ Favoris</button>
         <button class="puce" id="filtre-realisable-rapide" type="button">🧺 Réalisable</button>
-        <button class="puce" id="ouvrir-filtres-plats" type="button">➕ Filtres<span id="filtres-plats-compte"></span></button>
+        <div class="puce-temps" id="filtre-temps-plats"></div>
+        <button class="puce puce-plus" id="ouvrir-filtres-plats" type="button" aria-label="Plus de filtres">➕<span id="filtres-plats-compte"></span></button>
       </div>
       <div id="grille-plats" class="liste-resultats"></div>
     </section>
@@ -106,14 +107,14 @@
   <script type="importmap">
     {
       "imports": {
-        "./calculs.js": "./calculs.js?v=20260928m",
-        "./storage.js": "./storage.js?v=20260928m",
-        "./data.js": "./data.js?v=20260928m",
-        "./constantes.js": "./constantes.js?v=20260928m"
+        "./calculs.js": "./calculs.js?v=20260928n",
+        "./storage.js": "./storage.js?v=20260928n",
+        "./data.js": "./data.js?v=20260928n",
+        "./constantes.js": "./constantes.js?v=20260928n"
       }
     }
   </script>
-  <script type="module" src="app.js?v=20260928m"></script>
+  <script type="module" src="app.js?v=20260928n"></script>
   <!-- Filet de sécurité : si l'app n'a pas démarré au bout de quelques
        secondes (fichier manquant, ancienne version en cache...), on le dit
        avec un bouton pour recharger, au lieu d'un écran figé sans rien de

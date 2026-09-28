@@ -41,6 +41,8 @@ import {
   creneauxAffiches,
   basculerCreneauAffiche,
   etatDuJour,
+  changerTempsMax,
+  platDansTempsMax,
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
@@ -724,6 +726,7 @@ function ouvrirPanneau(dateISO, creneau) {
   let filtreRepasPanneau = infos.repasId;
   let filtreFavorisPanneau = false;
   let filtreRealisablePanneau = false;
+  let tempsMaxPanneau = null;
   const etiquettesSelectionneesPanneau = new Set();
   let recherchePlatsPanneau = "";
 
@@ -738,6 +741,7 @@ function ouvrirPanneau(dateISO, creneau) {
       const etatProjete = etatAvecStockProjete(etat, dateISO, creneau);
       liste = liste.filter((p) => platEstRealisableAvecStock(etatProjete, p.id));
     }
+    liste = liste.filter((p) => platDansTempsMax(p, tempsMaxPanneau));
     if (etiquettesSelectionneesPanneau.size > 0) {
       liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
     }
@@ -939,10 +943,11 @@ function ouvrirPanneau(dateISO, creneau) {
 
       <div class="panneau-section-titre">Ajouter un plat</div>
       <input type="search" id="recherche-plats-panneau" class="champ-texte" style="margin-bottom:8px;" placeholder="🔍 Chercher un plat..." value="${recherchePlatsPanneau}">
-      <div class="puces" style="margin-bottom:8px;">
+      <div class="filtres-rapides" style="margin-bottom:8px;">
         <button class="puce" id="panneau-filtre-favoris-rapide" type="button">⭐ Favoris</button>
         <button class="puce" id="panneau-filtre-realisable-rapide" type="button">🧺 Réalisable</button>
-        <button class="puce" id="ouvrir-filtres-panneau" type="button">➕ Filtres<span id="filtres-panneau-compte"></span></button>
+        <div class="puce-temps" id="panneau-filtre-temps"></div>
+        <button class="puce puce-plus" id="ouvrir-filtres-panneau" type="button" aria-label="Plus de filtres">➕<span id="filtres-panneau-compte"></span></button>
       </div>
       <p class="panneau-note" id="filtres-panneau-resume" style="margin:0 0 8px;"></p>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
@@ -982,7 +987,12 @@ function ouvrirPanneau(dateISO, creneau) {
     // touché, trompeur) : seul ce que Qassim a changé lui-même compte. Ce qui
     // filtre la liste reste écrit en toutes lettres juste en dessous.
     const nbFiltresActifs = (filtreRepasPanneau !== infos.repasId ? 1 : 0) + etiquettesSelectionneesPanneau.size;
-    panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
+    panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` ${nbFiltresActifs}` : "";
+    panneauPlatEl.querySelector("#ouvrir-filtres-panneau").classList.toggle("selectionne", nbFiltresActifs > 0);
+    rendreFiltreTemps(panneauPlatEl.querySelector("#panneau-filtre-temps"), tempsMaxPanneau, (valeur) => {
+      tempsMaxPanneau = valeur;
+      rendrePanneau();
+    });
     const nomRepasFiltre = filtreRepasPanneau === "tous"
       ? "tous les repas"
       : etat.repas.find((r) => r.id === filtreRepasPanneau)?.nom ?? filtreRepasPanneau;
@@ -990,7 +1000,7 @@ function ouvrirPanneau(dateISO, creneau) {
       .map((id) => etat.etiquettes.find((e) => e.id === id)?.nom)
       .filter(Boolean);
     panneauPlatEl.querySelector("#filtres-panneau-resume").textContent =
-      `Affiché : ${nomRepasFiltre}${nomsEtiquettesFiltre.length > 0 ? ` · ${nomsEtiquettesFiltre.join(" + ")}` : ""}`;
+      `Affiché : ${nomRepasFiltre}${tempsMaxPanneau !== null ? ` · ${tempsMaxPanneau} min max` : ""}${nomsEtiquettesFiltre.length > 0 ? ` · ${nomsEtiquettesFiltre.join(" + ")}` : ""}`;
     panneauPlatEl.querySelector("#ouvrir-filtres-panneau").addEventListener("click", () => {
       ouvrirPanneauFiltresCreneau();
     });
@@ -2024,6 +2034,8 @@ const etiquettesSelectionnees = new Set();
 const materielSelectionnes = new Set();
 
 let recherchePlats = "";
+// Filtre "⏱️ temps max" (préparation + cuisson, en minutes) ; null = aucun.
+let tempsMaxPlats = null;
 
 const recherchePlatsEl = document.getElementById("recherche-plats");
 const ouvrirFiltresPlatsEl = document.getElementById("ouvrir-filtres-plats");
@@ -2142,6 +2154,7 @@ function platsFiltres() {
 
   if (filtreFavorisActif) liste = liste.filter((p) => p.favori);
   if (filtreRealisableActif) liste = liste.filter((p) => platEstRealisableAvecStock(etat, p.id));
+  liste = liste.filter((p) => platDansTempsMax(p, tempsMaxPlats));
 
   if (etiquettesSelectionnees.size > 0) {
     liste = liste.filter((p) => [...etiquettesSelectionnees].every((id) => p.etiquettes.includes(id)));
@@ -2223,9 +2236,36 @@ function rendreEcranPlats() {
     (filtreRepas !== "tous" ? 1 : 0) +
     etiquettesSelectionnees.size +
     materielSelectionnes.size;
-  filtresPlatsCompteEl.textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
+  filtresPlatsCompteEl.textContent = nbFiltresActifs > 0 ? ` ${nbFiltresActifs}` : "";
+  ouvrirFiltresPlatsEl.classList.toggle("selectionne", nbFiltresActifs > 0);
+
+  rendreFiltreTemps(document.getElementById("filtre-temps-plats"), tempsMaxPlats, (valeur) => {
+    tempsMaxPlats = valeur;
+    rendreEcranPlats();
+  });
 
   rendreGrillePlats();
+}
+
+// Pastille "⏱️ temps max" avec −/+ (écran Plats & repas et panneau créneau) :
+// garde les plats dont préparation + cuisson ≤ la limite — remplace
+// l'ancienne étiquette "Rapide à préparer" (demandé par Qassim). Éteinte par
+// défaut ("⏱️ Temps") ; −/+ l'allument à 30 min puis changent de palier (voir
+// changerTempsMax) ; toucher la valeur l'éteint.
+function rendreFiltreTemps(conteneurEl, tempsMax, surChangement) {
+  const actif = tempsMax !== null;
+  conteneurEl.classList.toggle("selectionne", actif);
+  conteneurEl.innerHTML = `
+    <button type="button" class="puce-temps-bouton" data-sens="-1" aria-label="Moins de temps">−</button>
+    <button type="button" class="puce-temps-valeur" aria-label="${actif ? `Temps max ${tempsMax} minutes, toucher pour retirer` : "Filtrer par temps"}">⏱️ ${actif ? `${tempsMax}&nbsp;min` : "Temps"}</button>
+    <button type="button" class="puce-temps-bouton" data-sens="1" aria-label="Plus de temps">+</button>
+  `;
+  conteneurEl.querySelectorAll(".puce-temps-bouton").forEach((bouton) => {
+    bouton.addEventListener("click", () => surChangement(changerTempsMax(tempsMax, Number(bouton.dataset.sens))));
+  });
+  conteneurEl.querySelector(".puce-temps-valeur").addEventListener("click", () => {
+    surChangement(actif ? null : changerTempsMax(null, 1));
+  });
 }
 
 // Construit une liste d'options à choisir (repas à choix unique, ou

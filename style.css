@@ -1122,3 +1122,58 @@ textarea.champ-texte {
   overflow-wrap: anywhere;
   line-height: 1.25;
 }
+
+/* Rangée de filtres rapides (Plats & repas, panneau créneau) : ⭐ · 🧺 ·
+   [− ⏱️ temps +] · ➕ sur UNE seule ligne — demandé par Qassim, pour gagner
+   de la place. Pastilles un peu plus compactes que les autres. */
+.filtres-rapides {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.filtres-rapides .puce {
+  padding: 7px 9px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.puce-plus {
+  margin-left: auto;
+}
+
+.puce-temps {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 999px;
+  background: var(--couleur-carte);
+  flex-shrink: 0;
+}
+
+.puce-temps.selectionne {
+  border-color: var(--couleur-accent);
+  background: var(--couleur-accent);
+}
+
+.puce-temps-bouton,
+.puce-temps-valeur {
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: var(--couleur-texte);
+  font-size: 0.8rem;
+  padding: 7px 5px;
+  white-space: nowrap;
+}
+
+.puce-temps-bouton {
+  font-weight: 700;
+  padding: 7px 8px;
+}
+
+.puce-temps.selectionne .puce-temps-bouton,
+.puce-temps.selectionne .puce-temps-valeur {
+  color: var(--couleur-accent-texte);
+}

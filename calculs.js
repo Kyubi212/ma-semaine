@@ -815,6 +815,36 @@ export function ingredientsManquantsPourPlat(etat, platId, portions) {
   return manquants;
 }
 
+// --- Filtre "⏱️ temps max" (préparation + cuisson) ---
+//
+// Remplace l'étiquette "Rapide à préparer" (demandé par Qassim : "entre midi
+// et deux j'ai 20 minutes"). null = pas de limite. Les −/+ passent par des
+// paliers ronds plutôt que minute par minute ; depuis "pas de limite", un
+// premier appui démarre à 30 min ; au-delà du dernier palier, retour à "pas
+// de limite".
+export const PALIERS_TEMPS_MAX = [10, 15, 20, 30, 45, 60, 90, 120];
+const TEMPS_MAX_DEPART = 30;
+
+export function changerTempsMax(actuel, sens) {
+  if (actuel === null || actuel === undefined) return TEMPS_MAX_DEPART;
+  if (sens > 0) {
+    const suivant = PALIERS_TEMPS_MAX.find((p) => p > actuel);
+    return suivant ?? null;
+  }
+  const precedents = PALIERS_TEMPS_MAX.filter((p) => p < actuel);
+  return precedents.length > 0 ? precedents[precedents.length - 1] : PALIERS_TEMPS_MAX[0];
+}
+
+// Temps total d'un plat (préparation + cuisson), en minutes.
+export function tempsTotalPlat(plat) {
+  return clampPositif(plat.tempsPreparation) + clampPositif(plat.tempsCuisson);
+}
+
+export function platDansTempsMax(plat, tempsMax) {
+  if (tempsMax === null || tempsMax === undefined) return true;
+  return tempsTotalPlat(plat) <= tempsMax;
+}
+
 // --- Repas affichés (créneaux choisis par Qassim) et état d'un jour ---
 //
 // Qassim peut masquer les créneaux qu'il n'utilise pas (ex. ne garder que

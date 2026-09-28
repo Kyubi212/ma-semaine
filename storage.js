@@ -22,13 +22,13 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 13;
+const VERSION_FORMAT = 14;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
 const ETIQUETTES_PAR_DEFAUT = [
   "Sucré", "Salé", "Sain", "Sans porc", "Végétarien", "Végétalien", "Sans gluten", "Sans lactose",
-  "Gâteau", "Rapide à préparer", "Économique",
+  "Gâteau", "Économique",
 ];
 
 function etiquettesParDefaut() {
@@ -364,6 +364,20 @@ function migrer(etat) {
     // v12 → v13 : créneaux affichés sur l'écran Semaine (Qassim peut masquer
     // ceux qu'il n'utilise pas). Par défaut les 5, comme avant.
     etat = { ...etat, creneauxAffiches: etat.creneauxAffiches ?? [...CRENEAUX], version: 13 };
+  }
+
+  if (etat.version === 13) {
+    // v13 → v14 : l'étiquette "Rapide à préparer" disparaît, remplacée par le
+    // filtre "⏱️ temps max" (préparation + cuisson) — demandé par Qassim.
+    // Retirée de la liste ET des plats qui la portaient (par son id fixe) ;
+    // rien d'autre n'est touché.
+    const ID = "rapide-a-preparer";
+    const etiquettes = (etat.etiquettes ?? []).filter((e) => e.id !== ID);
+    const plats = etat.plats.map((plat) => ({
+      ...plat,
+      etiquettes: (plat.etiquettes ?? []).filter((id) => id !== ID),
+    }));
+    etat = { ...etat, etiquettes, plats, version: 14 };
   }
 
   return etat;

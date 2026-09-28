@@ -50,7 +50,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un repère sous chaque jour, voir "Repère du jour et repas affichés" ci-dessous), jusqu'à 5 créneaux/jour, **au choix de Qassim** ("⚙️ Repas affichés : 3 sur 5" sous la journée). Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités **exactes** pour les g/ml (10 g de sucre, pas un paquet — voir "Quantités exactes dans les courses" ci-dessous), arrondies à l'unité supérieure pour ce qui se compte (2 pommes, pas 1,5). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2, ou 500 g de sucre trouvés en rayon au lieu des 10 g demandés ; pas de 1 pièce/50 g-ml, ou saisie directe), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
-| **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis ⭐ Favoris, 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) et **"➕ Filtres"** (compteur si actifs) en petites pastilles sur une seule ligne, ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis **une seule ligne de filtres rapides** : ⭐ Favoris · 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) · **[− ⏱️ 30 min +]** (temps max, voir "Filtre temps" ci-dessous) · **➕** (compteur si actifs), ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
@@ -289,7 +289,7 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   voir "Repère du jour et repas affichés".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 13 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12 → v13
+du format (actuellement 14 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12 → v13 → v14
 dans `storage.js` → `migrer`).
 
 ### Quantités exactes dans les courses (le conditionnement a été abandonné)
@@ -543,8 +543,8 @@ manquante sans interrompre la saisie d'une recette, avec retour automatique à l
 ## Étiquettes éditables (écran Plats & repas)
 
 Même principe que les rayons éditables ci-dessus, appliqué aux plats : les étiquettes (Sucré,
-Salé, Sain, Sans porc, Végétarien, Végétalien, Sans gluten, Sans lactose, Gâteau, Rapide à
-préparer, Économique au départ) sont des objets
+Salé, Sain, Sans porc, Végétarien, Végétalien, Sans gluten, Sans lactose, Gâteau, Économique au
+départ — "Rapide à préparer" a été retirée, remplacée par le filtre temps, voir ci-dessous) sont des objets
 `{ id, nom }` stockés dans l'état (`etat.etiquettes`), pas figées dans le code. **Un plat peut
 porter plusieurs étiquettes à la fois** (contrairement au rayon d'un ingrédient, qui est unique) —
 `plat.etiquettes` est une liste d'ids, pas un id seul.
@@ -636,6 +636,25 @@ téléphone), puis "améliore tout". Ce qui a changé, en plus des points détai
 - **Noms d'articles jamais coupés** (`.article-nom`) : affichés en entier, sur 2 lignes si
   besoin, au lieu d'un "…" — depuis l'ajout du −/+ sur Courses et Stock, il ne restait plus assez
   de place (ex. "Poulet (morceaux : filet/cuisse/pilon)"). Retour de Qassim.
+
+## Filtre temps "⏱️ max" (écran Plats & repas et panneau créneau)
+
+**Décision (demandée par Qassim)** : remplacer l'étiquette "Rapide à préparer" par un vrai réglage
+de temps — *"entre midi et deux j'ai pas beaucoup de temps : je mets 20 minutes maximum et j'ai
+tous mes repas qui se préparent en 20 minutes"*. Une pastille **[− ⏱️ 20 min +]** dans la ligne
+de filtres rapides, entre 🧺 Réalisable et ➕ (`rendreFiltreTemps` dans `app.js`), garde les
+plats dont **préparation + cuisson** ≤ la limite (`platDansTempsMax`/`tempsTotalPlat` dans
+`calculs.js`). Éteinte par défaut ("⏱️ Temps") ; −/+ l'allument à 30 min puis passent par des
+paliers ronds 10 · 15 · 20 · 30 · 45 · 60 · 90 · 120 (`changerTempsMax`) ; au-delà de 120 ou en
+touchant la valeur, plus de limite. État propre à chaque écran (comme les autres filtres), pas
+enregistré. Dans le panneau créneau, le résumé l'indique ("Affiché : Déjeuner/Dîner · 20 min
+max"). **Place** : les 4 filtres tiennent sur une seule ligne (`.filtres-rapides`, pastilles plus
+compactes, "➕" sans texte avec compteur) — le bouton "➕ Filtres" est devenu "➕" seul.
+
+**Étiquette retirée** de `data.js` (liste par défaut et plats) et du téléphone de Qassim par la
+migration v13 → v14 (retirée de `etat.etiquettes` et de chaque plat, par son id fixe
+`rapide-a-preparer` — rien d'autre n'est touché ; exception assumée à "les migrations ne touchent
+que la structure", demandée explicitement).
 
 ## Suggestions selon le stock (écran Plats & repas)
 

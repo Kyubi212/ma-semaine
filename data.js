@@ -1973,8 +1973,9 @@ export const ingredients = [
 // etiquettes : ids dérivés des noms par défaut (voir storage.js → genererSlug) —
 //   Sucré → "sucre", Salé → "sale", Sain → "sain", Sans porc → "sans-porc",
 //   Végétarien → "vegetarien", Végétalien → "vegetalien", Sans gluten →
-//   "sans-gluten", Sans lactose → "sans-lactose", Gâteau → "gateau", Rapide à
-//   préparer → "rapide-a-preparer", Économique → "economique".
+//   "sans-gluten", Sans lactose → "sans-lactose", Gâteau → "gateau", Économique →
+//   "economique". ("Rapide à préparer" a été retirée : le filtre "⏱️ temps
+//   max" la remplace, voir CLAUDE.md § Filtre temps.)
 //
 // 30 plats parmi les plus courants en France et dans le monde (décision
 // Qassim : rendre l'app "grand public" — voir CLAUDE.md § Catalogue de plats
@@ -1989,7 +1990,7 @@ export const plats = [
     tempsCuisson: 2,
     portionsReference: 1,
     etapes: "1. Fais griller 2 tranches de pain de mie au grille-pain.\n2. Beurre encore chaud, puis étale la confiture.",
-    etiquettes: ["sucre", "rapide-a-preparer", "economique"],
+    etiquettes: ["sucre", "economique"],
     ingredients: [
       { ingredientId: "pain-de-mie", quantitePortion: 2, unite: "pièce" },
       { ingredientId: "beurre", quantitePortion: 1, unite: "c. à soupe" },
@@ -2005,7 +2006,7 @@ export const plats = [
     tempsCuisson: 5,
     portionsReference: 1,
     etapes: "1. Fais chauffer le lait et les flocons d'avoine à feu doux 5 min, en remuant.\n2. Verse dans un bol, ajoute le miel et la banane coupée en rondelles.",
-    etiquettes: ["sain", "vegetarien", "economique", "rapide-a-preparer"],
+    etiquettes: ["sain", "vegetarien", "economique"],
     ingredients: [
       { ingredientId: "flocons-d-avoine", quantitePortion: 50, unite: "g" },
       { ingredientId: "lait", quantitePortion: 200, unite: "ml" },
@@ -2041,7 +2042,7 @@ export const plats = [
     tempsCuisson: 0,
     portionsReference: 1,
     etapes: "1. Étale le beurre de cacahuète sur le pain.\n2. Ajoute la banane coupée en rondelles, un filet de miel par-dessus.",
-    etiquettes: ["sucre", "vegetarien", "rapide-a-preparer"],
+    etiquettes: ["sucre", "vegetarien"],
     ingredients: [
       { ingredientId: "pain-complet-au-levain", quantitePortion: 2, unite: "tranche" },
       { ingredientId: "beurre-de-cacahuete-100-arachide", quantitePortion: 30, unite: "g" },
@@ -2074,7 +2075,7 @@ export const plats = [
     tempsCuisson: 0,
     portionsReference: 2,
     etapes: "1. Mixe la banane, les fruits rouges, le lait et le miel jusqu'à texture lisse.\n2. Sers immédiatement, bien frais.",
-    etiquettes: ["sain", "rapide-a-preparer"],
+    etiquettes: ["sain"],
     ingredients: [
       { ingredientId: "banane", quantitePortion: 1, unite: "pièce" },
       { ingredientId: "fruits-rouges", quantitePortion: 80, unite: "g" },
@@ -2091,7 +2092,7 @@ export const plats = [
     tempsCuisson: 5,
     portionsReference: 2,
     etapes: "1. Porte l'eau à ébullition dans la casserole.\n2. Verse sur le thé et la menthe fraîche dans la théière, laisse infuser 4–5 min.\n3. Sucre selon le goût, sers chaud.",
-    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique", "rapide-a-preparer"],
+    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique"],
     ingredients: [
       { ingredientId: "the", quantitePortion: 2, unite: "g" },
       { ingredientId: "menthe-fraiche", quantitePortion: 0.5, unite: "bouquet" },
@@ -2107,7 +2108,7 @@ export const plats = [
     tempsCuisson: 0,
     portionsReference: 2,
     etapes: "1. Coupe les tomates et la mozzarella en tranches, alterne-les dans l'assiette.\n2. Parsème de feuilles de basilic.\n3. Arrose d'huile d'olive, sel et poivre.",
-    etiquettes: ["vegetarien", "sain", "sans-gluten", "rapide-a-preparer"],
+    etiquettes: ["vegetarien", "sain", "sans-gluten"],
     ingredients: [
       { ingredientId: "tomates", quantitePortion: 2, unite: "pièce" },
       { ingredientId: "mozzarella", quantitePortion: 125, unite: "g" },
@@ -2165,7 +2166,7 @@ export const plats = [
     tempsCuisson: 18,
     portionsReference: 4,
     etapes: "1. Fais revenir l'oignon émincé dans l'huile d'olive 2 min.\n2. Ajoute le riz, remue 1 min, puis le bouillon de légumes dilué.\n3. Cuis selon le programme du cuiseur à riz (ou 18 min à couvert à la casserole).",
-    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique", "rapide-a-preparer"],
+    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique"],
     ingredients: [
       { ingredientId: "riz", quantitePortion: 75, unite: "g" },
       { ingredientId: "oignon", quantitePortion: 0.125, unite: "pièce" },
@@ -2363,7 +2364,7 @@ export const plats = [
     tempsCuisson: 15,
     portionsReference: 2,
     etapes: "1. Cuis les pâtes al dente dans l'eau bouillante salée.\n2. Fais dorer le bacon de bœuf à la poêle.\n3. Bats les œufs avec le parmesan et le poivre hors du feu.\n4. Égoutte les pâtes, mélange avec le bacon puis avec les œufs battus hors du feu (la chaleur des pâtes suffit à cuire l'œuf).",
-    etiquettes: ["sale", "rapide-a-preparer", "sans-porc"],
+    etiquettes: ["sale", "sans-porc"],
     ingredients: [
       { ingredientId: "pates-spaghetti", quantitePortion: 100, unite: "g" },
       { ingredientId: "bacon-de-boeuf", quantitePortion: 75, unite: "g" },
@@ -2404,7 +2405,7 @@ export const plats = [
     tempsCuisson: 10,
     portionsReference: 2,
     etapes: "1. Fais revenir le bacon de dinde en dés et les petits pois dans l'huile d'olive.\n2. Pousse sur le côté, casse les œufs dans la poêle, brouille-les rapidement.\n3. Ajoute le riz cuit (froid de préférence), la sauce soja, mélange 3–4 min à feu vif.",
-    etiquettes: ["sale", "economique", "rapide-a-preparer"],
+    etiquettes: ["sale", "economique"],
     ingredients: [
       { ingredientId: "riz", quantitePortion: 150, unite: "g" },
       { ingredientId: "oeufs", quantitePortion: 1, unite: "pièce" },
@@ -2521,7 +2522,7 @@ export const plats = [
     tempsCuisson: 0,
     portionsReference: 4,
     etapes: "1. Coupe la pomme, l'orange et la banane en morceaux.\n2. Ajoute le raisin, arrose de jus de citron pour éviter que les fruits ne noircissent.\n3. Ajoute un filet de miel, mélange, frigo au moins 30 min avant de servir.",
-    etiquettes: ["sucre", "sain", "vegetalien", "sans-gluten", "sans-lactose", "economique", "rapide-a-preparer"],
+    etiquettes: ["sucre", "sain", "vegetalien", "sans-gluten", "sans-lactose", "economique"],
     ingredients: [
       { ingredientId: "pomme", quantitePortion: 0.5, unite: "pièce" },
       { ingredientId: "orange", quantitePortion: 0.5, unite: "pièce" },
@@ -2540,7 +2541,7 @@ export const plats = [
     tempsCuisson: 0,
     portionsReference: 4,
     etapes: "1. Mélange la moutarde, le vinaigre, le sel et le poivre dans un bol.\n2. Ajoute l'huile d'olive petit à petit en fouettant pour émulsionner.\n3. Se conserve 1 semaine au frigo dans un bocal fermé.",
-    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique", "rapide-a-preparer"],
+    etiquettes: ["vegetalien", "sans-gluten", "sans-lactose", "economique"],
     ingredients: [
       { ingredientId: "huile-d-olive", quantitePortion: 1, unite: "c. à soupe" },
       { ingredientId: "vinaigre", quantitePortion: 0.5, unite: "c. à soupe" },
