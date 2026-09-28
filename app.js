@@ -1194,19 +1194,32 @@ function rendreEcranStock() {
 
     for (const ingredient of ingredients) {
       const infosEtat = ETAT_STOCK_INFOS[etatStock(ingredient)];
-      const ligne = document.createElement("button");
+      const pas = pasStock(ingredient.unite);
+      const ligne = document.createElement("div");
       ligne.className = "article-course";
       ligne.innerHTML = `
         <span aria-hidden="true">${infosEtat.icone}</span>
-        <div class="article-info">
+        <button type="button" class="article-info article-info-bouton">
           <span class="article-nom">${ingredient.nom}</span>
           <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
-        </div>
-        <div class="article-quantite">
-          <span class="article-unite">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+        </button>
+        <div class="stepper stepper-compact">
+          <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
+          <span class="stepper-valeur">${formaterNombre(ingredient.enStock)} ${ingredient.unite}</span>
+          <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
         </div>
       `;
-      ligne.addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id));
+      ligne.querySelector(".article-info-bouton").addEventListener("click", () => ouvrirPanneauIngredient(ingredient.id));
+      ligne.querySelector('[data-action="moins"]').addEventListener("click", () => {
+        modifierIngredient(etat, ingredient.id, { enStock: Math.max(0, ingredient.enStock - pas) });
+        sauvegarder();
+        rendreEcranStock();
+      });
+      ligne.querySelector('[data-action="plus"]').addEventListener("click", () => {
+        modifierIngredient(etat, ingredient.id, { enStock: ingredient.enStock + pas });
+        sauvegarder();
+        rendreEcranStock();
+      });
       articlesEl.appendChild(ligne);
     }
 
