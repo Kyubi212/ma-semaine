@@ -45,7 +45,7 @@ function etiquettesParDefaut() {
 // ajouter). Un plat peut demander plusieurs matériels à la fois.
 const MATERIEL_PAR_DEFAUT = [
   "Poêle", "Casserole", "Four", "Air fryer", "Micro-ondes", "Mixeur", "Cuiseur à riz",
-  "Cuiseur vapeur", "Grille-pain", "Bol", "Balance de cuisine",
+  "Cuiseur vapeur", "Grille-pain", "Saladier", "Balance de cuisine",
 ];
 
 function materielParDefaut() {

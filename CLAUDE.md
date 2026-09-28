@@ -678,7 +678,7 @@ répond à "qu'est-ce que je peux cuisiner maintenant ?", donc avec le stock **a
 recette")** : il manquait le matériel nécessaire (poêle, air fryer...) pour reproduire une
 recette. Même principe que les étiquettes éditables ci-dessus, appliqué au matériel : objets
 `{ id, nom }` stockés dans l'état (`etat.materiel`, liste de départ éditable — Poêle, Casserole,
-Four, Air fryer, Micro-ondes, Mixeur, Cuiseur à riz, Cuiseur vapeur, Grille-pain, Bol, Balance de
+Four, Air fryer, Micro-ondes, Mixeur, Cuiseur à riz, Cuiseur vapeur, Grille-pain, Saladier, Balance de
 cuisine), pas figés dans le code. **Un plat peut demander
 plusieurs matériels à la fois** — `plat.materiel` est une liste d'ids. Même logique de filtre ET
 que les étiquettes (voir "Panneau Filtres" ci-dessus), même protection à la suppression (refusée
