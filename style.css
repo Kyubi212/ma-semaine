@@ -1454,3 +1454,8 @@ textarea.champ-texte {
 #ecran-plats.en-selection {
   padding-bottom: calc(var(--hauteur-tabbar) + 90px);
 }
+
+/* Lignes du Stock/Catalogue glissables : même espacement qu'avant. */
+.rayon-articles > .glissable {
+  flex-shrink: 0;
+}

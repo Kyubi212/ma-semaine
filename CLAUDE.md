@@ -707,6 +707,25 @@ ouvert à la fois ; toucher la carte ouverte la referme ; un glissement vertical
 normal (`touch-action: pan-y`) ; un vrai glissement n'est jamais pris pour un toucher (sinon il
 ouvrirait la fiche) ; ⭐ reste cliquable sur la carte. Les mêmes actions sont aussi sur la fiche
 recette (📅, ✏️, 🗑️) pour qui ne pense pas à glisser.
+
+**Même geste sur les ingrédients** (demandé par Qassim) : lignes de l'écran **Stock** et du
+**Catalogue ouvert depuis Stock** → **✏️ Modifier · 🗑️ Supprimer** (`actionsGlisseesIngredient`,
+pas de "Planifier" : un ingrédient ne se planifie pas). Suppression via la même confirmation que
+la sélection multiple, formulée au singulier ("Supprimer « Riz » ?", "« Riz » est gardé — utilisé
+par…").
+
+**Règles du toucher** (écouteur "click" de la carte en phase de capture, donc avant les boutons
+qu'elle contient) : juste après un glissement, ou quand la carte est ouverte, un toucher ne fait
+que la refermer — jamais ⭐, −/+ ou le nom par mégarde ; carte fermée, ⭐, −/+, le champ de stock
+et le nom gardent leur rôle, seul un toucher ailleurs vaut "ouvrir la fiche". Le glissement peut
+partir de n'importe où sur la carte, ⭐ compris.
+
+**Bug réel corrigé ("il faut cliquer deux fois")** : au doigt, le téléphone attache d'abord le
+geste au petit élément touché (le nom du plat...) ; quand la carte le récupère
+(`setPointerCapture`), cet élément reçoit un `lostpointercapture` qui remonte jusqu'à la carte —
+le filet de sécurité le prenait pour une fin de geste et refermait la carte en plein glissement.
+Il ne réagit plus qu'à un `lostpointercapture` dont la cible est la carte elle-même. Leçon : ce
+geste se teste avec un vrai toucher simulé (`Input.dispatchTouchEvent`), pas à la souris.
 - **🗑️ Supprimer** passe toujours par une confirmation (`ouvrirPanneauConfirmerSuppressionPlat`) ;
   un plat encore utilisé dans le planning est refusé, avec les jours concernés et "Retire-le
   d'abord du planning" (`messageSuppressionPlatRefusee`, même message dans l'éditeur).

@@ -1758,7 +1758,11 @@ function rendreEcranStock() {
 
     for (const ingredient of ingredients) {
       articlesEl.appendChild(
-        construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id), rendreEcranStock)
+        rendreGlissable(
+          construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id), rendreEcranStock),
+          actionsGlisseesIngredient(ingredient, () => { fermerPanneau(); }, rendreEcranStock),
+          null
+        )
       );
     }
 
@@ -2183,7 +2187,11 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
         }
         if (!onChoisirIngredient) {
           articlesEl.appendChild(
-            construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue), rendreListe)
+            rendreGlissable(
+              construireLigneStock(ingredient, () => ouvrirPanneauIngredient(ingredient.id, retourVersCatalogue), rendreListe),
+              actionsGlisseesIngredient(ingredient, retourVersCatalogue, ecranSousJacent),
+              null
+            )
           );
           continue;
         }
@@ -2664,8 +2672,10 @@ function rendreGlissable(carte, actions, surToucher) {
     if (glissableOuvert && glissableOuvert.fermer === fermer) glissableOuvert = null;
   }
 
+  // Le glissement peut partir de n'importe où sur la carte, ⭐ compris (un
+  // simple toucher sur ⭐ reste un favori : le navigateur n'envoie pas de
+  // "click" après un vrai glissement).
   carte.addEventListener("pointerdown", (evenement) => {
-    if (evenement.target.closest(".plat-favori")) return;
     depart = { x: evenement.clientX, y: evenement.clientY, decalage };
     glisse = false;
   });
@@ -2701,21 +2711,36 @@ function rendreGlissable(carte, actions, surToucher) {
   carte.addEventListener("pointercancel", relacher);
   // Filet de sécurité : si le système reprend la main en plein glissement
   // (notification, geste de retour...), on termine proprement le geste.
-  carte.addEventListener("lostpointercapture", relacher);
+  // Seulement pour la CARTE elle-même : au doigt, le téléphone attache
+  // d'abord le geste au petit élément touché (le nom du plat...) ; quand la
+  // carte le récupère, cet élément reçoit un "lostpointercapture" qui remonte
+  // jusqu'ici — le prendre pour une fin de geste refermait la carte en plein
+  // glissement (bug réel : il fallait s'y reprendre à deux fois).
+  carte.addEventListener("lostpointercapture", (evenement) => {
+    if (evenement.target === carte) relacher(evenement);
+  });
 
   carte.addEventListener("click", (evenement) => {
-    if (evenement.target.closest(".plat-favori")) return;
     if (glisse) {
       glisse = false;
+      evenement.stopPropagation();
+      evenement.preventDefault();
       return; // la fin d'un glissement n'est pas un toucher
     }
     if (decalage !== 0) {
+      // Carte ouverte : n'importe quel toucher dessus la referme d'abord
+      // (sans déclencher ⭐, −/+, etc. par mégarde).
+      evenement.stopPropagation();
+      evenement.preventDefault();
       fermer();
       return;
     }
     if (glissableOuvert) glissableOuvert.fermer();
-    surToucher();
-  });
+    // Un bouton ou un champ DANS la carte (⭐, −/+, stock, nom...) garde son
+    // propre rôle : seul un toucher ailleurs sur la carte vaut "ouvrir".
+    if (evenement.target.closest("button, input, label, a")) return;
+    surToucher?.();
+  }, true);
 
   conteneur.querySelectorAll(".glissable-action").forEach((bouton) => {
     bouton.addEventListener("click", () => {
@@ -2765,13 +2790,14 @@ function ouvrirPanneauSuppressionMultiple({ quoi, elements, supprimerUn, expliqu
     if (!bilan) {
       const noms = elements.map((e) => e.nom);
       const apercu = noms.length > 8 ? `${noms.slice(0, 8).join(", ")} et ${noms.length - 8} autre${noms.length - 8 > 1 ? "s" : ""}` : noms.join(", ");
+      const seul = elements.length === 1;
       panneauPlatEl.innerHTML = `
         <div class="panneau-entete">
-          <span class="panneau-titre">🗑️ Supprimer ${elements.length} ${elements.length > 1 ? quoi.des : quoi.un} ?</span>
+          <span class="panneau-titre">🗑️ Supprimer ${seul ? `« ${elements[0].nom} »` : `${elements.length} ${quoi.des}`} ?</span>
           <button class="panneau-fermer" aria-label="Fermer">✕</button>
         </div>
-        <p class="fiche-texte">${apercu}</p>
-        <p class="panneau-note">Suppression définitive. Ce qui est encore utilisé ailleurs sera gardé,
+        ${seul ? "" : `<p class="fiche-texte">${apercu}</p>`}
+        <p class="panneau-note">Suppression définitive. ${seul ? "S'il est encore utilisé ailleurs, il sera gardé" : "Ce qui est encore utilisé ailleurs sera gardé"},
           et je te dirai pourquoi.</p>
         <div class="panneau-actions">
           <button class="bouton-principal bouton-danger" id="multi-confirmer">Oui, supprimer</button>
@@ -2790,7 +2816,9 @@ function ouvrirPanneauSuppressionMultiple({ quoi, elements, supprimerUn, expliqu
     const n = bilan.supprimes.length;
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
-        <span class="panneau-titre">${n > 0 ? `✅ ${n} ${n > 1 ? `${quoi.des} supprimés` : `${quoi.un} supprimé`}` : "Rien n'a été supprimé"}</span>
+        <span class="panneau-titre">${elements.length === 1
+          ? (n === 1 ? `✅ « ${elements[0].nom} » supprimé` : `« ${elements[0].nom} » est gardé`)
+          : n > 0 ? `✅ ${n} ${n > 1 ? `${quoi.des} supprimés` : `${quoi.un} supprimé`}` : "Rien n'a été supprimé"}</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
       ${bilan.refuses.length > 0 ? `
@@ -2820,6 +2848,26 @@ const EXPLIQUER_REFUS = {
   parPlats: (r) => `utilisé par ${r.plats.join(", ")}`,
   rayon: (r) => `contient ${r.ingredients.join(", ")}`,
 };
+
+// Actions révélées en glissant un ingrédient (Stock, Catalogue depuis
+// Stock) : pas de "Planifier" — un ingrédient ne se planifie pas.
+function actionsGlisseesIngredient(ingredient, retour, ecranSousJacent) {
+  return [
+    { classe: "modifier", texte: "✏️ Modifier", action: () => ouvrirPanneauIngredient(ingredient.id, retour) },
+    {
+      classe: "supprimer",
+      texte: "🗑️ Supprimer",
+      action: () => ouvrirPanneauSuppressionMultiple({
+        quoi: { un: "ingrédient", des: "ingrédients" },
+        elements: [{ id: ingredient.id, nom: ingredient.nom }],
+        supprimerUn: (id) => supprimerIngredient(etat, id),
+        expliquerRefus: EXPLIQUER_REFUS.parPlats,
+        retour,
+        ecranSousJacent,
+      }),
+    },
+  ];
+}
 
 // --- Supprimer un plat, avec confirmation (depuis la liste ou la fiche) ---
 
