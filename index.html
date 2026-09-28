@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Ma Semaine">
   <link rel="icon" href="icons/icone-192.png">
   <link rel="apple-touch-icon" href="icons/icone-apple-touch.png">
-  <link rel="stylesheet" href="style.css?v=20260928s">
+  <link rel="stylesheet" href="style.css?v=20260928t">
 </head>
 <body>
   <header class="app-header">
@@ -34,6 +34,12 @@
         <button id="ajouter-repas-pret" class="bouton-discret">+ Ajouter un repas prêt</button>
       </details>
 
+      <details id="a-prevoir-groupe" class="rayon-groupe" open hidden>
+        <summary class="rayon-titre">🛒 À prévoir, sans jour <span class="rayon-compte" id="a-prevoir-compte"></span></summary>
+        <p class="panneau-note" style="margin-top:0;">Leurs ingrédients sont dans ta liste de courses. Coche "Cuisiné" quand tu en fais une.</p>
+        <div id="liste-a-prevoir"></div>
+      </details>
+
       <div class="semaine-nav">
         <button id="semaine-precedente" class="semaine-nav-fleche" aria-label="Semaine précédente">←</button>
         <span id="semaine-label" class="semaine-label"></span>
@@ -42,6 +48,7 @@
       <div id="jours-pastilles" class="jours-pastilles"></div>
       <div id="cartes-creneaux" class="cartes-creneaux"></div>
       <button id="choisir-creneaux" class="bouton-discret">⚙️ Repas affichés</button>
+      <button id="ajouter-a-prevoir-bas" class="bouton-discret">🛒 Une recette à avoir sous la main, sans jour ? L'ajouter</button>
       <button id="ajouter-repas-pret-bas" class="bouton-discret">🍱 Un repas déjà prêt (offert, batch-cook) ? L'ajouter</button>
     </section>
 
@@ -107,14 +114,14 @@
   <script type="importmap">
     {
       "imports": {
-        "./calculs.js": "./calculs.js?v=20260928s",
-        "./storage.js": "./storage.js?v=20260928s",
-        "./data.js": "./data.js?v=20260928s",
-        "./constantes.js": "./constantes.js?v=20260928s"
+        "./calculs.js": "./calculs.js?v=20260928t",
+        "./storage.js": "./storage.js?v=20260928t",
+        "./data.js": "./data.js?v=20260928t",
+        "./constantes.js": "./constantes.js?v=20260928t"
       }
     }
   </script>
-  <script type="module" src="app.js?v=20260928s"></script>
+  <script type="module" src="app.js?v=20260928t"></script>
   <!-- Filet de sécurité : si l'app n'a pas démarré au bout de quelques
        secondes (fichier manquant, ancienne version en cache...), on le dit
        avec un bouton pour recharger, au lieu d'un écran figé sans rien de

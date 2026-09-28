@@ -319,6 +319,11 @@ function elementsDeLaSemaine(etat, dateReference) {
       elements.push(...obtenirElementsEffectifs(etat, dateISO, creneau));
     }
   }
+  // Les recettes "À prévoir, sans jour" comptent aussi dans les courses :
+  // c'est tout leur intérêt (avoir les ingrédients sous la main).
+  for (const entree of etat.aPrevoir ?? []) {
+    elements.push({ platId: entree.platId, portions: entree.portions, cuisine: false });
+  }
   return elements;
 }
 
@@ -693,6 +698,8 @@ export function supprimerPlat(etat, platId) {
   }
 
   etat.plats = etat.plats.filter((p) => p.id !== platId);
+  // Une simple envie "À prévoir" ne bloque pas la suppression : elle part avec.
+  if (etat.aPrevoir) etat.aPrevoir = etat.aPrevoir.filter((e) => e.platId !== platId);
   return { ok: true };
 }
 
@@ -965,11 +972,29 @@ export function platEstRealisableAvecStock(etat, platId, portions = 1) {
 export function ajouterRepasPret(etat, { nom, platId = null, portions }) {
   const quantite = clampPositif(portions) || 1;
   if (platId) {
-    ajusterStockPourCase({ platId, portions: quantite }, etat.plats, etat.ingredients, -1);
+    // Déduit ce qui a servi, mais sans faire passer le stock sous zéro : un
+    // repas prêt est DÉJÀ cuisiné, il ne doit jamais générer d'achats (bug
+    // remonté par Qassim : un repas prêt sans stock remplissait la liste de
+    // courses). Pour avoir des ingrédients sous la main, c'est "À prévoir".
+    deduireSansPasserSousZero({ platId, portions: quantite }, etat);
   }
   const repasPret = { id: genererId(), nom, platId, portions: quantite };
   etat.repasPrets.push(repasPret);
   return repasPret;
+}
+
+// Comme ajusterStockPourCase(..., -1), mais un stock ne descend jamais sous
+// zéro à cause de cette déduction (s'il était déjà négatif, il n'est pas
+// touché davantage).
+function deduireSansPasserSousZero(caseP, etat) {
+  const plat = etat.plats.find((p) => p.id === caseP.platId);
+  if (!plat) return;
+  for (const ligne of plat.ingredients) {
+    const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+    if (!ingredient) continue;
+    const quantite = caseP.portions * convertirVersUniteStock(ligne.quantitePortion, ligne.unite, ingredient);
+    ingredient.enStock = Math.max(Math.min(ingredient.enStock, 0), ingredient.enStock - quantite);
+  }
 }
 
 // Marque une portion comme mangée : décrémente de 1. Rien d'autre à
@@ -987,4 +1012,38 @@ export function mangerRepasPret(etat, repasPretId) {
 // Retire un repas prêt en entier (ex. erreur de saisie, ou périmé/jeté).
 export function retirerRepasPret(etat, repasPretId) {
   etat.repasPrets = etat.repasPrets.filter((r) => r.id !== repasPretId);
+}
+
+// --- À prévoir, sans jour (écran Semaine) ---
+//
+// Des recettes qu'on veut pouvoir cuisiner "à un moment" (ex. peut-être ce
+// week-end) sans les caser dans un jour précis : leurs ingrédients comptent
+// dans la liste de courses, comme un repas planifié (voir
+// elementsDeLaSemaine). Rien n'est déduit du stock tant qu'on ne l'a pas
+// cuisinée. Contrairement aux Repas prêts (déjà cuisinés), elles génèrent
+// donc des achats — c'est leur but. Demandé par Qassim.
+
+export function ajouterAPrevoir(etat, { platId, portions }) {
+  if (!etat.aPrevoir) etat.aPrevoir = [];
+  const entree = { id: genererId(), platId, portions: clampPositif(portions) || 1 };
+  etat.aPrevoir.push(entree);
+  return entree;
+}
+
+export function modifierPortionsAPrevoir(etat, entreeId, portions) {
+  const entree = (etat.aPrevoir ?? []).find((e) => e.id === entreeId);
+  if (entree) entree.portions = Math.max(1, clampPositif(portions));
+}
+
+// Retire sans rien déduire (changement d'avis).
+export function retirerAPrevoir(etat, entreeId) {
+  etat.aPrevoir = (etat.aPrevoir ?? []).filter((e) => e.id !== entreeId);
+}
+
+// Cuisinée : déduit le stock (comme "Mangé" sur le planning) et la retire.
+export function cuisinerAPrevoir(etat, entreeId) {
+  const entree = (etat.aPrevoir ?? []).find((e) => e.id === entreeId);
+  if (!entree) return;
+  ajusterStockPourCase(entree, etat.plats, etat.ingredients, -1);
+  retirerAPrevoir(etat, entreeId);
 }

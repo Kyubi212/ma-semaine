@@ -41,6 +41,10 @@ import {
   creneauxAffiches,
   basculerCreneauAffiche,
   etatDuJour,
+  ajouterAPrevoir,
+  modifierPortionsAPrevoir,
+  retirerAPrevoir,
+  cuisinerAPrevoir,
   changerTempsMax,
   platDansTempsMax,
   ajouterRepasPret,
@@ -278,6 +282,123 @@ function rendreRepasPrets() {
   }
 }
 
+// --- À prévoir, sans jour : recettes à avoir sous la main (leurs
+// ingrédients comptent dans les courses) sans les caser dans un jour —
+// voir cuisinerAPrevoir dans calculs.js. Section affichée seulement quand
+// elle n'est pas vide, comme les Repas prêts. ---
+
+const aPrevoirGroupeEl = document.getElementById("a-prevoir-groupe");
+const listeAPrevoirEl = document.getElementById("liste-a-prevoir");
+document.getElementById("ajouter-a-prevoir-bas").addEventListener("click", () => ouvrirPanneauNouveauAPrevoir());
+
+function rendreAPrevoir() {
+  const entrees = etat.aPrevoir ?? [];
+  aPrevoirGroupeEl.hidden = entrees.length === 0;
+  document.getElementById("a-prevoir-compte").textContent = entrees.length;
+  listeAPrevoirEl.innerHTML = "";
+  for (const entree of entrees) {
+    const ligne = document.createElement("div");
+    ligne.className = "element-prevu";
+    ligne.innerHTML = `
+      <div class="element-prevu-ligne1">
+        <button type="button" class="element-nom article-info-bouton">${nomPlat(entree.platId)}</button>
+        <button class="element-retirer" aria-label="Retirer sans rien déduire">✕</button>
+      </div>
+      <div class="element-prevu-ligne2">
+        <div class="stepper stepper-compact">
+          <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
+          <span class="stepper-valeur">${entree.portions} portion${entree.portions > 1 ? "s" : ""}</span>
+          <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
+        </div>
+        <button class="bouton-secondaire bouton-petit" data-action="cuisine">✅ Cuisiné</button>
+      </div>
+    `;
+    const apres = () => {
+      sauvegarder();
+      rendreAPrevoir();
+    };
+    ligne.querySelector(".element-nom").addEventListener("click", () => ouvrirPanneauFicheRecette(entree.platId, rendreEcranSemaine));
+    ligne.querySelector(".element-retirer").addEventListener("click", () => { retirerAPrevoir(etat, entree.id); apres(); });
+    ligne.querySelector('[data-action="moins"]').addEventListener("click", () => { modifierPortionsAPrevoir(etat, entree.id, entree.portions - 1); apres(); });
+    ligne.querySelector('[data-action="plus"]').addEventListener("click", () => { modifierPortionsAPrevoir(etat, entree.id, entree.portions + 1); apres(); });
+    ligne.querySelector('[data-action="cuisine"]').addEventListener("click", () => { cuisinerAPrevoir(etat, entree.id); apres(); });
+    listeAPrevoirEl.appendChild(ligne);
+  }
+}
+
+function ouvrirPanneauNouveauAPrevoir() {
+  apresFermeturePanneau = rendreEcranSemaine;
+  let recherche = "";
+  let platId = null;
+  let portions = 1;
+
+  function rendreListe() {
+    const listeEl = panneauPlatEl.querySelector("#a-prevoir-plats");
+    const terme = normaliserRecherche(recherche.trim());
+    const plats = trierParNom(etat.plats).filter((p) => !terme || normaliserRecherche(p.nom).includes(terme));
+    listeEl.innerHTML = "";
+    for (const plat of plats) {
+      const item = document.createElement("button");
+      item.className = "plat-choix";
+      if (plat.id === platId) item.classList.add("selectionne");
+      item.textContent = plat.nom;
+      item.addEventListener("click", () => {
+        platId = plat.id;
+        rendrePanneau();
+        panneauPlatEl.querySelector("#a-prevoir-valider")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      listeEl.appendChild(item);
+    }
+  }
+
+  function rendrePanneau() {
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">🛒 À prévoir, sans jour</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+      <p class="panneau-note" style="margin-top:0;">Une recette que tu feras peut-être (ce week-end...) :
+        ses ingrédients vont dans ta liste de courses, sans la caser dans un jour.</p>
+      <div style="margin-bottom:8px;"><input type="search" id="a-prevoir-recherche" class="champ-texte" placeholder="🔍 Chercher un plat..." value="${recherche}"></div>
+      <div class="liste-plats" id="a-prevoir-plats"></div>
+      ${platId ? `
+        <div class="zone-candidat">
+          <div class="candidat-entete"><span class="candidat-nom">✔️ ${nomPlat(platId)}</span></div>
+          <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
+          <div class="stepper">
+            <button class="stepper-bouton" id="a-prevoir-moins" aria-label="Moins">−</button>
+            <span class="stepper-valeur">${portions}</span>
+            <button class="stepper-bouton" id="a-prevoir-plus" aria-label="Plus">+</button>
+          </div>
+          <div class="panneau-actions">
+            <button class="bouton-principal" id="a-prevoir-valider">Ajouter à "À prévoir"</button>
+          </div>
+        </div>` : ""}
+    `;
+    const champ = panneauPlatEl.querySelector("#a-prevoir-recherche");
+    champ.addEventListener("input", () => {
+      recherche = champ.value;
+      rendreListe();
+    });
+    ajouterBoutonEffacer(champ);
+    rendreListe();
+    if (platId) {
+      panneauPlatEl.querySelector("#a-prevoir-moins").addEventListener("click", () => { portions = Math.max(1, portions - 1); rendrePanneau(); });
+      panneauPlatEl.querySelector("#a-prevoir-plus").addEventListener("click", () => { portions += 1; rendrePanneau(); });
+      panneauPlatEl.querySelector("#a-prevoir-valider").addEventListener("click", () => {
+        ajouterAPrevoir(etat, { platId, portions });
+        sauvegarder();
+        fermerPanneau();
+      });
+    }
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
 // --- Panneau "ajouter un repas prêt" : soit depuis un plat déjà connu (ex.
 // un batch-cook — déduit son stock d'ingrédients immédiatement), soit un nom
 // libre pour une recette inconnue (ex. offerte par quelqu'un — ne touche
@@ -381,6 +502,7 @@ function ouvrirPanneauNouveauRepasPret() {
 
 function rendreEcranSemaine() {
   rendreRepasPrets();
+  rendreAPrevoir();
   const dates = datesDeLaSemaine(referenceSemaineAffichee());
   const aujourdhuiISO = dateEnISO(new Date());
 
@@ -2500,7 +2622,7 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
     dates.push(dateEnISO(date));
     date.setDate(date.getDate() + 1);
   }
-  let dateChoisie = dates[0];
+  let dateChoisie = dates[0]; // ou null = "📌 Sans jour" (liste À prévoir)
   // Par défaut, le premier créneau affiché qui correspond au repas du plat
   // (ex. un plat "Déjeuner/Dîner" → Déjeuner), sinon le premier affiché.
   let creneauChoisi = creneauxAffiches(etat).find((c) => CRENEAU_INFOS[c].repasId === plat.repas) ?? creneauxAffiches(etat)[0];
@@ -2508,6 +2630,29 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
   let ajoute = null; // { dateISO, creneau } une fois ajouté
 
   function rendrePanneau() {
+    if (ajoute && ajoute.sansJour) {
+      panneauPlatEl.innerHTML = `
+        <div class="panneau-entete">
+          <span class="panneau-titre">✅ Ajouté à "À prévoir"</span>
+          <button class="panneau-fermer" aria-label="Fermer">✕</button>
+        </div>
+        <p class="fiche-texte"><strong>${plat.nom}</strong> est dans "🛒 À prévoir, sans jour" (écran
+          Semaine) : ses ingrédients sont dans ta liste de courses.</p>
+        <div class="panneau-actions">
+          <button class="bouton-principal" id="planifier-voir">Voir dans Semaine</button>
+          <button class="bouton-secondaire" id="planifier-fermer">Fermer</button>
+        </div>
+      `;
+      panneauPlatEl.querySelector("#planifier-voir").addEventListener("click", () => {
+        apresFermeturePanneau = null;
+        fermerPanneau();
+        afficherEcran("semaine");
+        rendreEcranSemaine();
+      });
+      panneauPlatEl.querySelector("#planifier-fermer").addEventListener("click", retour);
+      panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+      return;
+    }
     if (ajoute) {
       const infos = CRENEAU_INFOS[ajoute.creneau];
       panneauPlatEl.innerHTML = `
@@ -2532,8 +2677,11 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
       return;
     }
 
-    const manquants = ingredientsManquantsPourPlat(etatAvecStockProjete(etat, dateChoisie, creneauChoisi), platId, portions);
-    const jourLabel = jourDeLaSemaine(dateChoisie);
+    const sansJour = dateChoisie === null;
+    const manquants = sansJour
+      ? ingredientsManquantsPourPlat(etat, platId, portions)
+      : ingredientsManquantsPourPlat(etatAvecStockProjete(etat, dateChoisie, creneauChoisi), platId, portions);
+    const jourLabel = sansJour ? "" : jourDeLaSemaine(dateChoisie);
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
         <span class="panneau-titre">📅 Planifier ${plat.nom}</span>
@@ -2543,8 +2691,10 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
       <div class="panneau-section-titre">Jour</div>
       <div class="puces" id="planifier-jours"></div>
 
+      ${sansJour ? `<p class="panneau-note">📌 Sans jour précis : le plat va dans "🛒 À prévoir" (écran
+        Semaine) et ses ingrédients dans ta liste de courses.</p>` : `
       <div class="panneau-section-titre">Repas</div>
-      <div class="puces" id="planifier-creneaux"></div>
+      <div class="puces" id="planifier-creneaux"></div>`}
 
       <div class="panneau-section-titre">Portions (par personne)</div>
       <div class="stepper">
@@ -2554,16 +2704,30 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
       </div>
       ${manquants.length > 0 ? `<p class="panneau-note" style="color:#c0392b;">${texteIngredientsManquants(manquants)}</p>` : ""}
 
+      ${sansJour ? `
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="planifier-sans-jour">Ajouter à "À prévoir"</button>
+      </div>` : `
       <div class="panneau-actions">
         <button class="bouton-principal" id="planifier-jour">Ajouter juste ce jour</button>
         <button class="bouton-secondaire" id="planifier-defaut">Ajouter et en faire le défaut du ${jourLabel}</button>
       </div>
       <p class="panneau-note">"Défaut du ${jourLabel}" s'applique à tous les ${jourLabel} futurs pas encore
-        consultés — pas aux autres jours de la semaine.</p>
+        consultés — pas aux autres jours de la semaine.</p>`}
     `;
 
     const joursEl = panneauPlatEl.querySelector("#planifier-jours");
     const aujourdhuiISO = dates[0];
+    const boutonSansJour = document.createElement("button");
+    boutonSansJour.type = "button";
+    boutonSansJour.className = "puce";
+    if (sansJour) boutonSansJour.classList.add("selectionne");
+    boutonSansJour.textContent = "📌 Sans jour";
+    boutonSansJour.addEventListener("click", () => {
+      dateChoisie = null;
+      rendrePanneau();
+    });
+    joursEl.appendChild(boutonSansJour);
     for (const dateISO of dates) {
       const bouton = document.createElement("button");
       bouton.type = "button";
@@ -2580,7 +2744,7 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
     }
 
     const creneauxEl = panneauPlatEl.querySelector("#planifier-creneaux");
-    for (const creneau of creneauxAffiches(etat)) {
+    for (const creneau of sansJour ? [] : creneauxAffiches(etat)) {
       const infos = CRENEAU_INFOS[creneau];
       const bouton = document.createElement("button");
       bouton.type = "button";
@@ -2608,8 +2772,17 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
       ajoute = { dateISO: dateChoisie, creneau: creneauChoisi };
       rendrePanneau();
     };
-    panneauPlatEl.querySelector("#planifier-jour").addEventListener("click", () => ajouter(false));
-    panneauPlatEl.querySelector("#planifier-defaut").addEventListener("click", () => ajouter(true));
+    if (sansJour) {
+      panneauPlatEl.querySelector("#planifier-sans-jour").addEventListener("click", () => {
+        ajouterAPrevoir(etat, { platId, portions });
+        sauvegarder();
+        ajoute = { sansJour: true };
+        rendrePanneau();
+      });
+    } else {
+      panneauPlatEl.querySelector("#planifier-jour").addEventListener("click", () => ajouter(false));
+      panneauPlatEl.querySelector("#planifier-defaut").addEventListener("click", () => ajouter(true));
+    }
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 

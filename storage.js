@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 14;
+const VERSION_FORMAT = 15;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -156,6 +156,7 @@ export function creerEtatInitial() {
     historique: {},
     repasPrets: [],
     creneauxAffiches: [...CRENEAUX],
+    aPrevoir: [],
   };
 }
 
@@ -378,6 +379,12 @@ function migrer(etat) {
       etiquettes: (plat.etiquettes ?? []).filter((id) => id !== ID),
     }));
     etat = { ...etat, etiquettes, plats, version: 14 };
+  }
+
+  if (etat.version === 14) {
+    // v14 → v15 : liste "À prévoir, sans jour" (recettes à avoir sous la
+    // main, comptées dans les courses sans être casées dans un jour).
+    etat = { ...etat, aPrevoir: etat.aPrevoir ?? [], version: 15 };
   }
 
   return etat;

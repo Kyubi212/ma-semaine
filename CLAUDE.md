@@ -234,7 +234,11 @@ détailler quel jour il le mangera.
 - **`platId`** : optionnel. Si Qassim lie l'entrée à un plat déjà connu du catalogue (ex. un batch
   qu'il vient de cuisiner), le stock des ingrédients de ce plat est déduit **immédiatement** à la
   création de l'entrée (`ajouterRepasPret` dans `calculs.js`), comme si "🍽️ Mangé" avait été coché
-  sur-le-champ — cohérent avec la réalité : la cuisson a déjà eu lieu. Si `platId` est vide
+  sur-le-champ — cohérent avec la réalité : la cuisson a déjà eu lieu. **Mais sans jamais faire
+  passer le stock sous zéro** (`deduireSansPasserSousZero`) : un repas prêt est déjà cuisiné, il ne
+  doit **jamais** générer d'achats (bug remonté par Qassim — un repas prêt lié à une recette sans
+  stock remplissait la liste de courses via un stock négatif). Pour avoir des ingrédients sous la
+  main sans caser la recette dans un jour, c'est "🛒 À prévoir, sans jour" (ci-dessous). Si `platId` est vide
   (recette inconnue, offerte...), aucun ingrédient n'est touché : seul le compteur de portions de
   l'entrée existe ;
 - **`portions`** : nombre de portions restantes de ce repas prêt.
@@ -249,6 +253,25 @@ cocher") :
 Cette liste ne fait **jamais** partie du calcul des besoins de la semaine (elle est hors
 planning) ; elle sert uniquement de pense-bête + suivi de portions pour des repas déjà là,
 consommables au fur et à mesure.
+
+### À prévoir, sans jour (section dédiée sur l'écran Semaine)
+
+**Décision (proposée à Qassim et validée)** : des recettes qu'on veut pouvoir cuisiner "à un
+moment" (ex. peut-être ce week-end) sans les caser dans un jour précis, mais dont on veut les
+ingrédients à la maison. `etat.aPrevoir` (migration v14 → v15), entrées `{ id, platId, portions }` :
+- leurs ingrédients **comptent dans la liste de courses** comme un repas planifié
+  (`elementsDeLaSemaine` dans `calculs.js`), mais **rien n'est déduit du stock** tant qu'on ne l'a
+  pas cuisinée ; elles ne comptent pas dans le stock projeté du planning ;
+- actions : −/+ portions, **"✅ Cuisiné"** (déduit le stock comme "🍽️ Mangé" et retire l'entrée,
+  `cuisinerAPrevoir`), **✕** (retire sans rien déduire), toucher le nom ouvre la fiche recette ;
+- section "🛒 À prévoir, sans jour" en haut de l'écran Semaine **seulement quand elle n'est pas
+  vide** ; ajout par le lien "🛒 Une recette à avoir sous la main, sans jour ? L'ajouter" sous le
+  planning, ou depuis Plats & repas via "📅 Planifier" → **"📌 Sans jour"** ;
+- supprimer un plat retire aussi ses entrées "À prévoir" (une simple envie ne bloque pas la
+  suppression, contrairement au planning).
+
+**Différence avec Repas prêts** : Repas prêts = déjà cuisiné (déduit à la création, jamais
+d'achats) ; À prévoir = pas encore cuisiné (achats oui, déduction au moment de "Cuisiné").
 
 **La liste de courses (besoin) porte sur les 7 PROCHAINS jours à partir d'aujourd'hui** (aujourd'hui
 inclus), pas sur "la semaine réelle lundi → dimanche" affichée sur l'écran Semaine. **Historique de
@@ -285,11 +308,12 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   (déduit le stock)").
 - **Repas prêt** : { id, nom, platId (optionnel), portions } — voir "Repas prêts", liste
   indépendante du modèle/historique (`etat.repasPrets`).
+- **À prévoir** : `etat.aPrevoir`, liste `{ id, platId, portions }` — voir "À prévoir, sans jour".
 - **Créneaux affichés** : `etat.creneauxAffiches`, liste d'ids de créneaux (les 5 par défaut) —
   voir "Repère du jour et repas affichés".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 14 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12 → v13 → v14
+du format (actuellement 15 ; migrations en chaîne v1 → v2 → … → v14 → v15
 dans `storage.js` → `migrer`).
 
 ### Quantités exactes dans les courses (le conditionnement a été abandonné)

@@ -1363,3 +1363,12 @@ textarea.champ-texte {
 .bouton-danger {
   background: #c0392b;
 }
+
+#ajouter-a-prevoir-bas {
+  display: block;
+  margin: 4px auto 0;
+}
+
+#liste-a-prevoir .element-nom {
+  text-align: left;
+}

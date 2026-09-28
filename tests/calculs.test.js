@@ -7,6 +7,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  ajouterAPrevoir,
+  modifierPortionsAPrevoir,
+  retirerAPrevoir,
+  cuisinerAPrevoir,
   changerTempsMax,
   tempsTotalPlat,
   platDansTempsMax,
@@ -1145,6 +1149,35 @@ test("créneau masqué : ignoré par l'état du jour et par les courses", () => 
 });
 
 // --- Repas prêts (ajouterRepasPret / mangerRepasPret / retirerRepasPret) ---
+
+test("ajouterRepasPret : sans stock, ne crée jamais de besoin dans les courses (stock jamais sous zéro)", () => {
+  const etat = etatDeTest(); // riz : 200 g
+  ajouterRepasPret(etat, { nom: "Batch", platId: "plat-test", portions: 5 }); // 500 g demandés
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 0);
+  assert.equal(calculerBesoinsSemaine(etat, LUNDI).get("riz") ?? 0, 0);
+  assert.equal(construireListeCourses(etat, LUNDI).some((a) => a.ingredientId === "riz"), false);
+});
+
+test("À prévoir : compte dans les courses sans toucher au stock ; cuisiné → déduit et retiré", () => {
+  const etat = etatDeTest(); // riz : 200 g, plat-test = 100 g/portion
+  const entree = ajouterAPrevoir(etat, { platId: "plat-test", portions: 3 });
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200, "rien de déduit à l'ajout");
+  assert.equal(calculerBesoinsSemaine(etat, LUNDI).get("riz"), 300);
+  assert.equal(construireListeCourses(etat, LUNDI).find((a) => a.ingredientId === "riz").aAcheter, 100);
+  modifierPortionsAPrevoir(etat, entree.id, 1);
+  assert.equal(calculerBesoinsSemaine(etat, LUNDI).get("riz"), 100);
+  cuisinerAPrevoir(etat, entree.id);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 100);
+  assert.equal(etat.aPrevoir.length, 0);
+});
+
+test("À prévoir : retirer ne déduit rien", () => {
+  const etat = etatDeTest();
+  const entree = ajouterAPrevoir(etat, { platId: "plat-test", portions: 1 });
+  retirerAPrevoir(etat, entree.id);
+  assert.equal(etat.aPrevoir.length, 0);
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200);
+});
 
 test("ajouterRepasPret : avec un plat connu, déduit le stock d'ingrédients immédiatement", () => {
   const etat = etatDeTest();
