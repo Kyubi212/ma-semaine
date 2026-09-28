@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 15;
+const VERSION_FORMAT = 16;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -151,6 +151,7 @@ export function creerEtatInitial() {
       materiel: (plat.materiel ?? []).map((nom) => idMaterielParNom.get(nom) ?? nom),
       tempsPreparation: plat.tempsPreparation ?? 0,
       tempsCuisson: plat.tempsCuisson ?? 0,
+      typePortions: plat.typePortions === "quantite" ? "quantite" : "personne",
     })),
     modele: [],
     historique: {},
@@ -385,6 +386,18 @@ function migrer(etat) {
     // v14 → v15 : liste "À prévoir, sans jour" (recettes à avoir sous la
     // main, comptées dans les courses sans être casées dans un jour).
     etat = { ...etat, aPrevoir: etat.aPrevoir ?? [], version: 15 };
+  }
+
+  if (etat.version === 15) {
+    // v15 → v16 : recettes "par personne" (défaut) ou "par quantité" (ex.
+    // une fournée de cookies) — demandé par Qassim, sa sœur. Ne change rien
+    // au calcul, juste le mot affiché ; tous les plats existants démarrent
+    // en "personne" (comportement d'avant, inchangé).
+    const plats = etat.plats.map((plat) => ({
+      ...plat,
+      typePortions: plat.typePortions === "quantite" ? "quantite" : "personne",
+    }));
+    etat = { ...etat, plats, version: 16 };
   }
 
   return etat;

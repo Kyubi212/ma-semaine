@@ -631,7 +631,7 @@ export function supprimerIngredient(etat, ingredientId) {
 // Ajoute un tout nouveau plat au catalogue (écran Plats & repas). `favori`
 // démarre toujours à false (à cocher ensuite depuis la liste). Rend le plat
 // créé.
-export function ajouterPlat(etat, { nom, repas, portionsReference = 1, etapes = "", ingredients = [], etiquettes = [], materiel = [], tempsPreparation = 0, tempsCuisson = 0 }) {
+export function ajouterPlat(etat, { nom, repas, portionsReference = 1, etapes = "", ingredients = [], etiquettes = [], materiel = [], tempsPreparation = 0, tempsCuisson = 0, typePortions = "personne" }) {
   const idsExistants = new Set(etat.plats.map((p) => p.id));
   const plat = {
     id: genererSlug(nom, idsExistants),
@@ -644,6 +644,11 @@ export function ajouterPlat(etat, { nom, repas, portionsReference = 1, etapes = 
     materiel: [...materiel],
     tempsPreparation: clampPositif(tempsPreparation),
     tempsCuisson: clampPositif(tempsCuisson),
+    // "personne" (par défaut) ou "quantite" (ex. une recette de cookies :
+    // "cette recette fait 24" plutôt que "cette recette est pour 4
+    // personnes") — ne change RIEN au calcul (toujours quantitePortion × N),
+    // juste le mot affiché autour du nombre. Voir CLAUDE.md.
+    typePortions: typePortions === "quantite" ? "quantite" : "personne",
     favori: false,
   };
   etat.plats.push(plat);
@@ -673,6 +678,9 @@ export function modifierPlat(etat, platId, changements) {
   if (changements.materiel !== undefined) plat.materiel = [...changements.materiel];
   if (changements.tempsPreparation !== undefined) plat.tempsPreparation = clampPositif(changements.tempsPreparation);
   if (changements.tempsCuisson !== undefined) plat.tempsCuisson = clampPositif(changements.tempsCuisson);
+  if (changements.typePortions !== undefined) {
+    plat.typePortions = changements.typePortions === "quantite" ? "quantite" : "personne";
+  }
   if (changements.favori !== undefined) plat.favori = Boolean(changements.favori);
 }
 

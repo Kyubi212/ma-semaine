@@ -351,10 +351,12 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   toujours avoir, extra ponctuel, équivalence cuillerée → unité de base (`parCuillereACafe`,
   éditable dans le panneau Stock pour les unités g/ml — voir "Cuillères dans les recettes" plus
   bas).
-- **Plat** : id, nom, repas (id, un seul), étapes, portions de référence, favori (oui/non),
-  étiquettes (liste d'ids, plusieurs à la fois), matériel (liste d'ids, plusieurs à la fois — voir
-  "Matériel requis et temps de préparation/cuisson"), tempsPreparation, tempsCuisson (minutes),
-  liste d'ingrédients avec quantité **par portion**. (Protéine principale : reportée après le MVP.)
+- **Plat** : id, nom, repas (id, un seul), étapes, portions de référence, typePortions
+  ("personne" par défaut, ou "quantite" — voir "Portions de référence et saisie des quantités"),
+  favori (oui/non), étiquettes (liste d'ids, plusieurs à la fois), matériel (liste d'ids, plusieurs
+  à la fois — voir "Matériel requis et temps de préparation/cuisson"), tempsPreparation,
+  tempsCuisson (minutes), liste d'ingrédients avec quantité **par portion**. (Protéine principale :
+  reportée après le MVP.)
 - **Règle du modèle** : id, jour (lundi-dimanche), créneau, plat choisi, portions. Pas d'état
   "cuisiné"/"mangé" ici (voir "Semaines réelles et modèle"). Plusieurs règles peuvent partager le
   même jour + créneau.
@@ -369,7 +371,7 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   voir "Repère du jour et repas affichés".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 15 ; migrations en chaîne v1 → v2 → … → v14 → v15
+du format (actuellement 16 ; migrations en chaîne v1 → v2 → … → v15 → v16
 dans `storage.js` → `migrer`).
 
 ### Quantités exactes dans les courses (le conditionnement a été abandonné)
@@ -408,6 +410,21 @@ reste la seule valeur **stockée** (toujours ramenée à 1 portion, en divisant 
 suivent la même logique dans les deux sens : on voit et on modifie toujours "pour N portions",
 jamais la valeur par-portion brute — donc changer `portionsReference` après coup ne perd aucune
 donnée, ça change juste le nombre affiché (mathématiquement cohérent).
+
+**Recettes "par personne" ou "par quantité"** (demandé par Qassim, remonté par sa sœur : "certaines
+recettes ne sont pas faites par personne, mais par quantité", ex. une fournée de cookies qui "fait
+24" plutôt que d'être "pour 4 personnes") : `plat.typePortions`, `"personne"` (par défaut) ou
+`"quantite"`, réglé par une bascule **juste à côté du −/+** de "Portions de référence" dans
+l'éditeur du plat (`construireListeChoixEl`, deux puces "Par personne"/"Par quantité" — demandé
+explicitement à cet endroit précis par Qassim, pas dans un panneau à part). **Le calcul ne change
+strictement rien** : toujours `quantitePortion × N`, que N soit un nombre de personnes ou une
+quantité — seul le mot affiché change, partout où l'app propose de choisir "combien" pour une
+occurrence précise (panneau créneau, "À prévoir", "📅 Planifier", fiche recette, carte de créneau,
+"Voir la recette", repas prêts) : "Portions (par personne)"/"3 portions" devient
+"Quantité"/"3", "Ingrédients pour X pers." devient "Ingrédients pour une quantité de X". Fonctions
+communes dans `app.js` : `estEnQuantite(platId)`, `libellePortions(platId)` (titre de section),
+`texteQuantite(platId, n)` (le nombre, avec ou sans le mot "portion(s)"). Migration v15 → v16 :
+tous les plats déjà enregistrés démarrent en `"personne"` (comportement d'avant, inchangé).
 
 ### Cuillères dans les recettes, grammes/ml dans le Stock et les Courses
 
@@ -746,8 +763,16 @@ stock actuel / "Aucun de ces ingrédients n'est en stock" plutôt que de répét
 puis les étapes. Deux boutons en haut : "⭐/☆ Favori" et **"✏️ Modifier"**, qui ouvre l'éditeur ;
 fermer l'éditeur (et ses sous-panneaux Gérer repas/étiquettes/matériel, Catalogue) **revient à
 la fiche** (paramètre `retour` d'`ouvrirPanneauPlat`), pour voir tout de suite le résultat. Un
-**nouveau plat**, lui, ouvre directement l'éditeur (rien à consulter encore). L'éditeur rappelle
-que chaque changement est enregistré tout de suite (pas de bouton "Enregistrer").
+**nouveau plat**, lui, ouvre directement l'éditeur (rien à consulter encore).
+
+**Bouton "✅ Enregistrer"** (demandé par Qassim, remonté par sa sœur : en créant sa première
+recette, elle ne savait pas comment "enregistrer" — la seule façon de sortir de l'éditeur était la
+croix ✕, pas intuitif pour elle). Chaque champ reste enregistré tout de suite comme avant (pas de
+vraie sauvegarde différée) : le bouton "✅ Enregistrer", ajouté à côté de "🗑️ Supprimer ce plat" en
+bas de l'éditeur, fait **exactement la même chose que la croix** (`retour()`) — juste une action
+plus explicite pour dire "j'ai fini". Même bouton, même principe, sur le panneau "✏️ Modifier
+l'ingrédient" (écran Stock), qui avait le même problème (autosave silencieux, seule la croix pour
+sortir).
 
 ## Glisser un plat : Planifier, Modifier, Supprimer (écran Plats & repas)
 

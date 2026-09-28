@@ -762,6 +762,22 @@ test("ajouterPlat : crée un plat avec favori à false, portions minimum 1", () 
   assert.ok(etat.plats.some((p) => p.id === plat.id));
 });
 
+test("ajouterPlat / modifierPlat : typePortions démarre en 'personne', réglable sur 'quantite', jamais autre chose", () => {
+  const etat = etatDeTest();
+  const parDefaut = ajouterPlat(etat, { nom: "Curry", repas: "Déjeuner", ingredients: [] });
+  assert.equal(parDefaut.typePortions, "personne");
+
+  const cookies = ajouterPlat(etat, { nom: "Cookies", repas: "Snack", ingredients: [], typePortions: "quantite" });
+  assert.equal(cookies.typePortions, "quantite");
+
+  modifierPlat(etat, cookies.id, { typePortions: "personne" });
+  assert.equal(cookies.typePortions, "personne");
+
+  // Une valeur invalide retombe sur "personne", jamais une valeur inattendue stockée.
+  const bizarre = ajouterPlat(etat, { nom: "Truc", repas: "Snack", ingredients: [], typePortions: "n'importe quoi" });
+  assert.equal(bizarre.typePortions, "personne");
+});
+
 test("ajouterPlat : deux noms proches n'entrent jamais en collision d'id", () => {
   const etat = etatDeTest();
   const premier = ajouterPlat(etat, { nom: "Salade", repas: "Snack", ingredients: [] });

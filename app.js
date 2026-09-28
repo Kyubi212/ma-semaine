@@ -266,7 +266,7 @@ function rendreRepasPrets() {
         <button class="element-retirer" aria-label="Retirer">✕</button>
       </div>
       <div class="element-prevu-ligne2">
-        <span class="article-detail">${repasPret.portions} portion${repasPret.portions > 1 ? "s" : ""} restante${repasPret.portions > 1 ? "s" : ""}</span>
+        <span class="article-detail">${texteQuantite(repasPret.platId, repasPret.portions)} restante${repasPret.portions > 1 ? "s" : ""}</span>
         <button class="bouton-secondaire" data-action="manger">🍽️ Manger</button>
       </div>
     `;
@@ -309,7 +309,7 @@ function rendreAPrevoir() {
       <div class="element-prevu-ligne2">
         <div class="stepper stepper-compact">
           <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
-          <span class="stepper-valeur">${entree.portions} portion${entree.portions > 1 ? "s" : ""}</span>
+          <span class="stepper-valeur">${texteQuantite(entree.platId, entree.portions)}</span>
           <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
         </div>
         <button class="bouton-secondaire bouton-petit" data-action="cuisine">✅ Cuisiné</button>
@@ -421,7 +421,7 @@ function ouvrirPanneauNouveauAPrevoir() {
       ${platId && !selectionMultiple ? `
         <div class="zone-candidat">
           <div class="candidat-entete"><span class="candidat-nom">✔️ ${nomPlat(platId)}</span></div>
-          <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
+          <div class="panneau-section-titre" style="margin-top:0;">${libellePortions(platId)}</div>
           <div class="stepper">
             <button class="stepper-bouton" id="a-prevoir-moins" aria-label="Moins">−</button>
             <span class="stepper-valeur">${portions}</span>
@@ -719,6 +719,30 @@ function nomPlat(platId) {
   return plat ? plat.nom : "Plat inconnu";
 }
 
+// --- Recettes "par personne" ou "par quantité" (demandé par Qassim, sa
+// sœur : "certaines recettes ne sont pas faites par personne, mais par
+// quantité", ex. une fournée de cookies) : `plat.typePortions` ("personne"
+// par défaut, ou "quantite"), réglé dans l'éditeur du plat via une bascule à
+// côté du stepper "Portions de référence". LE CALCUL NE CHANGE PAS (toujours
+// quantitePortion × N) — seul le mot affiché autour du nombre change, pour
+// ne pas parler de "personnes" sur une recette qui n'en a pas. Un plat
+// introuvable (ex. repas prêt à recette inconnue) compte comme "personne"
+// par défaut.
+function estEnQuantite(platId) {
+  return etat.plats.find((p) => p.id === platId)?.typePortions === "quantite";
+}
+
+// Titre de la section/du champ portions, selon le plat.
+function libellePortions(platId) {
+  return estEnQuantite(platId) ? "Quantité" : "Portions (par personne)";
+}
+
+// "3 portions" (par personne) ou juste "3" (par quantité) — même nombre, mot
+// en moins quand ça n'a pas de sens de parler de "portions".
+function texteQuantite(platId, n) {
+  return estEnQuantite(platId) ? `${n}` : `${n} portion${n > 1 ? "s" : ""}`;
+}
+
 function construireCarteCreneau(dateISO, creneau) {
   const infos = CRENEAU_INFOS[creneau];
   const elements = obtenirElementsEffectifs(etat, dateISO, creneau);
@@ -740,7 +764,7 @@ function construireCarteCreneau(dateISO, creneau) {
     infoBouton.innerHTML = `
       <span class="carte-creneau-entete">${infos.icone} ${infos.label}</span>
       <span class="carte-creneau-plat">${nomPlat(element.platId)}</span>
-      <span class="carte-creneau-detail">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
+      <span class="carte-creneau-detail">${texteQuantite(element.platId, element.portions)}</span>
     `;
   } else {
     // Plusieurs plats pour ce créneau (voir CLAUDE.md § Plusieurs plats par
@@ -785,7 +809,7 @@ function construireCarteCreneau(dateISO, creneau) {
       ligne.className = `carte-creneau-multi-ligne${element.cuisine ? " mange" : ""}`;
       ligne.innerHTML = `
         <span class="carte-creneau-multi-nom">${nomPlat(element.platId)}</span>
-        <span class="carte-creneau-multi-portions">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
+        <span class="carte-creneau-multi-portions">${texteQuantite(element.platId, element.portions)}</span>
         <input type="checkbox" ${element.cuisine ? "checked" : ""} aria-label="${nomPlat(element.platId)} — Mangé (déduit le stock)">
       `;
       ligne.querySelector("input").addEventListener("change", (evenement) => {
@@ -1196,7 +1220,7 @@ function ouvrirPanneau(dateISO, creneau) {
         ? texteIngredientsManquants(manquants)
         : "";
       const detailMorceaux = [
-        `${element.portions} portion${element.portions > 1 ? "s" : ""}`,
+        texteQuantite(element.platId, element.portions),
         tempsTotal > 0 ? `${tempsTotal} min` : null,
         nomsMateriel.length > 0 ? nomsMateriel.join(", ") : null,
       ].filter(Boolean);
@@ -1356,7 +1380,7 @@ function ouvrirPanneau(dateISO, creneau) {
         <div class="element-prevu-ligne2">
           <div class="stepper stepper-compact">
             <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
-            <span class="stepper-valeur">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
+            <span class="stepper-valeur">${texteQuantite(element.platId, element.portions)}</span>
             <button class="stepper-bouton" data-action="plus" aria-label="Plus de portions">+</button>
           </div>
           <button class="bouton-secondaire bouton-petit" data-action="voir-recette">📖 Recette</button>
@@ -1418,7 +1442,7 @@ function ouvrirPanneau(dateISO, creneau) {
           <span class="candidat-nom">✔️ ${nomPlat(candidat.platId)}</span>
           <button class="bouton-discret" id="candidat-annuler">Changer</button>
         </div>
-        <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
+        <div class="panneau-section-titre" style="margin-top:0;">${libellePortions(candidat.platId)}</div>
         <div class="stepper">
           <button class="stepper-bouton" id="candidat-moins" aria-label="Moins de portions">−</button>
           <span class="stepper-valeur">${candidat.portions}</span>
@@ -2012,6 +2036,7 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
       <div class="panneau-actions">
+        <button class="bouton-principal" id="ingredient-enregistrer">✅ Enregistrer</button>
         <button class="bouton-discret" id="ingredient-supprimer">🗑️ Supprimer cet ingrédient</button>
       </div>
     `;
@@ -2085,6 +2110,12 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       sauvegarder();
       retour();
     });
+    // Chaque champ est déjà enregistré au fur et à mesure (voir la note en
+    // haut du panneau) : ce bouton fait exactement ce que fait la croix ✕,
+    // mais donne une action explicite à toucher pour "j'ai fini" — demandé
+    // par Qassim (sa sœur ne savait pas comment "enregistrer" une recette,
+    // seule la croix fermait le panneau).
+    panneauPlatEl.querySelector("#ingredient-enregistrer").addEventListener("click", retour);
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
@@ -3284,7 +3315,7 @@ function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
       <div class="panneau-section-titre">Repas</div>
       <div class="puces" id="planifier-creneaux"></div>`}
 
-      <div class="panneau-section-titre">Portions (par personne)</div>
+      <div class="panneau-section-titre">${libellePortions(platId)}</div>
       <div class="stepper">
         <button class="stepper-bouton" id="planifier-moins" aria-label="Moins de portions">−</button>
         <span class="stepper-valeur">${portions}</span>
@@ -3977,17 +4008,17 @@ function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
         <p class="fiche-texte">${nomsMateriel.join(" · ")}</p>` : ""}
 
       <div class="fiche-personnes">
-        <span class="panneau-section-titre" style="margin:0;">Ingrédients pour</span>
+        <span class="panneau-section-titre" style="margin:0;">${plat.typePortions === "quantite" ? "Ingrédients pour une quantité de" : "Ingrédients pour"}</span>
         <div class="stepper stepper-compact">
-          <button class="stepper-bouton" id="fiche-moins" aria-label="Moins de personnes">−</button>
-          <span class="stepper-valeur">${personnes} pers.</span>
-          <button class="stepper-bouton" id="fiche-plus" aria-label="Plus de personnes">+</button>
+          <button class="stepper-bouton" id="fiche-moins" aria-label="Moins">−</button>
+          <span class="stepper-valeur">${plat.typePortions === "quantite" ? personnes : `${personnes} pers.`}</span>
+          <button class="stepper-bouton" id="fiche-plus" aria-label="Plus">+</button>
         </div>
       </div>
       ${htmlIngredientsRecette(plat, personnes)}
       <p class="panneau-note" style="${manquants.length > 0 ? "color:#c0392b;" : ""}">
         ${manquants.length === 0
-          ? (plat.ingredients.length > 0 ? "🧺 Tu as tout en stock pour ce nombre de personnes." : "")
+          ? (plat.ingredients.length > 0 ? `🧺 Tu as tout en stock pour ${plat.typePortions === "quantite" ? "cette quantité" : "ce nombre de personnes"}.` : "")
           : manquants.length === plat.ingredients.length
             ? "⚠️ Aucun de ces ingrédients n'est en stock pour l'instant."
             : texteIngredientsManquants(manquants)}
@@ -4052,13 +4083,15 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
       <div class="puces" id="plat-etiquettes"></div>
       <button class="bouton-discret" id="plat-gerer-etiquettes">⚙️ Gérer les étiquettes</button>
 
-      <div class="panneau-section-titre">Portions de référence</div>
-      <p class="panneau-note">Pour combien de personnes est la recette d'origine ? Les quantités
-        des ingrédients se saisissent pour ce nombre-là, telles que la recette les donne.</p>
+      <div class="panneau-section-titre">${plat.typePortions === "quantite" ? "Quantité de référence" : "Portions de référence"}</div>
+      <p class="panneau-note">${plat.typePortions === "quantite"
+        ? "Cette recette fait quelle quantité, à l'origine (ex. 24 cookies) ? Les quantités des ingrédients se saisissent pour ce nombre-là, telles que la recette les donne."
+        : "Pour combien de personnes est la recette d'origine ? Les quantités des ingrédients se saisissent pour ce nombre-là, telles que la recette les donne."}</p>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-portions-moins" aria-label="Moins">−</button>
         <input type="number" id="plat-portions-valeur" class="article-quantite-input" value="${plat.portionsReference}" min="1" step="1">
         <button class="stepper-bouton" id="plat-portions-plus" aria-label="Plus">+</button>
+        <div class="puces" id="plat-type-portions" style="margin-left:8px;"></div>
       </div>
 
       <div class="panneau-section-titre">Matériel requis</div>
@@ -4095,6 +4128,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
 
       <div class="panneau-actions">
+        <button class="bouton-principal" id="plat-enregistrer">✅ Enregistrer</button>
         <button class="bouton-discret" id="plat-supprimer">🗑️ Supprimer ce plat</button>
       </div>
     `;
@@ -4205,6 +4239,22 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
       rendrePanneau();
     });
 
+    // "Par personne" (défaut) ou "Par quantité" (ex. une fournée de
+    // cookies) — juste à côté du −/+ (demandé par Qassim). Le calcul ne
+    // change pas, seul le mot affiché ailleurs dans l'app change (voir
+    // estEnQuantite/libellePortions/texteQuantite).
+    construireListeChoixEl(
+      panneauPlatEl.querySelector("#plat-type-portions"),
+      "puce",
+      [{ id: "personne", nom: "Par personne" }, { id: "quantite", nom: "Par quantité" }],
+      (id) => id === plat.typePortions,
+      (typePortions) => {
+        modifierPlat(etat, platId, { typePortions });
+        sauvegarder();
+        rendrePanneau();
+      }
+    );
+
     panneauPlatEl.querySelector("#plat-etapes").addEventListener("change", (evenement) => {
       modifierPlat(etat, platId, { etapes: evenement.target.value });
       sauvegarder();
@@ -4261,6 +4311,12 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
       fermerPanneau();
     });
 
+    // Chaque champ est déjà enregistré au fur et à mesure (voir la note en
+    // haut du panneau) : ce bouton fait exactement ce que fait la croix ✕,
+    // mais donne une action explicite à toucher pour "j'ai fini" — demandé
+    // par Qassim (sa sœur ne savait pas comment "enregistrer" une recette,
+    // seule la croix fermait le panneau).
+    panneauPlatEl.querySelector("#plat-enregistrer").addEventListener("click", retour);
     panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
