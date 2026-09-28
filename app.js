@@ -709,6 +709,82 @@ function ouvrirPanneau(dateISO, creneau) {
     panneauPlatEl.hidden = false;
   }
 
+  // --- Panneau "Voir la recette" (lecture seule) : accessible depuis un
+  // plat déjà prévu, pour lire la recette (ingrédients, étapes, matériel)
+  // sans risquer de la modifier par inadvertance en défilant — retour de
+  // Qassim, il ne veut pas atterrir dans un champ éditable juste en
+  // regardant quoi cuisiner. Les quantités sont recalculées pour le nombre
+  // de portions choisi CE jour-là (pas celui de la recette d'origine). La
+  // case "🍽️ Mangé" reste accessible ici aussi, pour cocher juste après
+  // avoir suivi la recette sans redescendre dans la liste "Plats prévus".
+  function ouvrirPanneauRecetteLectureSeule(elementId) {
+    function rendreRecette() {
+      const element = obtenirElementsEffectifs(etat, dateISO, creneau).find((e) => e.id === elementId);
+      if (!element) {
+        // Retiré entre-temps (ex. depuis un autre onglet) : rien à montrer.
+        rendrePanneau();
+        return;
+      }
+
+      const plat = etat.plats.find((p) => p.id === element.platId);
+      const nomsMateriel = plat.materiel.map((id) => etat.materiel.find((m) => m.id === id)?.nom).filter(Boolean);
+      const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
+      const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
+      const texteManquants = manquants.length > 0
+        ? `⚠️ Il manque : ${manquants.map((m) => `${m.nom} (${formaterNombre(m.manque)} ${m.unite})`).join(", ")}`
+        : "";
+      const detailMorceaux = [
+        `${element.portions} portion${element.portions > 1 ? "s" : ""}`,
+        tempsTotal > 0 ? `${tempsTotal} min` : null,
+        nomsMateriel.length > 0 ? nomsMateriel.join(", ") : null,
+      ].filter(Boolean);
+
+      panneauPlatEl.innerHTML = `
+        <div class="panneau-entete">
+          <span class="panneau-titre">📖 ${plat.nom}</span>
+          <button class="panneau-fermer" aria-label="Fermer">✕</button>
+        </div>
+
+        <p class="panneau-note">${detailMorceaux.join(" · ")}</p>
+
+        <div class="panneau-section-titre">Ingrédients</div>
+        <div id="recette-ingredients"></div>
+
+        ${plat.etapes ? `
+          <div class="panneau-section-titre">Étapes</div>
+          <p class="panneau-note" style="white-space: pre-line;">${plat.etapes}</p>
+        ` : ""}
+
+        ${texteManquants ? `<p class="panneau-note" style="color:#c0392b;">${texteManquants}</p>` : ""}
+
+        <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start; margin-top:8px;">
+          <input type="checkbox" id="recette-cuisine" ${element.cuisine ? "checked" : ""}>
+          🍽️ Mangé (déduit le stock)
+        </label>
+      `;
+
+      const listeIngredientsEl = panneauPlatEl.querySelector("#recette-ingredients");
+      listeIngredientsEl.innerHTML = plat.ingredients.length === 0
+        ? `<p class="panneau-vide">Aucun ingrédient renseigné.</p>`
+        : plat.ingredients.map((ligne) => {
+            const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+            const quantite = ligne.quantitePortion * element.portions;
+            return `<p class="panneau-note">${formaterNombre(quantite)} ${ligne.unite} — ${ingredient ? ingredient.nom : ligne.ingredientId}</p>`;
+          }).join("");
+
+      panneauPlatEl.querySelector("#recette-cuisine").addEventListener("change", (evenement) => {
+        definirCuisine(etat, dateISO, creneau, elementId, evenement.target.checked);
+        sauvegarder();
+        rendreRecette();
+      });
+      panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", () => rendrePanneau());
+    }
+
+    rendreRecette();
+    panneauFondEl.hidden = false;
+    panneauPlatEl.hidden = false;
+  }
+
   function rendrePanneau() {
     const elements = obtenirElementsEffectifs(etat, dateISO, creneau);
 
@@ -785,6 +861,7 @@ function ouvrirPanneau(dateISO, creneau) {
           <span class="element-nom">${nomPlat(element.platId)}</span>
           <button class="element-retirer" aria-label="Retirer">✕</button>
         </div>
+        <button class="bouton-discret" data-action="voir-recette">📖 Voir la recette</button>
         <div class="element-prevu-ligne2">
           <div class="stepper stepper-compact">
             <button class="stepper-bouton" data-action="moins" aria-label="Moins de portions">−</button>
@@ -799,6 +876,9 @@ function ouvrirPanneau(dateISO, creneau) {
         </label>
       `;
 
+      ligne.querySelector('[data-action="voir-recette"]').addEventListener("click", () => {
+        ouvrirPanneauRecetteLectureSeule(element.id);
+      });
       ligne.querySelector(".element-cuisine").addEventListener("change", (evenement) => {
         definirCuisine(etat, dateISO, creneau, element.id, evenement.target.checked);
         sauvegarder();

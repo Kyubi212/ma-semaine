@@ -40,7 +40,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 
 | Écran | Rôle |
 |---|---|
-| **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous |
+| **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 | **Plats & repas** | Recherche par nom + ⭐ Favoris et 🧺 Réalisable avec mon stock directement cliquables (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) + bouton **"➕ Plus de filtres"** (compteur si actifs) ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock (même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
@@ -111,6 +111,27 @@ choix unique, ⭐ Favoris indépendant, étiquettes à choix multiple ET — voi
 ex. mettre un plat "Petit-déjeuner" au déjeuner (brunch), ou ne voir que ses plats favoris. Chaque
 état de filtre est propre à ce panneau (pas partagé avec l'écran Plats & repas). Les portions sont
 toujours **par personne**, précisé explicitement dans l'interface.
+
+### Voir la recette (lecture seule, depuis un plat déjà prévu)
+
+**Décision clé (demandée par Qassim)** : cas d'usage — consulter le planning le soir, voir "ce
+soir je mange ça", et pouvoir lire directement la recette (ingrédients, étapes, matériel) sans
+risquer de modifier quoi que ce soit par inadvertance en défilant sur un écran d'édition. Chaque
+plat déjà prévu (liste "Plats prévus" du panneau créneau) porte un bouton **"📖 Voir la recette"**,
+qui ouvre un panneau **entièrement en lecture seule** (`ouvrirPanneauRecetteLectureSeule` dans
+`app.js`, fonction imbriquée dans `ouvrirPanneau`) : aucun champ éditable, juste du texte — nom,
+portions · temps total · matériel, ingrédients, étapes.
+
+**Quantités recalculées pour CE jour précis** : les ingrédients affichés sont `quantitePortion ×
+element.portions` (le nombre de portions choisi pour cette occurrence précise, pas
+`portionsReference` de la recette d'origine) — cohérent avec "Choisir un plat pour un créneau",
+où les portions sont toujours par personne et propres à chaque jour.
+
+**La case "🍽️ Mangé (déduit le stock)" reste accessible depuis ce panneau** (même mécanisme que
+sur le panneau créneau, voir "Mangé (déduit le stock)" ci-dessous) : Qassim peut lire la recette,
+cuisiner, puis cocher directement ici sans redescendre dans la liste "Plats prévus" pour la
+retrouver. Fermer ce panneau revient au panneau créneau (pas à l'écran Semaine), pour retrouver
+tout de suite les autres plats prévus à ce créneau.
 
 ### Mangé (déduit le stock) — anciennement "Cuisiner / manger, sans cuisiner"
 
