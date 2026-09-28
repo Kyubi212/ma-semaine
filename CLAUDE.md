@@ -48,7 +48,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 
 | Écran | Rôle |
 |---|---|
-| **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un petit point sous chaque jour qui a des plats prévus : creux = reste à manger, plein = tout mangé), 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
+| **Semaine** | Section "🍱 Repas prêts" en haut, **seulement quand il y en a** (sinon un lien discret sous le planning permet d'en ajouter un — stock de repas consommables sans passer par le planning, voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche (un repère sous chaque jour, voir "Repère du jour et repas affichés" ci-dessous), jusqu'à 5 créneaux/jour, **au choix de Qassim** ("⚙️ Repas affichés : 3 sur 5" sous la journée). Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte, avec son libellé "Mangé" (carte barrée une fois cochée) — voir "Mangé (déduit le stock)" ci-dessous. Chaque plat déjà prévu a un bouton **"📖 Voir la recette"** (lecture seule, voir "Voir la recette" ci-dessous) |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), avancement "🛒 3 / 6 dans le panier", quantités **exactes** pour les g/ml (10 g de sucre, pas un paquet — voir "Quantités exactes dans les courses" ci-dessous), arrondies à l'unité supérieure pour ce qui se compte (2 pommes, pas 1,5). Chaque ligne : case "Acheté", **juste le nom** (plus de ligne de détail "Blanquette de poulet : 1,5 pièce" en dessous — retour de Qassim, "moi j'ai juste mes courses"), et la quantité avec **−/+** (et saisie au clavier) pour l'ajuster en magasin avant de cocher (ex. 3 carottes au lieu de 2, ou 500 g de sucre trouvés en rayon au lieu des 10 g demandés ; pas de 1 pièce/50 g-ml, ou saisie directe), conservée tant qu'on reste sur l'écran (`quantitesModifieesSession` dans `app.js`). Cocher "Acheté" ajoute au stock la quantité affichée. "+ Ajouter un extra" — voir "Écran Catalogue" ci-dessous. Pas de gestion des rayons ici (jamais utile pendant les courses) |
 | **Plats & repas** | Recherche par nom et "+ Nouveau" sur une même ligne, puis ⭐ Favoris, 🧺 Réalisable (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) et **"➕ Filtres"** (compteur si actifs) en petites pastilles sur une seule ligne, ce dernier ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · temps total · ingrédients · matériel, puis les étiquettes en pastilles sur une ligne à part (plus jamais coupées par "…"). "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Chaque ligne : état (⚪ vide · 🟠 bas · 🟢 ok), **+/− directement dessus** pour ajuster le stock, et la valeur elle-même est un **champ où taper directement** la quantité (ex. 1000 g d'un coup — même mécanisme que le Catalogue, voir "Écran Catalogue" ci-dessous), nom à part pour ouvrir le panneau complet (essentiel, minimum, rayon, suppression). Écran vide = message qui explique quoi faire. "+ Ajouter un ingrédient" et "⚙️ Gérer les rayons" — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
@@ -119,6 +119,24 @@ choix unique, ⭐ Favoris indépendant, étiquettes à choix multiple ET — voi
 ex. mettre un plat "Petit-déjeuner" au déjeuner (brunch), ou ne voir que ses plats favoris. Chaque
 état de filtre est propre à ce panneau (pas partagé avec l'écran Plats & repas). Les portions sont
 toujours **par personne**, précisé explicitement dans l'interface.
+
+### Repère du jour et repas affichés (demandés par Qassim)
+
+**Repère sous chaque pastille de jour** (`etatDuJour` dans `calculs.js`), pour voir d'un coup
+d'œil où en est la semaine sans ouvrir chaque jour : rien (aucun plat) · **○ cercle creux**
+(au moins un plat, mais pas tous les créneaux affichés remplis) · **● cercle plein** (chaque
+créneau affiché a au moins un plat) · **✓ coche** (tous les plats prévus ce jour sont cochés
+"🍽️ Mangé" — même si un créneau est resté vide, ex. restaurant). Légende rappelée dans le panneau
+"⚙️ Repas affichés".
+
+**Repas affichés** (bouton "⚙️ Repas affichés : N sur 5" sous la journée, panneau
+`ouvrirPanneauCreneauxAffiches` dans `app.js`) : une grande ligne par créneau, "Affiché"/"Masqué",
+un tap bascule (`basculerCreneauAffiche`, jamais le dernier). Réglage global, conservé dans
+`etat.creneauxAffiches` (migration v12 → v13, les 5 par défaut). **Un créneau masqué ne compte
+plus nulle part** (`creneauxAffiches` : écran Semaine, repère du jour, liste de courses, stock
+projeté) — sinon Qassim, qui ne prend que 3 repas, n'atteindrait jamais le cercle plein. Ses plats
+déjà prévus ne sont **jamais supprimés** : mis de côté (le panneau le signale, avec leur nombre
+sur les 7 prochains jours) et de retour s'il réaffiche le créneau.
 
 ### Voir la recette (lecture seule, depuis un plat déjà prévu)
 
@@ -267,9 +285,11 @@ c'était une contrainte propre à l'ancien système Notion, qui ne s'applique pl
   (déduit le stock)").
 - **Repas prêt** : { id, nom, platId (optionnel), portions } — voir "Repas prêts", liste
   indépendante du modèle/historique (`etat.repasPrets`).
+- **Créneaux affichés** : `etat.creneauxAffiches`, liste d'ids de créneaux (les 5 par défaut) —
+  voir "Repère du jour et repas affichés".
 
 Stocké en `localStorage` via `storage.js`, sous une seule clé, en JSON, avec un numéro de version
-du format (actuellement 12 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12
+du format (actuellement 13 ; migrations en chaîne v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10 → v11 → v12 → v13
 dans `storage.js` → `migrer`).
 
 ### Quantités exactes dans les courses (le conditionnement a été abandonné)

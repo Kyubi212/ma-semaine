@@ -38,6 +38,9 @@ import {
   ingredientsManquantsPourPlat,
   platEstRealisableAvecStock,
   etatAvecStockProjete,
+  creneauxAffiches,
+  basculerCreneauAffiche,
+  etatDuJour,
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
@@ -379,17 +382,17 @@ function rendreEcranSemaine() {
     bouton.className = "jour-pastille";
     if (dateISO === aujourdhuiISO) bouton.classList.add("aujourdhui");
     if (dateISO === dateSelectionnee) bouton.classList.add("actif");
-    // Petit point sous le numéro : ce jour a au moins un plat prévu (plein
-    // = tout est mangé, creux = il en reste à manger) — pour voir d'un coup
-    // d'œil quels jours sont remplis, sans les ouvrir un par un.
-    const elementsDuJour = ORDRE_CRENEAUX.flatMap((c) => obtenirElementsEffectifs(etat, dateISO, c));
-    let point = "";
-    if (elementsDuJour.length > 0) {
-      const toutMange = elementsDuJour.every((e) => e.cuisine);
-      point = `<span class="jour-pastille-point${toutMange ? " plein" : ""}" aria-label="${elementsDuJour.length} plat${elementsDuJour.length > 1 ? "s" : ""} prévu${elementsDuJour.length > 1 ? "s" : ""}"></span>`;
-    } else {
-      point = `<span class="jour-pastille-point vide" aria-hidden="true"></span>`;
-    }
+    // Repère sous le numéro, pour voir d'un coup d'œil où en est chaque jour
+    // sans l'ouvrir (demandé par Qassim, voir etatDuJour dans calculs.js) :
+    // rien · ○ entamé · ● tous les repas affichés remplis · ✓ tout mangé.
+    const ETATS_JOUR = {
+      vide: { classe: "vide", texte: "", aria: "Rien de prévu" },
+      entame: { classe: "", texte: "", aria: "Repas en partie prévus" },
+      complet: { classe: "plein", texte: "", aria: "Tous les repas prévus" },
+      mange: { classe: "coche", texte: "✓", aria: "Tout est mangé" },
+    };
+    const infosJour = ETATS_JOUR[etatDuJour(etat, dateISO)];
+    const point = `<span class="jour-pastille-point ${infosJour.classe}" aria-label="${infosJour.aria}">${infosJour.texte}</span>`;
     bouton.innerHTML = `
       <span class="jour-pastille-nom">${JOUR_LABELS[jourSemaine]}</span>
       <span class="jour-pastille-numero">${dateISO.split("-")[2]}</span>
@@ -404,9 +407,91 @@ function rendreEcranSemaine() {
 
   // Les 5 cartes de créneaux pour le jour sélectionné.
   cartesCreneauxEl.innerHTML = "";
-  for (const creneau of ORDRE_CRENEAUX) {
+  for (const creneau of creneauxAffiches(etat)) {
     cartesCreneauxEl.appendChild(construireCarteCreneau(dateSelectionnee, creneau));
   }
+  const nbAffiches = creneauxAffiches(etat).length;
+  document.getElementById("choisir-creneaux").textContent =
+    `⚙️ Repas affichés : ${nbAffiches} sur ${ORDRE_CRENEAUX.length}`;
+}
+
+// --- Panneau "Repas affichés" : choisir les créneaux visibles dans la
+// journée (ex. seulement petit-déjeuner, déjeuner, dîner). Un créneau
+// masqué ne compte plus nulle part (courses, stock projeté, repère du
+// jour), mais ses plats ne sont jamais supprimés — voir creneauxAffiches. ---
+
+document.getElementById("choisir-creneaux").addEventListener("click", () => ouvrirPanneauCreneauxAffiches());
+
+// Nombre de plats prévus dans les 7 prochains jours à ce créneau : sert à
+// prévenir qu'ils seront mis de côté si on le masque.
+function nbPlatsPrevusProchainsJours(creneau) {
+  let total = 0;
+  const date = new Date();
+  for (let i = 0; i < 7; i++) {
+    total += obtenirElementsEffectifs(etat, dateEnISO(date), creneau).filter((e) => e.platId && !e.cuisine).length;
+    date.setDate(date.getDate() + 1);
+  }
+  return total;
+}
+
+function ouvrirPanneauCreneauxAffiches() {
+  apresFermeturePanneau = rendreEcranSemaine;
+
+  function rendrePanneau(messageErreur) {
+    const affiches = creneauxAffiches(etat);
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">⚙️ Repas affichés</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+      <p class="panneau-note" style="margin-top:0;">Touche un repas pour l'afficher ou le masquer
+        dans ta journée. <strong>${affiches.length} sur ${ORDRE_CRENEAUX.length}</strong> affichés.</p>
+      <div class="liste-creneaux-affiches" id="liste-creneaux-affiches"></div>
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+      <div class="panneau-section-titre">Sous chaque jour</div>
+      <div class="legende-jours">
+        <span><span class="jour-pastille-point"></span> Repas en partie prévus</span>
+        <span><span class="jour-pastille-point plein"></span> Tous les repas affichés prévus</span>
+        <span><span class="jour-pastille-point coche">✓</span> Tout est mangé</span>
+      </div>
+    `;
+
+    const listeEl = panneauPlatEl.querySelector("#liste-creneaux-affiches");
+    for (const creneau of ORDRE_CRENEAUX) {
+      const infos = CRENEAU_INFOS[creneau];
+      const affiche = affiches.includes(creneau);
+      const nbMisDeCote = affiche ? 0 : nbPlatsPrevusProchainsJours(creneau);
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = `creneau-affiche${affiche ? " actif" : ""}`;
+      bouton.setAttribute("aria-pressed", affiche ? "true" : "false");
+      bouton.innerHTML = `
+        <span class="creneau-affiche-icone">${infos.icone}</span>
+        <span class="creneau-affiche-texte">
+          <span class="creneau-affiche-nom">${infos.label}</span>
+          ${nbMisDeCote > 0 ? `<span class="creneau-affiche-note">${nbMisDeCote} plat${nbMisDeCote > 1 ? "s" : ""} prévu${nbMisDeCote > 1 ? "s" : ""} mis de côté (ni affiché${nbMisDeCote > 1 ? "s" : ""}, ni compté${nbMisDeCote > 1 ? "s" : ""} dans les courses)</span>` : ""}
+        </span>
+        <span class="creneau-affiche-etat">${affiche ? "Affiché" : "Masqué"}</span>
+      `;
+      bouton.addEventListener("click", () => {
+        const resultat = basculerCreneauAffiche(etat, creneau);
+        if (!resultat.ok) {
+          rendrePanneau("Garde au moins un repas affiché.");
+          return;
+        }
+        sauvegarder();
+        rendreEcranSemaine();
+        rendrePanneau();
+      });
+      listeEl.appendChild(bouton);
+    }
+
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
 }
 
 function nomPlat(platId) {

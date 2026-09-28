@@ -827,33 +827,150 @@ textarea.champ-texte {
   color: var(--couleur-accent-texte);
 }
 
-/* Point sous chaque jour : plats prévus (creux) / tout mangé (plein). */
+/* Repère sous chaque jour (voir etatDuJour dans calculs.js) :
+   rien · ○ entamé · ● tous les repas affichés prévus · ✓ tout mangé.
+   Toujours la même hauteur, pour que les 7 pastilles restent alignées. */
 .jour-pastille-point {
-  width: 6px;
-  height: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1.5px solid var(--couleur-accent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--couleur-accent-texte);
+}
+
+.jour-pastille-point::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--couleur-accent);
   box-sizing: border-box;
 }
 
-.jour-pastille-point.plein {
+.jour-pastille-point.plein::before {
   background: var(--couleur-accent);
 }
 
-.jour-pastille-point.vide {
+.jour-pastille-point.vide::before {
   border-color: transparent;
 }
 
-.jour-pastille.actif .jour-pastille-point {
+.jour-pastille-point.coche {
+  background: var(--couleur-accent);
+}
+
+.jour-pastille-point.coche::before {
+  display: none;
+}
+
+/* Pastille du jour sélectionné (fond vert) : couleurs inversées. */
+.jour-pastille.actif .jour-pastille-point::before {
   border-color: var(--couleur-accent-texte);
 }
 
-.jour-pastille.actif .jour-pastille-point.plein {
+.jour-pastille.actif .jour-pastille-point.plein::before {
   background: var(--couleur-accent-texte);
 }
 
-.jour-pastille.actif .jour-pastille-point.vide {
+.jour-pastille.actif .jour-pastille-point.vide::before {
   border-color: transparent;
+}
+
+.jour-pastille.actif .jour-pastille-point.coche {
+  background: var(--couleur-accent-texte);
+  color: var(--couleur-accent);
+}
+
+/* Panneau "Repas affichés" : une grande ligne par repas, état lisible. */
+.liste-creneaux-affiches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.creneau-affiche {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: var(--couleur-texte-discret);
+  font-family: inherit;
+  text-align: left;
+}
+
+.creneau-affiche.actif {
+  border-color: var(--couleur-accent);
+  background: color-mix(in srgb, var(--couleur-accent) 10%, var(--couleur-carte));
+  color: var(--couleur-texte);
+}
+
+.creneau-affiche-icone {
+  font-size: 1.3rem;
+}
+
+.creneau-affiche:not(.actif) .creneau-affiche-icone {
+  opacity: 0.4;
+}
+
+.creneau-affiche-texte {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.creneau-affiche-nom {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.creneau-affiche-note {
+  font-size: 0.72rem;
+  color: #b26a00;
+}
+
+.creneau-affiche-etat {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--couleur-bordure);
+}
+
+.creneau-affiche.actif .creneau-affiche-etat {
+  background: var(--couleur-accent);
+  border-color: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+}
+
+.legende-jours {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--couleur-texte-discret);
+}
+
+.legende-jours > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#choisir-creneaux {
+  display: block;
+  margin: 12px auto 0;
 }
 
 /* Case "Mangé" de la carte, avec son libellé. */
@@ -874,7 +991,7 @@ textarea.champ-texte {
 
 #ajouter-repas-pret-bas {
   display: block;
-  margin: 16px auto 0;
+  margin: 4px auto 0;
 }
 
 /* Courses : avancement. */

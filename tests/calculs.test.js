@@ -7,6 +7,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  creneauxAffiches,
+  basculerCreneauAffiche,
+  etatDuJour,
   etatAvecStockProjete,
   clampPositif,
   convertirVersUniteStock,
@@ -1045,6 +1048,63 @@ test("ingredientsManquantsPourPlat : n'annonce jamais plus que ce que le plat de
   const projete = etatAvecStockProjete(etat, "2026-09-24", "snack", { dateReference: LUNDI });
   const manquants = ingredientsManquantsPourPlat(projete, "plat-test", 1);
   assert.equal(manquants.find((m) => m.nom === "Riz").manque, 100);
+});
+
+// --- Repas affichés et état du jour ---
+
+test("creneauxAffiches : les 5 par défaut, dans l'ordre de la journée même si choisis dans le désordre", () => {
+  const etat = etatDeTest();
+  assert.deepEqual(creneauxAffiches(etat), ["petit-dejeuner", "smoko", "lunch", "snack", "diner"]);
+  etat.creneauxAffiches = ["diner", "petit-dejeuner"];
+  assert.deepEqual(creneauxAffiches(etat), ["petit-dejeuner", "diner"]);
+});
+
+test("basculerCreneauAffiche : masque puis réaffiche, refuse de masquer le dernier", () => {
+  const etat = etatDeTest();
+  etat.creneauxAffiches = ["lunch", "diner"];
+  assert.equal(basculerCreneauAffiche(etat, "lunch").ok, true);
+  assert.deepEqual(creneauxAffiches(etat), ["diner"]);
+  assert.equal(basculerCreneauAffiche(etat, "diner").ok, false, "le dernier créneau ne se masque pas");
+  assert.deepEqual(creneauxAffiches(etat), ["diner"]);
+  basculerCreneauAffiche(etat, "petit-dejeuner");
+  assert.deepEqual(creneauxAffiches(etat), ["petit-dejeuner", "diner"]);
+});
+
+test("etatDuJour : vide → entamé → complet → mangé", () => {
+  const etat = etatDeTest();
+  etat.creneauxAffiches = ["lunch", "diner"];
+  const jour = "2026-09-21";
+  assert.equal(etatDuJour(etat, jour), "vide");
+  ajouterPlatAuJour(etat, jour, "lunch", { platId: "plat-test", portions: 1 });
+  assert.equal(etatDuJour(etat, jour), "entame");
+  ajouterPlatAuJour(etat, jour, "diner", { platId: "plat-test-2", portions: 1 });
+  assert.equal(etatDuJour(etat, jour), "complet");
+  for (const creneau of ["lunch", "diner"]) {
+    const [element] = obtenirElementsEffectifs(etat, jour, creneau);
+    definirCuisine(etat, jour, creneau, element.id, true);
+  }
+  assert.equal(etatDuJour(etat, jour), "mange");
+});
+
+test("etatDuJour : tout ce qui est prévu est mangé → coche, même si un créneau est resté vide", () => {
+  const etat = etatDeTest();
+  const jour = "2026-09-21";
+  ajouterPlatAuJour(etat, jour, "lunch", { platId: "plat-test", portions: 1 });
+  const [element] = obtenirElementsEffectifs(etat, jour, "lunch");
+  definirCuisine(etat, jour, "lunch", element.id, true);
+  assert.equal(etatDuJour(etat, jour), "mange");
+});
+
+test("créneau masqué : ignoré par l'état du jour et par les courses", () => {
+  const etat = etatDeTest();
+  const jour = "2026-09-21";
+  ajouterPlatAuJour(etat, jour, "lunch", { platId: "plat-test", portions: 1 });
+  ajouterPlatAuJour(etat, jour, "snack", { platId: "plat-test", portions: 1 });
+  etat.creneauxAffiches = ["lunch"];
+  assert.equal(etatDuJour(etat, jour), "complet", "le snack masqué ne compte plus");
+  const besoins = calculerBesoinsSemaine(etat, LUNDI);
+  assert.equal(besoins.get("riz"), 100, "seul le déjeuner (100 g) compte, pas le snack masqué");
+  assert.equal(obtenirElementsEffectifs(etat, jour, "snack").length, 1, "le plat masqué n'est pas supprimé");
 });
 
 // --- Repas prêts (ajouterRepasPret / mangerRepasPret / retirerRepasPret) ---

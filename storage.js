@@ -11,7 +11,7 @@
 // stockage du téléphone, de ne changer QUE ce fichier.
 
 import { ingredients as ingredientsParDefaut, plats as platsParDefaut } from "./data.js";
-import { RAYONS, genererSlug } from "./constantes.js";
+import { RAYONS, CRENEAUX, genererSlug } from "./constantes.js";
 
 // Une seule clé, un seul objet JSON dedans : plus simple à inspecter
 // (Outils de développement → Application → Local Storage) et à sauvegarder
@@ -22,7 +22,7 @@ const CLE_STOCKAGE = "ma-semaine";
 // uniquement le jour où la forme de l'état change (ex. un champ renommé) ET
 // qu'on ajoute une conversion dans migrer() ci-dessous pour ne pas perdre
 // les données déjà sauvegardées chez Qassim.
-const VERSION_FORMAT = 12;
+const VERSION_FORMAT = 13;
 
 // Étiquettes par défaut (écran Plats & repas — voir CLAUDE.md § Étiquettes
 // éditables) : une liste de départ, modifiable ensuite comme les rayons.
@@ -155,6 +155,7 @@ export function creerEtatInitial() {
     modele: [],
     historique: {},
     repasPrets: [],
+    creneauxAffiches: [...CRENEAUX],
   };
 }
 
@@ -357,6 +358,12 @@ function migrer(etat) {
     // autre valeur n'est touchée (stock, minimum...).
     const ingredients = etat.ingredients.map(({ conditionnement, ...ingredient }) => ingredient);
     etat = { ...etat, ingredients, version: 12 };
+  }
+
+  if (etat.version === 12) {
+    // v12 → v13 : créneaux affichés sur l'écran Semaine (Qassim peut masquer
+    // ceux qu'il n'utilise pas). Par défaut les 5, comme avant.
+    etat = { ...etat, creneauxAffiches: etat.creneauxAffiches ?? [...CRENEAUX], version: 13 };
   }
 
   return etat;

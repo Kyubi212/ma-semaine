@@ -315,7 +315,7 @@ function obtenirOuCreerJourHistorique(etat, dateISO) {
 function elementsDeLaSemaine(etat, dateReference) {
   const elements = [];
   for (const dateISO of datesProchainsJours(dateReference)) {
-    for (const creneau of CRENEAUX) {
+    for (const creneau of creneauxAffiches(etat)) {
       elements.push(...obtenirElementsEffectifs(etat, dateISO, creneau));
     }
   }
@@ -815,6 +815,49 @@ export function ingredientsManquantsPourPlat(etat, platId, portions) {
   return manquants;
 }
 
+// --- Repas affichés (créneaux choisis par Qassim) et état d'un jour ---
+//
+// Qassim peut masquer les créneaux qu'il n'utilise pas (ex. ne garder que
+// petit-déjeuner, déjeuner, dîner). Un créneau masqué disparaît de l'écran
+// Semaine ET de tous les calculs (courses, stock projeté, état du jour) :
+// les plats qui y étaient prévus sont mis de côté, jamais supprimés, et
+// reviennent s'il le réaffiche. Toujours dans l'ordre fixe de la journée.
+export function creneauxAffiches(etat) {
+  const choisis = etat.creneauxAffiches ?? CRENEAUX;
+  const liste = CRENEAUX.filter((c) => choisis.includes(c));
+  return liste.length > 0 ? liste : [...CRENEAUX];
+}
+
+// Affiche ou masque un créneau. Refuse de masquer le dernier affiché (une
+// journée sans aucun repas n'aurait plus rien à montrer).
+export function basculerCreneauAffiche(etat, creneau) {
+  const actuels = creneauxAffiches(etat);
+  if (actuels.includes(creneau)) {
+    if (actuels.length === 1) return { ok: false };
+    etat.creneauxAffiches = actuels.filter((c) => c !== creneau);
+  } else {
+    etat.creneauxAffiches = CRENEAUX.filter((c) => actuels.includes(c) || c === creneau);
+  }
+  return { ok: true };
+}
+
+// État d'un jour, pour le point sous sa pastille (écran Semaine) :
+// - "vide"    : aucun plat prévu ;
+// - "entame"  : au moins un plat, mais pas tous les créneaux affichés remplis ;
+// - "complet" : chaque créneau affiché a au moins un plat ;
+// - "mange"   : tous les plats prévus ce jour sont cochés "Mangé".
+// Les créneaux masqués ne comptent pas (voir creneauxAffiches).
+export function etatDuJour(etat, dateISO) {
+  const parCreneau = creneauxAffiches(etat).map((c) =>
+    obtenirElementsEffectifs(etat, dateISO, c).filter((e) => e.platId)
+  );
+  const elements = parCreneau.flat();
+  if (elements.length === 0) return "vide";
+  if (elements.every((e) => e.cuisine)) return "mange";
+  if (parCreneau.every((liste) => liste.length > 0)) return "complet";
+  return "entame";
+}
+
 // --- Stock projeté (Réalisable / "Il manque" sur le planning) ---
 //
 // Le stock ACTUEL ne suffit pas pour juger un repas prévu plus tard : si
@@ -838,7 +881,7 @@ export function etatAvecStockProjete(etat, dateISO, creneau, { avantElementId = 
   const elementsAvant = [];
   const date = analyserDateISO(aujourdhuiISO);
   for (let dateCourante = aujourdhuiISO; dateCourante <= dateISO; ) {
-    for (const creneauCourant of CRENEAUX) {
+    for (const creneauCourant of creneauxAffiches(etat)) {
       const elements = obtenirElementsEffectifs(etat, dateCourante, creneauCourant);
       if (dateCourante < dateISO || CRENEAUX.indexOf(creneauCourant) < CRENEAUX.indexOf(creneau)) {
         elementsAvant.push(...elements);
