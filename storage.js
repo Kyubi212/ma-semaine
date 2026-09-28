@@ -399,3 +399,59 @@ export function effacerStockage() {
     return false;
   }
 }
+
+// --- Export / import de sauvegarde (menu ⋯) : changer de téléphone ou
+// garder une copie de secours, sans backend — un simple fichier JSON
+// téléchargé puis réimporté à la main (voir CLAUDE.md § Écrans).
+
+// Rend l'état actuel sous forme de texte JSON, prêt à être proposé au
+// téléchargement par app.js. Le format est celui du stockage interne (avec
+// son numéro de version) : une sauvegarde plus ancienne reste importable
+// (passe par les mêmes migrations que chargerEtat), une sauvegarde plus
+// récente que la version actuelle de l'app est refusée par importerEtat.
+export function exporterEtat(etat) {
+  return JSON.stringify(etat, null, 2);
+}
+
+// Lit un texte JSON exporté par exporterEtat, le fait passer par les mêmes
+// migrations que chargerEtat, puis l'enregistre. Ne lève jamais d'erreur :
+// rend { ok: false, erreur } en cas de fichier invalide, pour qu'app.js
+// puisse prévenir clairement plutôt que de planter ou d'écraser les
+// données déjà là avec quelque chose de corrompu.
+export function importerEtat(texte) {
+  let brut;
+  try {
+    brut = JSON.parse(texte);
+  } catch {
+    return { ok: false, erreur: "Ce fichier n'est pas un JSON valide." };
+  }
+
+  if (
+    typeof brut !== "object" || brut === null ||
+    typeof brut.version !== "number" ||
+    !Array.isArray(brut.plats) ||
+    !Array.isArray(brut.ingredients)
+  ) {
+    return { ok: false, erreur: "Ce fichier ne ressemble pas à une sauvegarde Ma Semaine valide." };
+  }
+
+  if (brut.version > VERSION_FORMAT) {
+    return {
+      ok: false,
+      erreur: "Cette sauvegarde vient d'une version plus récente de l'app : mets d'abord l'app à jour avant de l'importer.",
+    };
+  }
+
+  let etat;
+  try {
+    etat = migrer(brut);
+  } catch {
+    return { ok: false, erreur: "Cette sauvegarde est corrompue ou dans un format inconnu." };
+  }
+
+  const ok = sauvegarderEtat(etat);
+  if (!ok) {
+    return { ok: false, erreur: "Le stockage de ton téléphone semble plein : l'import a échoué." };
+  }
+  return { ok: true };
+}

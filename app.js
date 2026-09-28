@@ -2,7 +2,7 @@
 // Gère la navigation entre les 4 écrans, et construit l'écran Semaine
 // (le seul déjà branché aux vraies données à cette étape du projet).
 
-import { chargerEtat, sauvegarderEtat, effacerStockage } from "./storage.js";
+import { chargerEtat, sauvegarderEtat, effacerStockage, exporterEtat, importerEtat } from "./storage.js";
 import {
   obtenirElementsEffectifs,
   definirCuisine,
@@ -463,11 +463,11 @@ function fermerPanneau() {
 
 panneauFondEl.addEventListener("click", fermerPanneau);
 
-// --- Menu ⋯ (en-tête) : pour l'instant, seulement réinitialiser les
-// données. Modifier data.js (rayons, ingrédients, plats) ne change RIEN à
-// ce qui est déjà sauvegardé sur ce téléphone — il faut un vrai reset pour
-// repartir des données de base à jour. (Export/import de sauvegarde : voir
-// Roadmap, pas encore fait.) ---
+// --- Menu ⋯ (en-tête) : export/import de sauvegarde (fichier JSON, aucun
+// serveur — voir storage.js § exporterEtat/importerEtat) et réinitialisation.
+// Modifier data.js (rayons, ingrédients, plats) ne change RIEN à ce qui est
+// déjà sauvegardé sur ce téléphone — il faut un vrai reset pour repartir des
+// données de base à jour. ---
 
 document.getElementById("menu-options").addEventListener("click", () => ouvrirPanneauMenu());
 
@@ -479,12 +479,23 @@ function ouvrirPanneauMenu() {
       <span class="panneau-titre">Menu</span>
       <button class="panneau-fermer" aria-label="Fermer">✕</button>
     </div>
+    <button class="bouton-discret" id="menu-exporter">⬇️ Exporter une sauvegarde</button>
+    <button class="bouton-discret" id="menu-importer">⬆️ Importer une sauvegarde</button>
+    <p class="panneau-note">Exporter télécharge un fichier avec tout ce qui est enregistré sur ce
+      téléphone (planning, stock, plats...) — à garder de côté ou à réimporter sur un autre
+      téléphone. Importer remplace tout ce qui est déjà là par le contenu du fichier.</p>
     <button class="bouton-discret" id="menu-reinitialiser">🗑️ Réinitialiser avec les données de base</button>
     <p class="panneau-note">Efface TOUT ce qui est enregistré sur ce téléphone (planning, stock,
       plats modifiés...) et recharge l'appli avec le catalogue de base (rayons, ingrédients,
       plats). Irréversible.</p>
   `;
 
+  panneauPlatEl.querySelector("#menu-exporter").addEventListener("click", () => {
+    exporterSauvegarde();
+  });
+  panneauPlatEl.querySelector("#menu-importer").addEventListener("click", () => {
+    declencherSelectionFichierImport();
+  });
   panneauPlatEl.querySelector("#menu-reinitialiser").addEventListener("click", () => {
     ouvrirPanneauConfirmerReinitialisation();
   });
@@ -492,6 +503,72 @@ function ouvrirPanneauMenu() {
 
   panneauFondEl.hidden = false;
   panneauPlatEl.hidden = false;
+}
+
+function exporterSauvegarde() {
+  const texte = exporterEtat(etat);
+  const blob = new Blob([texte], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const dateISO = new Date().toISOString().slice(0, 10);
+  const lien = document.createElement("a");
+  lien.href = url;
+  lien.download = `ma-semaine-sauvegarde-${dateISO}.json`;
+  lien.click();
+  URL.revokeObjectURL(url);
+}
+
+function declencherSelectionFichierImport() {
+  // L'input doit être dans le DOM (même caché) pour que le sélecteur de
+  // fichier s'ouvre de façon fiable sur tous les navigateurs — un input
+  // créé sans être attaché au document ne déclenche pas toujours la
+  // boîte de dialogue native (bug réel rencontré et corrigé ici).
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.hidden = true;
+  document.body.appendChild(input);
+  input.addEventListener("change", () => {
+    const fichier = input.files[0];
+    input.remove();
+    if (!fichier) return;
+    const lecteur = new FileReader();
+    lecteur.addEventListener("load", () => {
+      ouvrirPanneauConfirmerImport(fichier.name, lecteur.result);
+    });
+    lecteur.addEventListener("error", () => {
+      afficherAvertissement("Impossible de lire ce fichier.");
+    });
+    lecteur.readAsText(fichier);
+  });
+  input.click();
+}
+
+function ouvrirPanneauConfirmerImport(nomFichier, texteFichier) {
+  panneauPlatEl.innerHTML = `
+    <div class="panneau-entete">
+      <span class="panneau-titre">⚠️ Importer cette sauvegarde ?</span>
+      <button class="panneau-fermer" aria-label="Fermer">✕</button>
+    </div>
+    <p class="panneau-note">Fichier : ${nomFichier}</p>
+    <p class="panneau-note">Ton planning, ton stock actuel et tes plats seront remplacés par le
+      contenu de ce fichier. Cette action ne peut pas être annulée.</p>
+    <div class="panneau-actions">
+      <button class="bouton-principal" id="confirmer-importer" style="background:#c0392b;">Oui, importer</button>
+      <button class="bouton-secondaire" id="annuler-importer">Annuler</button>
+    </div>
+  `;
+
+  panneauPlatEl.querySelector("#confirmer-importer").addEventListener("click", () => {
+    const resultat = importerEtat(texteFichier);
+    if (resultat.ok) {
+      location.reload();
+    } else {
+      fermerPanneau();
+      afficherAvertissement(resultat.erreur);
+    }
+  });
+  panneauPlatEl.querySelector("#annuler-importer").addEventListener("click", () => ouvrirPanneauMenu());
+  panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
 }
 
 function ouvrirPanneauConfirmerReinitialisation() {

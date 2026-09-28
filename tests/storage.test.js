@@ -29,7 +29,7 @@ function creerFauxLocalStorage() {
 // storage.js utilise `localStorage` comme une variable globale (comme dans
 // un vrai navigateur). On la pose ici avant d'importer le module.
 globalThis.localStorage = creerFauxLocalStorage();
-const { creerEtatInitial, chargerEtat, sauvegarderEtat } = await import("../storage.js");
+const { creerEtatInitial, chargerEtat, sauvegarderEtat, exporterEtat, importerEtat } = await import("../storage.js");
 
 beforeEach(() => {
   // Un faux localStorage tout neuf avant chaque test, pour qu'ils ne se
@@ -377,4 +377,57 @@ test("sauvegarderEtat : stockage plein → rend false, ne plante pas", () => {
   };
   const ok = sauvegarderEtat(creerEtatInitial());
   assert.equal(ok, false);
+});
+
+test("exporterEtat puis importerEtat : on retrouve exactement ce qui a été exporté", () => {
+  const etat = creerEtatInitial();
+  etat.ingredients[0].enStock = 42;
+  const texte = exporterEtat(etat);
+
+  const resultat = importerEtat(texte);
+  assert.equal(resultat.ok, true);
+
+  const relu = chargerEtat();
+  assert.equal(relu.etat.ingredients[0].enStock, 42);
+  assert.equal(relu.etat.plats.length, 30);
+});
+
+test("importerEtat : JSON invalide → rend { ok: false } avec un message, ne plante pas", () => {
+  const resultat = importerEtat("{ ceci n'est pas du JSON valide");
+  assert.equal(resultat.ok, false);
+  assert.ok(resultat.erreur.length > 0);
+});
+
+test("importerEtat : objet sans version/plats/ingrédients → refusé", () => {
+  const resultat = importerEtat(JSON.stringify({ quelqueChose: "sans rapport" }));
+  assert.equal(resultat.ok, false);
+});
+
+test("importerEtat : sauvegarde d'une version future de l'app → refusée sans rien écraser", () => {
+  const etat = creerEtatInitial();
+  sauvegarderEtat(etat);
+
+  const sauvegardeFuture = { ...creerEtatInitial(), version: 9999 };
+  const resultat = importerEtat(JSON.stringify(sauvegardeFuture));
+
+  assert.equal(resultat.ok, false);
+  assert.match(resultat.erreur, /plus récente/);
+  const relu = chargerEtat();
+  assert.equal(relu.etat.version, etat.version);
+});
+
+test("importerEtat : sauvegarde d'un ancien format (v1) → migrée avant d'être enregistrée", () => {
+  const ancienneSauvegarde = {
+    version: 1,
+    ingredients: [],
+    plats: [],
+    planning: [{ jour: "lundi", creneau: "lunch", platId: "x", portions: 2, preparation: "cuisine-ici" }],
+  };
+
+  const resultat = importerEtat(JSON.stringify(ancienneSauvegarde));
+  assert.equal(resultat.ok, true);
+
+  const relu = chargerEtat();
+  assert.equal(relu.etat.version, 10);
+  assert.equal(relu.etat.modele[0].platId, "x");
 });

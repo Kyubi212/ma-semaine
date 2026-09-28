@@ -46,10 +46,11 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
-propose pour l'instant "🗑️ Réinitialiser avec les données de base" (efface `localStorage` via
-`effacerStockage()` dans `storage.js`, confirmation requise, irréversible — recharge l'app avec
-le catalogue de base de `data.js`) ; l'export/import de sauvegarde y sera ajouté plus tard (pas
-encore fait, voir Roadmap). **Important** : modifier `data.js` (rayons, ingrédients, plats) ne
+propose "⬇️ Exporter une sauvegarde" / "⬆️ Importer une sauvegarde" (fichier JSON téléchargé/
+réimporté à la main, voir "Export/import de sauvegarde" ci-dessous) et "🗑️ Réinitialiser avec les
+données de base" (efface `localStorage` via `effacerStockage()` dans `storage.js`, confirmation
+requise, irréversible — recharge l'app avec le catalogue de base de `data.js`). **Important** :
+modifier `data.js` (rayons, ingrédients, plats) ne
 change RIEN à ce que Qassim a déjà sur son téléphone tant qu'il n'utilise pas ce bouton — les
 migrations (`storage.js` → `migrer`) ne touchent que la STRUCTURE des données, jamais leur
 contenu. Écran d'ouverture : Semaine, sur le jour d'aujourd'hui. Mode sombre automatique selon le
@@ -526,6 +527,23 @@ tempsCuisson`) s'affiche sur chaque carte plat, avec le matériel requis.
 Remplace l'ancien champ `assemblage` (booléen "sans cuisson") qui existait dans les données
 importées de Notion mais n'était **jamais affiché nulle part** dans l'app — retiré (migration
 v9 → v10) au profit de `tempsCuisson` (0 minute exprime la même idée, sans champ redondant).
+
+## Export/import de sauvegarde (menu ⋯)
+
+**Décision clé** : sans backend, un changement de téléphone ou une réinstallation efface tout —
+c'était le manque le plus risqué de l'app pour n'importe quel utilisateur. Mécanisme entièrement
+hors-ligne, aucun service externe :
+- **Exporter** (`exporterEtat` dans `storage.js`) : sérialise l'état actuel en JSON et déclenche le
+  téléchargement d'un fichier `ma-semaine-sauvegarde-AAAA-MM-JJ.json` (`Blob` + lien `download`,
+  voir `exporterSauvegarde` dans `app.js`).
+- **Importer** (`importerEtat` dans `storage.js`) : lit un fichier choisi via un `<input
+  type="file">` **attaché au DOM** (masqué) — un input détaché ne déclenche pas toujours le
+  sélecteur de fichier natif sur tous les navigateurs (bug réel rencontré et corrigé). Le contenu
+  passe par les mêmes migrations que `chargerEtat` (une sauvegarde un peu ancienne reste
+  importable), avec une validation minimale (JSON lisible, champs `version`/`plats`/`ingredients`
+  présents) ; une sauvegarde d'une version *plus récente* que l'app installée est refusée sans
+  rien écraser. Une confirmation ("⚠️ Importer cette sauvegarde ?", même style que la
+  réinitialisation) précède l'écrasement, irréversible, de tout ce qui est déjà enregistré.
 
 ## Sécurité et vie privée
 
