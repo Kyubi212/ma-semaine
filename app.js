@@ -962,13 +962,12 @@ function ouvrirPanneau(dateISO, creneau) {
       item.className = "plat-choix";
       if (selectionMultiplePlats) {
         const coche = selectionMultiplePlats.has(plat.id);
-        if (coche) item.classList.add("selectionne");
+        item.dataset.id = plat.id;
+        if (coche) item.classList.add("selection-cochee");
         item.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${plat.nom}</span>`;
-        item.addEventListener("click", () => {
-          if (selectionMultiplePlats.has(plat.id)) selectionMultiplePlats.delete(plat.id);
-          else selectionMultiplePlats.add(plat.id);
-          rendrePanneau();
-        });
+        // Pas de click individuel : activerSelectionParGlissement (branché
+        // dans rendrePanneau()) gère le tap ET le glissement pour en cocher
+        // plusieurs d'affilée.
       } else {
         if (candidat && candidat.platId === plat.id) item.classList.add("selectionne");
         item.textContent = plat.nom;
@@ -983,6 +982,40 @@ function ouvrirPanneau(dateISO, creneau) {
       }
       listePlatsEl.appendChild(item);
     }
+  }
+
+  // Barre "Tout sélectionner" / "➕ Ajouter (n)" / "Annuler" du mode sélection
+  // multiple — à part de rendrePanneau() pour pouvoir la rafraîchir seule
+  // (avec rendreListePlatsPanneau()) pendant un glissement en cours, sans
+  // reconstruire tout le panneau (voir le commentaire sur activerSelectionParGlissement
+  // plus bas, dans rendrePanneau).
+  function rendreBarreMultiPlats() {
+    const multiPlatsBarreEl = panneauPlatEl.querySelector("#multi-plats-barre");
+    multiPlatsBarreEl.hidden = !selectionMultiplePlats;
+    if (!selectionMultiplePlats) return;
+    const liste = platsAffiches();
+    multiPlatsBarreEl.innerHTML = htmlBarreSelection(selectionMultiplePlats.size, liste.length, { icone: "➕", label: "Ajouter", classe: "" });
+    brancherBarreSelection(multiPlatsBarreEl, {
+      surTout: () => {
+        const tousCoches = liste.every((p) => selectionMultiplePlats.has(p.id));
+        liste.forEach((p) => (tousCoches ? selectionMultiplePlats.delete(p.id) : selectionMultiplePlats.add(p.id)));
+        rendreListePlatsPanneau();
+        rendreBarreMultiPlats();
+      },
+      surAction: () => {
+        for (const platId of selectionMultiplePlats) {
+          ajouterPlatAuJour(etat, dateISO, creneau, { platId, portions: 1 }, false);
+        }
+        sauvegarder();
+        selectionMultiplePlats = null;
+        rendrePanneau();
+        panneauPlatEl.querySelector("#liste-elements")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+      surAnnuler: () => {
+        selectionMultiplePlats = null;
+        rendrePanneau();
+      },
+    });
   }
 
   // --- Panneau "Plus de filtres" imbriqué (repas/étiquettes) : comme sur
@@ -1149,7 +1182,7 @@ function ouvrirPanneau(dateISO, creneau) {
         <button class="puce puce-plus" id="ouvrir-filtres-panneau" type="button" aria-label="Plus de filtres">➕<span id="filtres-panneau-compte"></span></button>
       </div>
       <p class="panneau-note" id="filtres-panneau-resume" style="margin:0 0 8px;"></p>
-      <button class="bouton-discret" id="toggle-selection-multiple" style="padding-left:0;">${selectionMultiplePlats ? "✕ Annuler la sélection multiple" : "☑️ Choisir plusieurs plats à la fois"}</button>
+      <button class="bouton-discret" id="toggle-selection-multiple" style="padding-left:0;" ${selectionMultiplePlats ? "hidden" : ""}>☑️ Choisir plusieurs plats à la fois</button>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
@@ -1352,37 +1385,30 @@ function ouvrirPanneau(dateISO, creneau) {
       zoneCandidatEl.innerHTML = "";
     }
 
-    // --- Barre de sélection multiple : "Tout sélectionner" / "Ajouter (n)"
-    // / "Annuler" — mêmes trois actions que la sélection multiple pour
-    // supprimer (Plats & repas, Catalogue), pour rester cohérent, mais
-    // "Ajouter" plutôt que "Supprimer" ici. ---
-    const multiPlatsBarreEl = panneauPlatEl.querySelector("#multi-plats-barre");
-    multiPlatsBarreEl.hidden = !selectionMultiplePlats;
+    // --- Barre de sélection multiple : "Tout sélectionner" / "➕ Ajouter (n)"
+    // / "Annuler" — même barre partagée que la sélection multiple pour
+    // supprimer (Plats & repas, Catalogue, Gérer...), pour rester cohérent
+    // ("même direction artistique", demandé par Qassim), avec une action
+    // "➕ Ajouter" à la place de "🗑️ Supprimer". ---
+    rendreBarreMultiPlats();
+
     if (selectionMultiplePlats) {
-      const liste = platsAffiches();
-      const n = selectionMultiplePlats.size;
-      multiPlatsBarreEl.innerHTML = `
-        <button type="button" class="bouton-secondaire bouton-petit" data-action="tout">${n === liste.length && liste.length > 0 ? "Tout désélectionner" : "Tout sélectionner"}</button>
-        <button type="button" class="bouton-principal bouton-petit" data-action="ajouter" ${n === 0 ? "disabled" : ""}>Ajouter (${n})</button>
-        <button type="button" class="bouton-secondaire bouton-petit" data-action="annuler">Annuler</button>
-      `;
-      multiPlatsBarreEl.querySelector('[data-action="tout"]').addEventListener("click", () => {
-        const tousCoches = liste.every((p) => selectionMultiplePlats.has(p.id));
-        liste.forEach((p) => (tousCoches ? selectionMultiplePlats.delete(p.id) : selectionMultiplePlats.add(p.id)));
-        rendrePanneau();
-      });
-      multiPlatsBarreEl.querySelector('[data-action="ajouter"]').addEventListener("click", () => {
-        for (const platId of selectionMultiplePlats) {
-          ajouterPlatAuJour(etat, dateISO, creneau, { platId, portions: 1 }, false);
-        }
-        sauvegarder();
-        selectionMultiplePlats = null;
-        rendrePanneau();
-        panneauPlatEl.querySelector("#liste-elements")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-      multiPlatsBarreEl.querySelector('[data-action="annuler"]').addEventListener("click", () => {
-        selectionMultiplePlats = null;
-        rendrePanneau();
+      // Glissement pour en cocher plusieurs d'affilée d'un seul geste — même
+      // mécanisme que le Catalogue/Plats/Gérer (voir activerSelectionParGlissement).
+      // basculer() ne doit JAMAIS reconstruire tout le panneau (rendrePanneau) :
+      // ça détruirait #liste-plats EN PLEIN GLISSEMENT (le doigt toujours posé),
+      // et le nouveau nœud recréé ne reçoit plus les événements tactiles
+      // suivants du même geste (capture tactile perdue) — bug réel trouvé au
+      // test tactile. On ne reconstruit que la liste + la barre, comme un tap
+      // normal sur une ligne.
+      activerSelectionParGlissement(panneauPlatEl.querySelector("#liste-plats"), ".plat-choix[data-id]", {
+        estSelectionne: (id) => selectionMultiplePlats?.has(id) ?? false,
+        basculer: (id) => {
+          if (selectionMultiplePlats.has(id)) selectionMultiplePlats.delete(id);
+          else selectionMultiplePlats.add(id);
+          rendreListePlatsPanneau();
+          rendreBarreMultiPlats();
+        },
       });
     }
 
@@ -2183,7 +2209,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
         affiches.forEach((i) => (tousCoches ? selection.delete(i.id) : selection.add(i.id)));
         rendreListe();
       },
-      surSupprimer: () => ouvrirPanneauSuppressionMultiple({
+      surAction: () => ouvrirPanneauSuppressionMultiple({
         quoi: { un: "ingrédient", des: "ingrédients" },
         elements: etat.ingredients.filter((i) => selection.has(i.id)),
         supprimerUn: (id) => supprimerIngredient(etat, id),
@@ -2256,6 +2282,7 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
           const coche = selection.has(ingredient.id);
           const ligne = document.createElement("button");
           ligne.type = "button";
+          ligne.dataset.id = ingredient.id;
           ligne.className = `article-course${coche ? " selection-cochee" : ""}`;
           ligne.innerHTML = `
             <span class="case-selection">${coche ? "☑" : "☐"}</span>
@@ -2264,11 +2291,9 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
               <span class="article-detail">${infosEtat.label}${ingredient.essentiel ? " · ⭐ Essentiel" : ""}</span>
             </div>
           `;
-          ligne.addEventListener("click", () => {
-            if (selection.has(ingredient.id)) selection.delete(ingredient.id);
-            else selection.add(ingredient.id);
-            rendreListe();
-          });
+          // Pas de click individuel ici : c'est activerSelectionParGlissement,
+          // branché une fois sur #catalogue-liste, qui gère le tap ET le
+          // glissement pour cocher plusieurs lignes d'affilée (voir plus bas).
           articlesEl.appendChild(ligne);
           continue;
         }
@@ -2326,6 +2351,19 @@ function ouvrirPanneauCatalogue(ecranSousJacent = rendreEcranStock, onChoisirIng
     selection = new Set();
     rendreListe();
   });
+  // Sélection "à la iOS" (tap = coche une ligne, glisser = coche celles
+  // survolées) — branché une seule fois sur le conteneur, qui survit aux
+  // rendreListe() suivants (seul son contenu est reconstruit).
+  if (!onChoisirIngredient) {
+    activerSelectionParGlissement(panneauPlatEl.querySelector("#catalogue-liste"), ".article-course[data-id]", {
+      estSelectionne: (id) => selection?.has(id) ?? false,
+      basculer: (id) => {
+        if (selection.has(id)) selection.delete(id);
+        else selection.add(id);
+        rendreListe();
+      },
+    });
+  }
 
   panneauPlatEl.querySelector("#catalogue-recherche").addEventListener("input", (evenement) => {
     rechercheCatalogue = evenement.target.value;
@@ -2604,6 +2642,16 @@ platsSelectionnerEl.addEventListener("click", () => {
   selectionPlats = new Set();
   rendreGrillePlats();
 });
+// Sélection "à la iOS" (tap = coche une carte, glisser = coche celles
+// survolées) — branchée une seule fois sur la grille.
+activerSelectionParGlissement(grillePlatsEl, ".article-course[data-id]", {
+  estSelectionne: (id) => selectionPlats?.has(id) ?? false,
+  basculer: (id) => {
+    if (selectionPlats.has(id)) selectionPlats.delete(id);
+    else selectionPlats.add(id);
+    rendreGrillePlats();
+  },
+});
 
 function rendreBarreSelectionPlats(liste) {
   platsSelectionnerEl.hidden = selectionPlats !== null || etat.plats.length === 0;
@@ -2618,7 +2666,7 @@ function rendreBarreSelectionPlats(liste) {
       liste.forEach((p) => (tousCoches ? selectionPlats.delete(p.id) : selectionPlats.add(p.id)));
       rendreGrillePlats();
     },
-    surSupprimer: () => ouvrirPanneauSuppressionMultiple({
+    surAction: () => ouvrirPanneauSuppressionMultiple({
       quoi: { un: "plat", des: "plats" },
       elements: etat.plats.filter((p) => selectionPlats.has(p.id)),
       supprimerUn: (id) => supprimerPlat(etat, id),
@@ -2674,8 +2722,12 @@ function rendreGrillePlats() {
     const carte = document.createElement("div");
     carte.className = "article-course";
     if (selectionPlats) {
-      // Mode sélection : une case à la place de l'étoile, toucher coche/décoche.
+      // Mode sélection : une case à la place de l'étoile. Pas de click
+      // individuel : activerSelectionParGlissement (branché une fois sur
+      // grillePlatsEl) gère le tap ET le glissement pour en cocher
+      // plusieurs d'affilée.
       const coche = selectionPlats.has(plat.id);
+      carte.dataset.id = plat.id;
       if (coche) carte.classList.add("selection-cochee");
       carte.innerHTML = `
         <span class="case-selection">${coche ? "☑" : "☐"}</span>
@@ -2684,11 +2736,6 @@ function rendreGrillePlats() {
           <span class="article-detail article-detail-multiligne">${morceaux.join(" · ")}</span>
         </div>
       `;
-      carte.addEventListener("click", () => {
-        if (selectionPlats.has(plat.id)) selectionPlats.delete(plat.id);
-        else selectionPlats.add(plat.id);
-        rendreGrillePlats();
-      });
       grillePlatsEl.appendChild(carte);
       continue;
     }
@@ -2847,20 +2894,83 @@ function rendreGlissable(carte, actions, surToucher) {
 // (ingrédients) et les panneaux "⚙️ Gérer..." (repas, étiquettes, matériel,
 // rayons). ---
 
-// Barre d'actions de la sélection (Tout / Supprimer (n) / Annuler).
-function htmlBarreSelection(nbSelectionnes, nbTotal) {
+// Barre d'actions de la sélection (Tout / action / Annuler) — MÊME
+// apparence partout où on sélectionne plusieurs éléments d'une liste
+// (supprimer des plats/ingrédients/repas/étiquettes/matériel/rayons,
+// ajouter plusieurs plats au planning) : demandé par Qassim, "je veux la
+// même direction artistique sur les deux pages". `action` par défaut =
+// "🗑️ Supprimer" (rouge) ; passer `{ icone, label, classe }` pour un autre
+// bouton (ex. "➕ Ajouter", vert).
+function htmlBarreSelection(nbSelectionnes, nbTotal, action = { icone: "🗑️", label: "Supprimer", classe: "bouton-danger" }) {
   const tout = nbSelectionnes === nbTotal && nbTotal > 0;
   return `
     <button type="button" class="bouton-secondaire bouton-petit" data-selection="tout">${tout ? "Tout désélectionner" : "Tout sélectionner"}</button>
-    <button type="button" class="bouton-principal bouton-danger bouton-petit" data-selection="supprimer" ${nbSelectionnes === 0 ? "disabled" : ""}>🗑️ Supprimer (${nbSelectionnes})</button>
+    <button type="button" class="bouton-principal ${action.classe} bouton-petit" data-selection="action" ${nbSelectionnes === 0 ? "disabled" : ""}>${action.icone} ${action.label} (${nbSelectionnes})</button>
     <button type="button" class="bouton-secondaire bouton-petit" data-selection="annuler">Annuler</button>
   `;
 }
 
-function brancherBarreSelection(barreEl, { surTout, surSupprimer, surAnnuler }) {
+function brancherBarreSelection(barreEl, { surTout, surAction, surAnnuler }) {
   barreEl.querySelector('[data-selection="tout"]').addEventListener("click", surTout);
-  barreEl.querySelector('[data-selection="supprimer"]').addEventListener("click", surSupprimer);
+  barreEl.querySelector('[data-selection="action"]').addEventListener("click", surAction);
   barreEl.querySelector('[data-selection="annuler"]').addEventListener("click", surAnnuler);
+}
+
+// --- Sélection "à la iOS" : appuyer sur un premier élément puis glisser le
+// doigt dessus les suivants les sélectionne tous d'un coup, au lieu de
+// devoir toucher chacun séparément (demandé par Qassim, "il y a des
+// applications qui font ça"). Remplace le click individuel de chaque
+// ligne : c'est cette fonction qui gère à la fois le simple tap (bascule
+// UNE ligne) et le glissement (étend le même état — sélectionner ou
+// désélectionner, selon ce qu'a fait la ligne de départ — à chaque ligne
+// survolée sans relâcher). `conteneurEl` : l'élément qui contient toutes
+// les lignes sélectionnables ; chacune doit porter `data-id`.
+// `estSelectionne(id)` : état actuel. `basculer(id)` : bascule CET id (Set
+// + mise à jour de sa propre ligne + du compteur/barre) — exactement ce
+// que faisait avant le click individuel de la ligne.
+function activerSelectionParGlissement(conteneurEl, selecteurLigne, { estSelectionne, basculer }) {
+  let depart = null; // { id, x, y }
+  let enGlissement = false;
+  let etatApplique = null; // true = sélectionne, false = désélectionne
+  const dejaTouchees = new Set();
+
+  conteneurEl.addEventListener("pointerdown", (evenement) => {
+    const ligneEl = evenement.target.closest(selecteurLigne);
+    if (!ligneEl?.dataset.id) return;
+    depart = { id: ligneEl.dataset.id, x: evenement.clientX, y: evenement.clientY };
+    enGlissement = false;
+    dejaTouchees.clear();
+  });
+
+  conteneurEl.addEventListener("pointermove", (evenement) => {
+    if (!depart) return;
+    if (!enGlissement) {
+      // En dessous de 8px de mouvement : encore un simple tap, pas un
+      // glissement — on attend de voir avant de basculer quoi que ce soit.
+      if (Math.hypot(evenement.clientX - depart.x, evenement.clientY - depart.y) < 8) return;
+      enGlissement = true;
+      etatApplique = !estSelectionne(depart.id);
+      basculer(depart.id);
+      dejaTouchees.add(depart.id);
+    }
+    const ligneEl = document.elementFromPoint(evenement.clientX, evenement.clientY)?.closest(selecteurLigne);
+    const id = ligneEl && conteneurEl.contains(ligneEl) ? ligneEl.dataset.id : null;
+    if (id && !dejaTouchees.has(id)) {
+      dejaTouchees.add(id);
+      if (estSelectionne(id) !== etatApplique) basculer(id);
+    }
+  });
+
+  conteneurEl.addEventListener("pointerup", () => {
+    // Simple tap (aucun glissement détecté) : bascule juste la ligne de départ.
+    if (depart && !enGlissement) basculer(depart.id);
+    depart = null;
+    enGlissement = false;
+  });
+  conteneurEl.addEventListener("pointercancel", () => {
+    depart = null;
+    enGlissement = false;
+  });
 }
 
 // Confirmation puis bilan d'une suppression multiple.
@@ -3268,6 +3378,62 @@ function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouve
   apresFermeturePanneau = ecranSousJacent;
   let selection = null; // null = mode normal ; Set d'ids = mode sélection
 
+  // Reconstruit UNIQUEMENT la liste + la barre de sélection (pas tout le
+  // panneau) — appelée par le glissement pour cocher plusieurs lignes
+  // d'affilée. Important : basculer() ne doit JAMAIS passer par
+  // rendrePanneau() (reconstruction complète), sinon #gerer-liste est détruit
+  // et recréé EN PLEIN GLISSEMENT (le doigt toujours posé), et le nouveau
+  // nœud ne reçoit plus les événements tactiles suivants du même geste
+  // (capture tactile perdue) — bug réel trouvé au test tactile.
+  function rendreListeEtBarre(liste) {
+    const listeEl = panneauPlatEl.querySelector("#gerer-liste");
+    listeEl.innerHTML = "";
+    for (const item of liste) {
+      const bouton = document.createElement("button");
+      bouton.className = "plat-choix";
+      if (selection) {
+        const coche = selection.has(item.id);
+        bouton.dataset.id = item.id;
+        if (coche) bouton.classList.add("selection-cochee");
+        bouton.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${item.nom}</span>`;
+        // Pas de click individuel : activerSelectionParGlissement (ci-dessous)
+        // gère le tap ET le glissement pour en cocher plusieurs d'affilée.
+      } else {
+        bouton.textContent = item.nom;
+        bouton.addEventListener("click", () => ouvrirEdition(item.id, () => rendrePanneau(), ecranSousJacent));
+      }
+      listeEl.appendChild(bouton);
+    }
+
+    if (selection) {
+      activerSelectionParGlissement(listeEl, ".plat-choix[data-id]", {
+        estSelectionne: (id) => selection.has(id),
+        basculer: (id) => {
+          if (selection.has(id)) selection.delete(id);
+          else selection.add(id);
+          rendreListeEtBarre(liste);
+        },
+      });
+      const barreEl = panneauPlatEl.querySelector("#gerer-barre");
+      barreEl.innerHTML = htmlBarreSelection(selection.size, liste.length);
+      brancherBarreSelection(barreEl, {
+        surTout: () => {
+          selection = selection.size === liste.length ? new Set() : new Set(liste.map((i) => i.id));
+          rendreListeEtBarre(liste);
+        },
+        surAction: () => ouvrirPanneauSuppressionMultiple({
+          quoi: suppression.quoi,
+          elements: liste.filter((i) => selection.has(i.id)),
+          supprimerUn: suppression.supprimerUn,
+          expliquerRefus: suppression.expliquerRefus,
+          retour: () => { selection = null; rendrePanneau(); },
+          ecranSousJacent,
+        }),
+        surAnnuler: () => { selection = null; rendrePanneau(); },
+      });
+    }
+  }
+
   function rendrePanneau() {
     const liste = obtenirListe();
     panneauPlatEl.innerHTML = `
@@ -3284,47 +3450,13 @@ function ouvrirPanneauGererListe(titre, obtenirListe, ouvrirEdition, ouvrirNouve
         : `<button class="bouton-secondaire bouton-pleine-largeur" id="gerer-ajouter" style="margin-top:8px;">${labelAjouter}</button>`}
     `;
 
-    const listeEl = panneauPlatEl.querySelector("#gerer-liste");
-    for (const item of liste) {
-      const bouton = document.createElement("button");
-      bouton.className = "plat-choix";
-      if (selection) {
-        const coche = selection.has(item.id);
-        if (coche) bouton.classList.add("selectionne");
-        bouton.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${item.nom}</span>`;
-        bouton.addEventListener("click", () => {
-          if (selection.has(item.id)) selection.delete(item.id);
-          else selection.add(item.id);
-          rendrePanneau();
-        });
-      } else {
-        bouton.textContent = item.nom;
-        bouton.addEventListener("click", () => ouvrirEdition(item.id, () => rendrePanneau(), ecranSousJacent));
-      }
-      listeEl.appendChild(bouton);
-    }
+    rendreListeEtBarre(liste);
 
     panneauPlatEl.querySelector("#gerer-selectionner")?.addEventListener("click", () => {
       selection = new Set();
       rendrePanneau();
     });
-    if (selection) {
-      brancherBarreSelection(panneauPlatEl.querySelector("#gerer-barre"), {
-        surTout: () => {
-          selection = selection.size === liste.length ? new Set() : new Set(liste.map((i) => i.id));
-          rendrePanneau();
-        },
-        surSupprimer: () => ouvrirPanneauSuppressionMultiple({
-          quoi: suppression.quoi,
-          elements: liste.filter((i) => selection.has(i.id)),
-          supprimerUn: suppression.supprimerUn,
-          expliquerRefus: suppression.expliquerRefus,
-          retour: () => { selection = null; rendrePanneau(); },
-          ecranSousJacent,
-        }),
-        surAnnuler: () => { selection = null; rendrePanneau(); },
-      });
-    } else {
+    if (!selection) {
       panneauPlatEl.querySelector("#gerer-ajouter").addEventListener("click", () => {
         ouvrirNouveau(() => rendrePanneau(), ecranSousJacent);
       });

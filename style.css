@@ -1480,6 +1480,17 @@ textarea.champ-texte {
   background: color-mix(in srgb, var(--couleur-accent) 10%, var(--couleur-carte));
 }
 
+/* Lignes sélectionnables (portent data-id en mode sélection multiple) :
+   pas de défilement tactile natif dessus, sinon le navigateur récupère le
+   geste comme un scroll de page dès le 2e mouvement du doigt, et le
+   glissement pour cocher plusieurs lignes d'affilée (activerSelectionParGlissement
+   dans app.js) ne reçoit jamais les pointermove suivants — bug réel trouvé au
+   test tactile. */
+[data-id].article-course,
+[data-id].plat-choix {
+  touch-action: none;
+}
+
 .barre-selection {
   display: flex;
   gap: 6px;

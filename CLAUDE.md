@@ -790,6 +790,56 @@ lundi 28 sept."). Mécanisme commun dans `app.js` : `htmlBarreSelection`/`branch
 `ouvrirPanneauSuppressionMultiple`, `EXPLIQUER_REFUS`. Les dates sont écrites en toutes lettres
 (`dateLisible`), plus jamais "2026-09-28".
 
+### Même apparence partout + glisser le doigt pour en cocher plusieurs d'affilée
+
+**Décision (demandée par Qassim)** : *"je veux que le truc sélectionné il ait la même direction
+artistique sur les deux pages"* et *"quand on veut en sélectionner plusieurs et qu'ils sont
+d'affilée, on peut faire un clic sur le premier puis descendre vers le bas avec son doigt et ça
+nous sélectionne tout le reste, il y a des applications qui font ça"* (comme Mail/Photos sur
+iPhone). Deux demandes réglées par le même mécanisme, dans les 4 endroits où on sélectionne
+plusieurs éléments d'une liste (Plats & repas, Catalogue, "⚙️ Gérer...", "☑️ Choisir plusieurs
+plats à la fois" du panneau créneau) :
+
+- **Même case, même surbrillance partout** : `.case-selection` (glyphe ☑/☐) et `.selection-cochee`
+  (bordure + fond teinté, `style.css`) sont désormais utilisés aux 4 endroits — avant cette étape,
+  le panneau créneau utilisait encore `.selectionne` (la classe générique "cette option est
+  choisie", utilisée ailleurs dans l'app pour des pickers à choix unique — repas, rayon, unité —
+  sans rapport avec la sélection multiple), ce qui donnait un rendu différent. Même changement sur
+  le libellé du bouton ("☑️ Sélectionner pour supprimer" partout, au lieu de juste "☑️
+  Sélectionner" sur Plats & repas). La barre du bas ("Tout sélectionner" / action / "Annuler") est
+  la même partout via `htmlBarreSelection`/`brancherBarreSelection`, avec juste l'action qui change
+  ("🗑️ Supprimer" en rouge pour les 3 endroits qui suppriment, "➕ Ajouter" en vert pour le panneau
+  créneau qui, lui, ajoute plusieurs plats au planning d'un coup) — `htmlBarreSelection` prend un
+  paramètre `action` optionnel `{ icone, label, classe }` pour ça.
+- **Glisser le doigt pour cocher plusieurs lignes d'affilée** (`activerSelectionParGlissement`
+  dans `app.js`) : appuyer sur une première ligne puis glisser le doigt dessus les suivantes,
+  **sans le relâcher**, les coche (ou décoche, selon ce qu'a fait la première) toutes d'un coup.
+  Un simple tap (sans glissement, en dessous de 8 px de mouvement) continue de juste basculer
+  cette ligne. Mécanisme : `pointerdown` mémorise la ligne de départ ; `pointermove` compare la
+  position au-dessus de laquelle passe le doigt (`document.elementFromPoint`, pas
+  `evenement.target` — un événement tactile cible toujours l'élément du DÉBUT du geste, jamais
+  celui survolé ensuite) et bascule chaque nouvelle ligne rencontrée vers le même état que la
+  première ; `pointerup` bascule juste la ligne de départ si aucun glissement n'a eu lieu. Branché
+  une seule fois par conteneur (`#catalogue-liste`, `#grille-plats`, `#gerer-liste`,
+  `#liste-plats`), chaque ligne sélectionnable portant juste un `data-id` — plus de `click`
+  individuel par ligne, ce mécanisme gère tap ET glissement pour toutes.
+  - **Bug réel (trouvé au test tactile, pas à la souris)** : sans rien de plus, le navigateur
+    récupère le geste comme un défilement de page dès le 2ᵈᵉ mouvement du doigt (comportement
+    tactile natif par défaut), et plus aucun `pointermove` n'arrive ensuite. Corrigé avec
+    `touch-action: none` sur les lignes sélectionnables (`[data-id].article-course`,
+    `[data-id].plat-choix` dans `style.css` — seulement quand `data-id` est présent, donc
+    seulement en mode sélection : le défilement tactile normal des listes n'est pas touché).
+  - **2ᵉ bug réel (idem, seulement visible au doigt)** : sur le panneau créneau et "⚙️ Gérer...",
+    cocher une ligne reconstruisait TOUT le panneau (`rendrePanneau()`, qui remplace
+    `panneauPlatEl.innerHTML` en entier) — en plein glissement, ça détruit et recrée le conteneur
+    `#liste-plats`/`#gerer-liste` sous le doigt, qui perd alors la capture tactile du geste en
+    cours : plus aucun `pointermove` suivant n'arrivait, le glissement s'arrêtait après la 1ʳᵉ
+    ligne. Corrigé en ne reconstruisant, à chaque ligne cochée pendant un glissement, QUE la liste
+    et la barre (`rendreListePlatsPanneau()`+`rendreBarreMultiPlats()` pour le panneau créneau,
+    `rendreListeEtBarre()` pour "⚙️ Gérer...") — jamais tout le panneau. Sur Plats & repas et le
+    Catalogue, ce problème n'existait pas : leur reconstruction (`rendreGrillePlats()`/
+    `rendreListe()`) ne remplaçait déjà que le contenu de la grille/liste, jamais le conteneur lui-même.
+
 ## Filtre temps "⏱️ max" (écran Plats & repas et panneau créneau)
 
 **Décision (demandée par Qassim)** : remplacer l'étiquette "Rapide à préparer" par un vrai réglage
