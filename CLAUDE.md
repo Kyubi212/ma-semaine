@@ -182,6 +182,18 @@ cocher "🍽️ Mangé" même si le stock est insuffisant (le stock devient alor
 "Règles de calcul"). Cet avertissement disparaît une fois l'élément coché "🍽️ Mangé" (plus besoin
 d'avertir sur un repas déjà comptabilisé).
 
+**Calculé sur le stock projeté, pas le stock actuel** (bug réel trouvé par Qassim : du stock pour 2
+compotes, compote prévue lundi, mardi, mercredi, jeudi — mercredi et jeudi la disaient encore
+réalisable, sans aucune alerte). Un repas prévu plus tard ne peut compter que sur ce qui restera
+une fois servis les repas prévus **avant** lui (`etatAvecStockProjete` dans `calculs.js`) : à
+partir d'aujourd'hui seulement (un jour passé est clos, même règle que les courses), jours
+précédents, créneaux précédents du même jour, puis — pour un plat déjà prévu — les plats listés
+avant lui dans le même créneau, ou — pour un plat qu'on s'apprête à ajouter — tous ceux déjà prévus
+dans ce créneau. Un repas déjà coché "🍽️ Mangé" ne réserve rien (déjà déduit du vrai stock). Le
+manque affiché ne dépasse jamais ce que CE plat demande (un stock projeté négatif compte comme 0 :
+jeudi affiche 1,5 pomme manquante, pas le cumul de mercredi + jeudi). Le vrai stock n'est jamais
+modifié par ce calcul.
+
 ### Repas prêts (section dédiée sur l'écran Semaine, indépendante du planning jour par jour)
 
 **Cas d'usage à l'origine** : un voisin offre un plat à Qassim (recette inconnue), qui le mettra au
@@ -606,6 +618,12 @@ ingrédients pour 1 portion (`platEstRealisableAvecStock` dans `calculs.js`, ré
 `ingredientsManquantsPourPlat` : réalisable = aucun ingrédient manquant). 1 portion par défaut
 (pas la recette entière ni `portionsReference`) — cohérent avec le reste de l'app, où une portion
 est toujours **par personne**.
+
+**Deux contextes, deux stocks de référence** : dans le panneau créneau (écran Semaine), le filtre
+"Réalisable" utilise le **stock projeté** à ce jour + créneau, une fois servis les repas déjà
+prévus avant (voir "Avertissement stock insuffisant") — sinon un plat resterait proposé chaque jour
+alors que le stock ne suffit que pour les premiers. Sur l'écran Plats & repas, pas de date : il
+répond à "qu'est-ce que je peux cuisiner maintenant ?", donc avec le stock **actuel**.
 
 ## Matériel requis et temps de préparation/cuisson (écran Plats & repas)
 

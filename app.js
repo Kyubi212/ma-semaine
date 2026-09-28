@@ -37,6 +37,7 @@ import {
   supprimerRepas,
   ingredientsManquantsPourPlat,
   platEstRealisableAvecStock,
+  etatAvecStockProjete,
   ajouterRepasPret,
   mangerRepasPret,
   retirerRepasPret,
@@ -644,7 +645,14 @@ function ouvrirPanneau(dateISO, creneau) {
   function platsAffiches() {
     let liste = filtreRepasPanneau === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepasPanneau);
     if (filtreFavorisPanneau) liste = liste.filter((p) => p.favori);
-    if (filtreRealisablePanneau) liste = liste.filter((p) => platEstRealisableAvecStock(etat, p.id));
+    // Réalisable avec le stock qui RESTERA à ce moment-là, une fois servis
+    // les repas déjà prévus avant (voir etatAvecStockProjete) — pas le stock
+    // d'aujourd'hui : 2 compotes en stock, prévues lundi et mardi → plus
+    // proposée mercredi (cas testé par Qassim).
+    if (filtreRealisablePanneau) {
+      const etatProjete = etatAvecStockProjete(etat, dateISO, creneau);
+      liste = liste.filter((p) => platEstRealisableAvecStock(etatProjete, p.id));
+    }
     if (etiquettesSelectionneesPanneau.size > 0) {
       liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
     }
@@ -761,7 +769,14 @@ function ouvrirPanneau(dateISO, creneau) {
       const plat = etat.plats.find((p) => p.id === element.platId);
       const nomsMateriel = plat.materiel.map((id) => etat.materiel.find((m) => m.id === id)?.nom).filter(Boolean);
       const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
-      const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
+      // Stock restant après les repas prévus AVANT celui-ci (voir etatAvecStockProjete).
+      const manquants = element.cuisine
+        ? []
+        : ingredientsManquantsPourPlat(
+            etatAvecStockProjete(etat, dateISO, creneau, { avantElementId: element.id }),
+            element.platId,
+            element.portions
+          );
       const texteManquants = manquants.length > 0
         ? texteIngredientsManquants(manquants)
         : "";
@@ -901,7 +916,14 @@ function ouvrirPanneau(dateISO, creneau) {
       const ligne = document.createElement("div");
       ligne.className = "element-prevu";
 
-      const manquants = element.cuisine ? [] : ingredientsManquantsPourPlat(etat, element.platId, element.portions);
+      // Stock restant après les repas prévus AVANT celui-ci (voir etatAvecStockProjete).
+      const manquants = element.cuisine
+        ? []
+        : ingredientsManquantsPourPlat(
+            etatAvecStockProjete(etat, dateISO, creneau, { avantElementId: element.id }),
+            element.platId,
+            element.portions
+          );
       const texteManquants = manquants.length > 0
         ? texteIngredientsManquants(manquants)
         : "";
@@ -962,7 +984,11 @@ function ouvrirPanneau(dateISO, creneau) {
     const zoneCandidatEl = panneauPlatEl.querySelector("#zone-candidat");
     zoneCandidatEl.className = candidat ? "zone-candidat" : "";
     if (candidat) {
-      const manquants = ingredientsManquantsPourPlat(etat, candidat.platId, candidat.portions);
+      const manquants = ingredientsManquantsPourPlat(
+        etatAvecStockProjete(etat, dateISO, creneau),
+        candidat.platId,
+        candidat.portions
+      );
       const texteManquants = manquants.length > 0
         ? texteIngredientsManquants(manquants)
         : "";

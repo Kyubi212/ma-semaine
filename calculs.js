@@ -804,11 +804,65 @@ export function ingredientsManquantsPourPlat(etat, platId, portions) {
     if (!ingredient) continue;
 
     const besoin = portions * convertirVersUniteStock(ligne.quantitePortion, ligne.unite, ingredient);
-    if (besoin > ingredient.enStock) {
-      manquants.push({ nom: ingredient.nom, manque: besoin - ingredient.enStock, unite: ingredient.unite });
+    // Stock négatif (interne, ou projeté après d'autres repas prévus) compté
+    // comme 0 : on n'annonce jamais plus que ce que CE plat demande (sinon
+    // un 4e repas afficherait aussi le manque des précédents).
+    const disponible = Math.max(0, ingredient.enStock);
+    if (besoin > disponible) {
+      manquants.push({ nom: ingredient.nom, manque: besoin - disponible, unite: ingredient.unite });
     }
   }
   return manquants;
+}
+
+// --- Stock projeté (Réalisable / "Il manque" sur le planning) ---
+//
+// Le stock ACTUEL ne suffit pas pour juger un repas prévu plus tard : si
+// lundi et mardi prévoient déjà une compote, les pommes seront parties
+// mercredi, même si elles sont encore dans le frigo aujourd'hui (cas réel
+// testé par Qassim). Rend une COPIE de l'état dont le stock a été diminué
+// de tout ce que les repas prévus AVANT ce moment vont consommer — à partir
+// d'aujourd'hui seulement (un jour passé est clos, même règle que la liste
+// de courses), et en ignorant ce qui est déjà coché "Mangé" (déjà déduit du
+// vrai stock). "Avant" = les jours précédents, les créneaux précédents du
+// même jour, puis :
+// - sans `avantElementId` : TOUS les plats déjà prévus dans ce créneau
+//   (cas d'un plat qu'on s'apprête à AJOUTER : il passe après eux) ;
+// - avec `avantElementId` : seulement ceux listés avant cet élément (cas
+//   d'un plat déjà prévu, pour son avertissement "Il manque").
+// Ne modifie jamais l'état réel.
+export function etatAvecStockProjete(etat, dateISO, creneau, { avantElementId = null, dateReference = new Date() } = {}) {
+  const aujourdhuiISO = dateEnISO(dateReference);
+  if (dateISO < aujourdhuiISO) return etat;
+
+  const elementsAvant = [];
+  const date = analyserDateISO(aujourdhuiISO);
+  for (let dateCourante = aujourdhuiISO; dateCourante <= dateISO; ) {
+    for (const creneauCourant of CRENEAUX) {
+      const elements = obtenirElementsEffectifs(etat, dateCourante, creneauCourant);
+      if (dateCourante < dateISO || CRENEAUX.indexOf(creneauCourant) < CRENEAUX.indexOf(creneau)) {
+        elementsAvant.push(...elements);
+      } else if (creneauCourant === creneau) {
+        if (avantElementId === null) {
+          elementsAvant.push(...elements);
+        } else {
+          const index = elements.findIndex((e) => e.id === avantElementId);
+          elementsAvant.push(...(index === -1 ? elements : elements.slice(0, index)));
+        }
+      }
+    }
+    date.setDate(date.getDate() + 1);
+    dateCourante = dateEnISO(date);
+  }
+
+  const reserve = calculerBesoins(elementsAvant, etat.plats, etat.ingredients);
+  return {
+    ...etat,
+    ingredients: etat.ingredients.map((ingredient) => ({
+      ...ingredient,
+      enStock: ingredient.enStock - (reserve.get(ingredient.id) ?? 0),
+    })),
+  };
 }
 
 // Un plat est "réalisable" quand le stock actuel couvre tous ses

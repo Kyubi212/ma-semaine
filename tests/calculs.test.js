@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   formaterQuantite,
+  etatAvecStockProjete,
   clampPositif,
   convertirVersUniteStock,
   caseCompte,
@@ -975,6 +976,75 @@ test("platEstRealisableAvecStock : true quand le stock couvre 1 portion, false s
 test("platEstRealisableAvecStock : 1 portion par défaut si non précisé", () => {
   const etat = etatDeTest();
   assert.equal(platEstRealisableAvecStock(etat, "plat-test"), true);
+});
+
+// --- etatAvecStockProjete (Réalisable / "Il manque" sur le planning) ---
+// Stock : 200 g de riz ; plat-test = 100 g de riz par portion → de quoi
+// faire 2 fois le plat. Aujourd'hui = lundi 21/09/2026.
+
+const LUNDI = new Date("2026-09-21T10:00:00");
+
+function etatAvecPlatLundiMardi() {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "snack", { platId: "plat-test", portions: 1 });
+  ajouterPlatAuJour(etat, "2026-09-22", "snack", { platId: "plat-test", portions: 1 });
+  return etat;
+}
+
+test("etatAvecStockProjete : mercredi, le stock réservé par lundi + mardi n'est plus disponible", () => {
+  const etat = etatAvecPlatLundiMardi();
+  const projete = etatAvecStockProjete(etat, "2026-09-23", "snack", { dateReference: LUNDI });
+  assert.equal(projete.ingredients.find((i) => i.id === "riz").enStock, 0);
+  assert.equal(platEstRealisableAvecStock(projete, "plat-test"), false, "3e compote : plus réalisable");
+  assert.equal(etat.ingredients.find((i) => i.id === "riz").enStock, 200, "le vrai stock n'est pas touché");
+});
+
+test("etatAvecStockProjete : mardi, seul lundi est réservé → encore réalisable", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "snack", { platId: "plat-test", portions: 1 });
+  const projete = etatAvecStockProjete(etat, "2026-09-22", "snack", { dateReference: LUNDI });
+  assert.equal(platEstRealisableAvecStock(projete, "plat-test"), true);
+});
+
+test("etatAvecStockProjete : un plat déjà prévu ne se réserve pas lui-même (avantElementId)", () => {
+  const etat = etatAvecPlatLundiMardi();
+  const elementMardi = obtenirElementsEffectifs(etat, "2026-09-22", "snack")[0];
+  const projete = etatAvecStockProjete(etat, "2026-09-22", "snack", { avantElementId: elementMardi.id, dateReference: LUNDI });
+  assert.equal(projete.ingredients.find((i) => i.id === "riz").enStock, 100, "seul lundi est compté avant mardi");
+  assert.deepEqual(ingredientsManquantsPourPlat(projete, "plat-test", 1), []);
+});
+
+test("etatAvecStockProjete : un repas déjà coché Mangé ne réserve rien (déjà déduit du vrai stock)", () => {
+  const etat = etatAvecPlatLundiMardi();
+  const elementLundi = obtenirElementsEffectifs(etat, "2026-09-21", "snack")[0];
+  definirCuisine(etat, "2026-09-21", "snack", elementLundi.id, true); // stock réel : 100 g
+  const projete = etatAvecStockProjete(etat, "2026-09-23", "snack", { dateReference: LUNDI });
+  assert.equal(projete.ingredients.find((i) => i.id === "riz").enStock, 0, "100 réels − 100 réservés par mardi");
+});
+
+test("etatAvecStockProjete : les jours passés ne réservent rien, et un jour passé garde le stock actuel", () => {
+  const etat = etatAvecPlatLundiMardi();
+  const mercredi = new Date("2026-09-23T10:00:00");
+  const projete = etatAvecStockProjete(etat, "2026-09-23", "snack", { dateReference: mercredi });
+  assert.equal(projete.ingredients.find((i) => i.id === "riz").enStock, 200, "lundi/mardi passés, non cochés : ignorés");
+  assert.equal(etatAvecStockProjete(etat, "2026-09-21", "snack", { dateReference: mercredi }), etat);
+});
+
+test("etatAvecStockProjete : un créneau plus tôt le même jour réserve, un créneau plus tard non", () => {
+  const etat = etatDeTest();
+  ajouterPlatAuJour(etat, "2026-09-21", "lunch", { platId: "plat-test", portions: 1 });
+  ajouterPlatAuJour(etat, "2026-09-21", "diner", { platId: "plat-test", portions: 1 });
+  const projete = etatAvecStockProjete(etat, "2026-09-21", "snack", { dateReference: LUNDI });
+  assert.equal(projete.ingredients.find((i) => i.id === "riz").enStock, 100, "seul le déjeuner (avant le snack) compte");
+});
+
+test("ingredientsManquantsPourPlat : n'annonce jamais plus que ce que le plat demande (stock négatif = 0)", () => {
+  const etat = etatAvecPlatLundiMardi();
+  ajouterPlatAuJour(etat, "2026-09-23", "snack", { platId: "plat-test", portions: 1 });
+  // Jeudi : lundi, mardi, mercredi ont déjà tout pris (et même plus) → il manque 100 g, pas 200.
+  const projete = etatAvecStockProjete(etat, "2026-09-24", "snack", { dateReference: LUNDI });
+  const manquants = ingredientsManquantsPourPlat(projete, "plat-test", 1);
+  assert.equal(manquants.find((m) => m.nom === "Riz").manque, 100);
 });
 
 // --- Repas prêts (ajouterRepasPret / mangerRepasPret / retirerRepasPret) ---
