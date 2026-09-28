@@ -42,7 +42,7 @@ pédagogique étape par étape attendu — voir "Méthode de travail" plus bas.
 |---|---|
 | **Semaine** | Section "🍱 Repas prêts" en haut (stock de repas consommables sans passer par le planning — voir "Repas prêts" ci-dessous), puis navigation entre semaines réelles (1 en arrière, 2 en avance), 7 jours en ordre fixe lundi → dimanche, 5 créneaux/jour. Choisir un plat propose les mêmes filtres que l'écran Plats & repas (repas à choix unique + Favoris indépendant + étiquettes à choix multiple ET), par défaut sur le repas du créneau mais changeable. Portions **par personne**, avertissement non bloquant si le stock est insuffisant, case "🍽️ Mangé" (déduit le stock) directement sur la carte — voir "Mangé (déduit le stock)" ci-dessous |
 | **Courses** | Liste calculée en direct, groupée par rayon (blocs repliables, compteur visible replié), cocher "Acheté" ajoute au stock. "+ Ajouter un extra" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
-| **Plats & repas** | Recherche par nom + bouton **"🔧 Filtres"** (compteur si actifs) ouvrant un panneau à part avec Favoris (case indépendante), **🧺 Réalisable avec mon stock** (case indépendante — voir "Suggestions selon le stock" ci-dessous), Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
+| **Plats & repas** | Recherche par nom + ⭐ Favoris et 🧺 Réalisable avec mon stock directement cliquables (cases indépendantes, voir "Suggestions selon le stock" ci-dessous) + bouton **"➕ Plus de filtres"** (compteur si actifs) ouvrant un panneau à part avec Repas (choix unique, dynamique, Déjeuner/Dîner et Snack/Goûter fusionnés) et Étiquettes (choix multiple, logique ET) — voir "Panneau Filtres" ci-dessous. Chaque carte affiche repas · ingrédients · temps total · matériel · étiquettes. "+ Nouveau plat" (nom + repas) enchaîne sur l'éditeur complet : repas, étiquettes et matériel (chacun avec un "+ Nouveau..." pour en créer un sans quitter la recette), portions de référence, matériel requis, temps de préparation/cuisson, étapes (texte libre), ingrédients ajoutés via le Catalogue avec la quantité **telle que donnée par la recette d'origine** (voir "Portions de référence et saisie des quantités" plus bas), suppression refusée si utilisé dans le modèle ou l'historique |
 | **Stock** | Filtres **Tous** (ce qui est réellement en stock : quantité > 0, ou essentiel même à 0 pour rappeler de racheter) / **Essentiels**. Quantité par ingrédient, état (⚪ vide · 🟠 bas · 🟢 ok), essentiel + minimum. "+ Ajouter un ingrédient" et "✏️ Éditer les rayons" (masqué par défaut) — voir "Écran Catalogue" et "Rayons éditables" ci-dessous |
 
 Navigation : barre d'onglets fixe en bas (comme une appli native), 4 onglets. Un menu ⋯ en haut
@@ -474,11 +474,20 @@ Filtres" ci-dessous.
 **Historique de la décision** : Favoris + Repas + Étiquettes (et leurs boutons d'édition)
 empilaient trop de lignes directement sur l'écran, avant même d'arriver aux résultats — retour de
 Qassim en testant l'app ("ça prend trop de place, je préfère ouvrir un truc à côté"). Regroupés
-dans un panneau à part ("🔧 Filtres", ouvert/fermé comme les autres panneaux de l'app) : l'écran
-principal reste compact (recherche, bouton Filtres avec un compteur si des filtres sont actifs
-— ex. "Filtres (2)" —, "+ Nouveau plat", puis la grille). Éditer un repas/une étiquette/un matériel
-depuis ce panneau y ramène à la fermeture (pas à l'écran principal), pour pouvoir enchaîner
-plusieurs réglages sans perdre le fil.
+dans un panneau à part ("🔧 Filtres" à l'époque, devenu "➕ Plus de filtres", voir plus bas), ouvert/
+fermé comme les autres panneaux de l'app : l'écran principal reste compact (recherche, bouton
+Filtres avec un compteur si des filtres sont actifs — ex. "Filtres (2)" —, "+ Nouveau plat", puis
+la grille). Éditer un repas/une étiquette/un matériel depuis ce panneau y ramène à la fermeture
+(pas à l'écran principal), pour pouvoir enchaîner plusieurs réglages sans perdre le fil.
+
+**⭐ Favoris et 🧺 Réalisable avec mon stock sortis du panneau, directement cliquables** : retour
+ultérieur de Qassim — ces deux-là sont les filtres du quotidien, pas besoin d'ouvrir un panneau
+pour y accéder. Boutons `#filtre-favoris-rapide`/`#filtre-realisable-rapide` (Plats & repas) et
+`#panneau-filtre-favoris-rapide`/`#panneau-filtre-realisable-rapide` (panneau créneau, Semaine)
+directement sur l'écran principal, juste sous la recherche — une simple rangée `.segmente`, pas
+un panneau à ouvrir. Le bouton restant (renommé **"➕ Plus de filtres"**, plus clair que "🔧 Filtres"
+maintenant qu'il ne contient plus tout) ne regroupe donc plus que Repas/Étiquettes/Matériel — son
+compteur ne compte que ceux-là, Favoris/Réalisable étant déjà visibles à l'œil nu.
 
 **Boutons côte à côte plutôt qu'empilés** : plus généralement, `.panneau-actions` (utilisé par
 tous les panneaux à un ou deux boutons d'action — confirmer/annuler, enregistrer/supprimer,
@@ -502,9 +511,10 @@ pour les rayons (Stock, Courses, Catalogue) — voir "Rayons éditables".
 
 **Même panneau Filtres réutilisé sur l'écran Semaine** : le panneau "choisir un plat" ouvert en
 tapant un créneau (ex. "Petit-déjeuner") applique le même traitement — ses filtres Repas/Favoris/
-Étiquettes (mêmes filtres qu'ici, voir "Choisir un plat pour un créneau") sont regroupés derrière
-un bouton "🔧 Filtres" propre à ce panneau (avec badge de comptage), plutôt qu'empilés directement
-sous la recherche — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
+Réalisable/Étiquettes (mêmes filtres qu'ici, voir "Choisir un plat pour un créneau") sont regroupés
+derrière un bouton "➕ Plus de filtres" propre à ce panneau (avec badge de comptage, Repas/
+Étiquettes uniquement), Favoris et Réalisable avec mon stock étant eux aussi directement cliquables
+sur le panneau créneau — même retour de Qassim, appliqué au même problème ailleurs dans l'app.
 
 ## Suggestions selon le stock (écran Plats & repas)
 

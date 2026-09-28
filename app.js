@@ -609,12 +609,14 @@ function ouvrirPanneau(dateISO, creneau) {
   // déjeuner (brunch), ou ne voir que ses favoris.
   let filtreRepasPanneau = infos.repasId;
   let filtreFavorisPanneau = false;
+  let filtreRealisablePanneau = false;
   const etiquettesSelectionneesPanneau = new Set();
   let recherchePlatsPanneau = "";
 
   function platsAffiches() {
     let liste = filtreRepasPanneau === "tous" ? etat.plats : etat.plats.filter((p) => p.repas === filtreRepasPanneau);
     if (filtreFavorisPanneau) liste = liste.filter((p) => p.favori);
+    if (filtreRealisablePanneau) liste = liste.filter((p) => platEstRealisableAvecStock(etat, p.id));
     if (etiquettesSelectionneesPanneau.size > 0) {
       liste = liste.filter((p) => [...etiquettesSelectionneesPanneau].every((id) => p.etiquettes.includes(id)));
     }
@@ -641,21 +643,21 @@ function ouvrirPanneau(dateISO, creneau) {
     }
   }
 
-  // --- Panneau "Filtres" imbriqué (repas/favoris/étiquettes) : comme sur
+  // --- Panneau "Plus de filtres" imbriqué (repas/étiquettes) : comme sur
   // l'écran Plats & repas, regroupés à part plutôt qu'empilés directement
-  // ici (retour de Qassim : même souci de place que sur Plats & repas). Le
-  // ✕ de CE panneau revient au panneau créneau (rendrePanneau), pas à
-  // l'écran Semaine — voir apresFermeturePanneau, qui reste réglé sur
+  // ici (retour de Qassim : même souci de place que sur Plats & repas).
+  // Favoris et Réalisable avec mon stock, eux, sont directement cliquables
+  // sur le panneau créneau (voir rendrePanneau) — pas cachés ici. Le ✕ de CE
+  // panneau revient au panneau créneau (rendrePanneau), pas à l'écran
+  // Semaine — voir apresFermeturePanneau, qui reste réglé sur
   // rendreEcranSemaine pour la fermeture complète (backdrop). ---
   function ouvrirPanneauFiltresCreneau() {
     function rendreFiltres() {
       panneauPlatEl.innerHTML = `
         <div class="panneau-entete">
-          <span class="panneau-titre">🔧 Filtres</span>
+          <span class="panneau-titre">➕ Plus de filtres</span>
           <button class="panneau-fermer" aria-label="Fermer">✕</button>
         </div>
-
-        <button class="segmente-bouton" id="panneau-filtre-favoris-creneau" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
 
         <div class="panneau-section-titre">Repas</div>
         <div class="segmente" id="panneau-filtres-repas-creneau"></div>
@@ -665,13 +667,6 @@ function ouvrirPanneau(dateISO, creneau) {
         <div class="segmente" id="panneau-filtres-etiquettes-creneau"></div>
         <button class="bouton-discret" id="panneau-gerer-etiquettes-creneau">⚙️ Gérer les étiquettes</button>
       `;
-
-      const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris-creneau");
-      favorisEl.classList.toggle("selectionne", filtreFavorisPanneau);
-      favorisEl.addEventListener("click", () => {
-        filtreFavorisPanneau = !filtreFavorisPanneau;
-        rendreFiltres();
-      });
 
       const filtresRepasEl = panneauPlatEl.querySelector("#panneau-filtres-repas-creneau");
       construireListeChoixEl(filtresRepasEl, "segmente-bouton", etat.repas, (id) => id === filtreRepasPanneau, (repasId) => {
@@ -731,7 +726,11 @@ function ouvrirPanneau(dateISO, creneau) {
 
       <div class="panneau-section-titre">Ajouter un plat</div>
       <input type="text" id="recherche-plats-panneau" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat..." value="${recherchePlatsPanneau}">
-      <button class="bouton-secondaire bouton-pleine-largeur" id="ouvrir-filtres-panneau" style="margin-bottom:8px;">🔧 Filtres<span id="filtres-panneau-compte"></span></button>
+      <div class="segmente" style="margin-bottom:8px;">
+        <button class="segmente-bouton" id="panneau-filtre-favoris-rapide" type="button">⭐ Favoris</button>
+        <button class="segmente-bouton" id="panneau-filtre-realisable-rapide" type="button">🧺 Réalisable avec mon stock</button>
+      </div>
+      <button class="bouton-secondaire bouton-pleine-largeur" id="ouvrir-filtres-panneau" style="margin-bottom:8px;">➕ Plus de filtres<span id="filtres-panneau-compte"></span></button>
       <div class="liste-plats liste-resultats" id="liste-plats"></div>
 
       <div id="zone-candidat"></div>
@@ -744,11 +743,27 @@ function ouvrirPanneau(dateISO, creneau) {
       rendreListePlatsPanneau();
     });
 
-    // --- Bouton "Filtres" (repas à choix unique, favoris indépendant,
-    // étiquettes à choix multiple ET — mêmes filtres que l'écran Plats &
-    // repas, regroupés dans un panneau à part pour ne pas prendre trop de
-    // place ici — voir CLAUDE.md § Repas/Étiquettes éditables) ---
-    const nbFiltresActifs = (filtreRepasPanneau !== "tous" ? 1 : 0) + (filtreFavorisPanneau ? 1 : 0) + etiquettesSelectionneesPanneau.size;
+    // ⭐ Favoris et 🧺 Réalisable avec mon stock : directement cliquables ici
+    // (pas cachés dans "➕ Plus de filtres", demandé par Qassim) — même
+    // principe que sur l'écran Plats & repas.
+    const favorisRapideEl = panneauPlatEl.querySelector("#panneau-filtre-favoris-rapide");
+    favorisRapideEl.classList.toggle("selectionne", filtreFavorisPanneau);
+    favorisRapideEl.addEventListener("click", () => {
+      filtreFavorisPanneau = !filtreFavorisPanneau;
+      rendrePanneau();
+    });
+    const realisableRapideEl = panneauPlatEl.querySelector("#panneau-filtre-realisable-rapide");
+    realisableRapideEl.classList.toggle("selectionne", filtreRealisablePanneau);
+    realisableRapideEl.addEventListener("click", () => {
+      filtreRealisablePanneau = !filtreRealisablePanneau;
+      rendrePanneau();
+    });
+
+    // --- Bouton "Plus de filtres" (repas à choix unique, étiquettes à choix
+    // multiple ET — mêmes filtres que l'écran Plats & repas, regroupés dans
+    // un panneau à part pour ne pas prendre trop de place ici — voir
+    // CLAUDE.md § Repas/Étiquettes éditables) ---
+    const nbFiltresActifs = (filtreRepasPanneau !== "tous" ? 1 : 0) + etiquettesSelectionneesPanneau.size;
     panneauPlatEl.querySelector("#filtres-panneau-compte").textContent = nbFiltresActifs > 0 ? ` (${nbFiltresActifs})` : "";
     panneauPlatEl.querySelector("#ouvrir-filtres-panneau").addEventListener("click", () => {
       ouvrirPanneauFiltresCreneau();
@@ -1671,6 +1686,8 @@ const recherchePlatsEl = document.getElementById("recherche-plats");
 const ouvrirFiltresPlatsEl = document.getElementById("ouvrir-filtres-plats");
 const filtresPlatsCompteEl = document.getElementById("filtres-plats-compte");
 const grillePlatsEl = document.getElementById("grille-plats");
+const filtreFavorisRapideEl = document.getElementById("filtre-favoris-rapide");
+const filtreRealisableRapideEl = document.getElementById("filtre-realisable-rapide");
 
 ouvrirFiltresPlatsEl.addEventListener("click", () => ouvrirPanneauFiltresPlats());
 
@@ -1678,10 +1695,24 @@ document.getElementById("ajouter-plat").addEventListener("click", () => {
   ouvrirPanneauNouveauPlat();
 });
 
-// --- Panneau "Filtres" (repas + favoris + étiquettes) : regroupés dans un
-// panneau à part plutôt qu'empilés sur l'écran principal (trop de place
-// prise à l'écran, retour de Qassim) — l'écran Plats & repas reste compact,
-// avec juste un bouton "Filtres" (compteur si des filtres sont actifs). ---
+// ⭐ Favoris et 🧺 Réalisable avec mon stock : demandés par Qassim directement
+// cliquables sur l'écran principal (pas cachés dans le panneau Filtres,
+// contrairement à Repas/Étiquettes/Matériel) — ce sont les deux filtres du
+// quotidien, le reste reste derrière "➕ Plus de filtres" pour ne pas
+// surcharger l'écran.
+filtreFavorisRapideEl.addEventListener("click", () => {
+  filtreFavorisActif = !filtreFavorisActif;
+  rendreEcranPlats();
+});
+filtreRealisableRapideEl.addEventListener("click", () => {
+  filtreRealisableActif = !filtreRealisableActif;
+  rendreEcranPlats();
+});
+
+// --- Panneau "Plus de filtres" (repas + étiquettes + matériel) : regroupés
+// dans un panneau à part plutôt qu'empilés sur l'écran principal (trop de
+// place prise à l'écran, retour de Qassim) — Favoris et Réalisable avec mon
+// stock, eux, sont directement sur l'écran principal (voir ci-dessus). ---
 
 function ouvrirPanneauFiltresPlats() {
   apresFermeturePanneau = rendreEcranPlats;
@@ -1689,12 +1720,9 @@ function ouvrirPanneauFiltresPlats() {
   function rendrePanneau() {
     panneauPlatEl.innerHTML = `
       <div class="panneau-entete">
-        <span class="panneau-titre">🔧 Filtres</span>
+        <span class="panneau-titre">➕ Plus de filtres</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
-
-      <button class="segmente-bouton" id="panneau-filtre-favoris" type="button" style="margin-bottom:8px;">⭐ Favoris</button>
-      <button class="segmente-bouton" id="panneau-filtre-realisable" type="button" style="margin-bottom:8px;">🧺 Réalisable avec mon stock</button>
 
       <div class="panneau-section-titre">Repas</div>
       <div class="segmente" id="panneau-filtres-repas"></div>
@@ -1708,20 +1736,6 @@ function ouvrirPanneauFiltresPlats() {
       <div class="segmente" id="panneau-filtres-materiel"></div>
       <button class="bouton-discret" id="panneau-gerer-materiel">⚙️ Gérer le matériel</button>
     `;
-
-    const favorisEl = panneauPlatEl.querySelector("#panneau-filtre-favoris");
-    favorisEl.classList.toggle("selectionne", filtreFavorisActif);
-    favorisEl.addEventListener("click", () => {
-      filtreFavorisActif = !filtreFavorisActif;
-      rendrePanneau();
-    });
-
-    const realisableEl = panneauPlatEl.querySelector("#panneau-filtre-realisable");
-    realisableEl.classList.toggle("selectionne", filtreRealisableActif);
-    realisableEl.addEventListener("click", () => {
-      filtreRealisableActif = !filtreRealisableActif;
-      rendrePanneau();
-    });
 
     panneauPlatEl.querySelector("#panneau-gerer-repas").addEventListener("click", () => {
       ouvrirPanneauGererRepas(() => ouvrirPanneauFiltresPlats(), rendreEcranPlats);
@@ -1853,9 +1867,13 @@ recherchePlatsEl.addEventListener("input", (evenement) => {
 });
 
 function rendreEcranPlats() {
+  filtreFavorisRapideEl.classList.toggle("selectionne", filtreFavorisActif);
+  filtreRealisableRapideEl.classList.toggle("selectionne", filtreRealisableActif);
+
+  // Favoris et Réalisable sont directement visibles (boutons rapides
+  // ci-dessus) : pas comptés ici, seul ce qui reste caché dans "➕ Plus de
+  // filtres" (Repas/Étiquettes/Matériel) l'est.
   const nbFiltresActifs =
-    (filtreFavorisActif ? 1 : 0) +
-    (filtreRealisableActif ? 1 : 0) +
     (filtreRepas !== "tous" ? 1 : 0) +
     etiquettesSelectionnees.size +
     materielSelectionnes.size;

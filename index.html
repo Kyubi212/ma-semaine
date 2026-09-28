@@ -51,8 +51,12 @@
 
     <section id="ecran-plats" class="ecran" hidden>
       <input type="text" id="recherche-plats" class="article-quantite-input" style="width:100%; margin-bottom:8px;" placeholder="Chercher un plat...">
+      <div class="segmente" style="margin-bottom:8px;">
+        <button class="segmente-bouton" id="filtre-favoris-rapide" type="button">⭐ Favoris</button>
+        <button class="segmente-bouton" id="filtre-realisable-rapide" type="button">🧺 Réalisable avec mon stock</button>
+      </div>
       <div class="panneau-actions" style="margin-top:0; margin-bottom:8px;">
-        <button id="ouvrir-filtres-plats" class="bouton-secondaire">🔧 Filtres<span id="filtres-plats-compte"></span></button>
+        <button id="ouvrir-filtres-plats" class="bouton-secondaire">➕ Plus de filtres<span id="filtres-plats-compte"></span></button>
         <button id="ajouter-plat" class="bouton-secondaire">+ Nouveau plat</button>
       </div>
       <div id="grille-plats" class="liste-resultats"></div>
@@ -92,6 +96,6 @@
     </button>
   </nav>
 
-  <script type="module" src="app.js?v=20260928c"></script>
+  <script type="module" src="app.js?v=20260928d"></script>
 </body>
 </html>
