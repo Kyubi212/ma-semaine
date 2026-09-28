@@ -175,6 +175,14 @@ chacune avec son propre nom, ses portions et sa propre case à cocher (barre le 
 directement sous le résumé "N plats" — même mécanisme que pour un seul plat (`definirCuisine`),
 juste répété une fois par plat, sans devoir ouvrir le panneau créneau.
 
+**Bug réel corrigé (remonté par Qassim, "quand il y a un repas, la coche elle est à droite... et
+quand il y en a plusieurs, elle est à gauche")** : avec un seul plat, la case est le DERNIER
+élément flex de la carte (après le bouton d'info) → elle tombe à droite. Avec plusieurs plats,
+elle était le PREMIER élément de chaque ligne (`<input>` avant le nom dans le HTML) → elle tombait
+à gauche, rendu différent pour la même action selon le nombre de plats. Corrigé en mettant la case
+en dernier dans chaque ligne (nom, portions, puis la case) : elle est maintenant à droite dans les
+deux cas.
+
 ### Voir la recette (lecture seule, depuis un plat déjà prévu)
 
 **Décision clé (demandée par Qassim)** : cas d'usage — consulter le planning le soir, voir "ce
@@ -306,6 +314,17 @@ ingrédients à la maison. `etat.aPrevoir` (migration v14 → v15), entrées `{ 
   planning, ou depuis Plats & repas via "📅 Planifier" → **"📌 Sans jour"** ;
 - supprimer un plat retire aussi ses entrées "À prévoir" (une simple envie ne bloque pas la
   suppression, contrairement au planning).
+
+**Sélection multiple à l'ajout** (demandée par Qassim, "je ne peux pas sélectionner plusieurs
+plats en même temps") : dans le panneau "🛒 À prévoir, sans jour", le bouton "☑️ Choisir plusieurs
+plats à la fois" bascule le même mode sélection que le panneau créneau (voir "Sélection multiple
+de plats à ajouter" plus haut) — mêmes cases/couleurs (`.selection-cochee`), même barre
+"Tout sélectionner" / "➕ Ajouter (n)" / "Annuler", même glissement du doigt pour en cocher
+plusieurs d'affilée (`activerSelectionParGlissement`, voir "Même apparence partout + glisser le
+doigt..."). Chaque plat coché est ajouté à **1 portion**, ajustable tout de suite après avec le
+−/+ déjà présent sur chaque entrée de la liste "À prévoir" — pas de saisie de portions par plat
+pendant la sélection elle-même, pour rester cohérent avec le même mécanisme du panneau créneau
+(portions par défaut, puis ajustées séparément une fois ajoutées).
 
 **Différence avec Repas prêts** : Repas prêts = déjà cuisiné (déduit à la création, jamais
 d'achats) ; À prévoir = pas encore cuisiné (achats oui, déduction au moment de "Cuisiné").

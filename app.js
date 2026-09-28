@@ -333,24 +333,78 @@ function ouvrirPanneauNouveauAPrevoir() {
   let recherche = "";
   let platId = null;
   let portions = 1;
+  // Sélection multiple ("☑️ Choisir plusieurs plats à la fois", demandé par
+  // Qassim, "je ne peux pas sélectionner plusieurs plats en même temps") :
+  // null = mode normal (un plat + ses portions) ; Set d'ids = mode sélection,
+  // exclusif avec `platId`. Ajoutés à 1 portion chacun (comme la sélection
+  // multiple du panneau créneau — voir CLAUDE.md § Sélection multiple de
+  // plats à ajouter) ; ajustables ensuite dans la liste "À prévoir" elle-même.
+  let selectionMultiple = null;
+
+  function platsAffiches() {
+    const terme = normaliserRecherche(recherche.trim());
+    return trierParNom(etat.plats).filter((p) => !terme || normaliserRecherche(p.nom).includes(terme));
+  }
 
   function rendreListe() {
     const listeEl = panneauPlatEl.querySelector("#a-prevoir-plats");
-    const terme = normaliserRecherche(recherche.trim());
-    const plats = trierParNom(etat.plats).filter((p) => !terme || normaliserRecherche(p.nom).includes(terme));
     listeEl.innerHTML = "";
-    for (const plat of plats) {
+    for (const plat of platsAffiches()) {
       const item = document.createElement("button");
       item.className = "plat-choix";
-      if (plat.id === platId) item.classList.add("selectionne");
-      item.textContent = plat.nom;
-      item.addEventListener("click", () => {
-        platId = plat.id;
-        rendrePanneau();
-        panneauPlatEl.querySelector("#a-prevoir-valider")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
+      if (selectionMultiple) {
+        const coche = selectionMultiple.has(plat.id);
+        item.dataset.id = plat.id;
+        if (coche) item.classList.add("selection-cochee");
+        item.innerHTML = `<span><span class="case-selection">${coche ? "☑" : "☐"}</span> ${plat.nom}</span>`;
+        // Pas de click individuel : activerSelectionParGlissement (branché
+        // dans rendrePanneau()) gère le tap ET le glissement pour en cocher
+        // plusieurs d'affilée.
+      } else {
+        if (plat.id === platId) item.classList.add("selectionne");
+        item.textContent = plat.nom;
+        item.addEventListener("click", () => {
+          platId = plat.id;
+          rendrePanneau();
+          panneauPlatEl.querySelector("#a-prevoir-valider")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      }
       listeEl.appendChild(item);
     }
+  }
+
+  // Barre "Tout sélectionner" / "➕ Ajouter (n)" / "Annuler" — à part de
+  // rendrePanneau() pour pouvoir la rafraîchir seule (avec rendreListe())
+  // pendant un glissement en cours, sans reconstruire tout le panneau (sinon
+  // le conteneur #a-prevoir-plats est détruit EN PLEIN GLISSEMENT et perd la
+  // capture tactile du geste — bug réel trouvé au test tactile, voir
+  // CLAUDE.md § Sélection multiple).
+  function rendreBarreMultiAPrevoir() {
+    const barreEl = panneauPlatEl.querySelector("#a-prevoir-multi-barre");
+    barreEl.hidden = !selectionMultiple;
+    if (!selectionMultiple) return;
+    const liste = platsAffiches();
+    barreEl.innerHTML = htmlBarreSelection(selectionMultiple.size, liste.length, { icone: "➕", label: "Ajouter", classe: "" });
+    brancherBarreSelection(barreEl, {
+      surTout: () => {
+        const tousCoches = liste.every((p) => selectionMultiple.has(p.id));
+        liste.forEach((p) => (tousCoches ? selectionMultiple.delete(p.id) : selectionMultiple.add(p.id)));
+        rendreListe();
+        rendreBarreMultiAPrevoir();
+      },
+      surAction: () => {
+        for (const id of selectionMultiple) {
+          ajouterAPrevoir(etat, { platId: id, portions: 1 });
+        }
+        sauvegarder();
+        selectionMultiple = null;
+        fermerPanneau();
+      },
+      surAnnuler: () => {
+        selectionMultiple = null;
+        rendrePanneau();
+      },
+    });
   }
 
   function rendrePanneau() {
@@ -362,8 +416,9 @@ function ouvrirPanneauNouveauAPrevoir() {
       <p class="panneau-note" style="margin-top:0;">Une recette que tu feras peut-être (ce week-end...) :
         ses ingrédients vont dans ta liste de courses, sans la caser dans un jour.</p>
       <div style="margin-bottom:8px;"><input type="search" id="a-prevoir-recherche" class="champ-texte" placeholder="🔍 Chercher un plat..." value="${recherche}"></div>
-      <div class="liste-plats" id="a-prevoir-plats"></div>
-      ${platId ? `
+      <button class="bouton-discret" id="a-prevoir-toggle-multi" style="padding-left:0;" ${selectionMultiple ? "hidden" : ""}>☑️ Choisir plusieurs plats à la fois</button>
+      <div class="liste-plats liste-resultats" id="a-prevoir-plats"></div>
+      ${platId && !selectionMultiple ? `
         <div class="zone-candidat">
           <div class="candidat-entete"><span class="candidat-nom">✔️ ${nomPlat(platId)}</span></div>
           <div class="panneau-section-titre" style="margin-top:0;">Portions (par personne)</div>
@@ -376,15 +431,40 @@ function ouvrirPanneauNouveauAPrevoir() {
             <button class="bouton-principal" id="a-prevoir-valider">Ajouter à "À prévoir"</button>
           </div>
         </div>` : ""}
+      <div class="barre-selection" id="a-prevoir-multi-barre" hidden></div>
     `;
     const champ = panneauPlatEl.querySelector("#a-prevoir-recherche");
     champ.addEventListener("input", () => {
       recherche = champ.value;
       rendreListe();
+      rendreBarreMultiAPrevoir();
     });
     ajouterBoutonEffacer(champ);
+
+    panneauPlatEl.querySelector("#a-prevoir-toggle-multi").addEventListener("click", () => {
+      selectionMultiple = new Set();
+      platId = null; // les deux modes sont exclusifs
+      rendrePanneau();
+    });
+
     rendreListe();
-    if (platId) {
+    rendreBarreMultiAPrevoir();
+    if (selectionMultiple) {
+      // Sélection "à la iOS" (tap = coche un plat, glisser = coche ceux
+      // survolés) — voir activerSelectionParGlissement. basculer() ne doit
+      // JAMAIS passer par rendrePanneau() (reconstruction complète) pendant
+      // un glissement en cours, seulement rendreListe()/rendreBarreMultiAPrevoir().
+      activerSelectionParGlissement(panneauPlatEl.querySelector("#a-prevoir-plats"), ".plat-choix[data-id]", {
+        estSelectionne: (id) => selectionMultiple?.has(id) ?? false,
+        basculer: (id) => {
+          if (selectionMultiple.has(id)) selectionMultiple.delete(id);
+          else selectionMultiple.add(id);
+          rendreListe();
+          rendreBarreMultiAPrevoir();
+        },
+      });
+    }
+    if (platId && !selectionMultiple) {
       panneauPlatEl.querySelector("#a-prevoir-moins").addEventListener("click", () => { portions = Math.max(1, portions - 1); rendrePanneau(); });
       panneauPlatEl.querySelector("#a-prevoir-plus").addEventListener("click", () => { portions += 1; rendrePanneau(); });
       panneauPlatEl.querySelector("#a-prevoir-valider").addEventListener("click", () => {
@@ -704,9 +784,9 @@ function construireCarteCreneau(dateISO, creneau) {
       const ligne = document.createElement("label");
       ligne.className = `carte-creneau-multi-ligne${element.cuisine ? " mange" : ""}`;
       ligne.innerHTML = `
-        <input type="checkbox" ${element.cuisine ? "checked" : ""} aria-label="${nomPlat(element.platId)} — Mangé (déduit le stock)">
         <span class="carte-creneau-multi-nom">${nomPlat(element.platId)}</span>
         <span class="carte-creneau-multi-portions">${element.portions} portion${element.portions > 1 ? "s" : ""}</span>
+        <input type="checkbox" ${element.cuisine ? "checked" : ""} aria-label="${nomPlat(element.platId)} — Mangé (déduit le stock)">
       `;
       ligne.querySelector("input").addEventListener("change", (evenement) => {
         definirCuisine(etat, dateISO, creneau, element.id, evenement.target.checked);
