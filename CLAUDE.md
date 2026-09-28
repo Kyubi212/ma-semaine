@@ -578,7 +578,12 @@ rien de ce qui est construit ici n'est perdu si un vrai backend est ajouté plus
 - Aucun secret, clé API ou mot de passe dans ce projet : pas de service externe appelé au
   runtime, donc rien à cacher dans un `.env`.
 - Aucune donnée d'usage (planning, stock) ne quitte le téléphone de Qassim : tout reste dans le
-  navigateur (`localStorage`).
+  navigateur (`localStorage`), isolé par appareil — quelqu'un d'autre qui ouvre le même lien a son
+  propre stockage vide, jamais accès à celui de Qassim.
+- **Lien non indexé** (`robots.txt` + `<meta name="robots" content="noindex, nofollow">` dans
+  `index.html`) : empêche le lien d'apparaître dans une recherche Google, pour limiter les visites
+  accidentelles — n'importe qui possédant déjà le lien exact peut quand même l'ouvrir (GitHub Pages
+  gratuit ne permet pas de vrai contrôle d'accès sans backend, voir Roadmap).
 - Signaler toute faille repérée.
 
 ## Roadmap post-MVP (hors périmètre actuel)
