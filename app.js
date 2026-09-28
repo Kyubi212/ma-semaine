@@ -185,6 +185,20 @@ function referenceSemaineAffichee() {
   return decalerSemaine(new Date(), decalageSemaine);
 }
 
+// Affiche l'écran Semaine directement sur une date précise (ex. après avoir
+// planifié un plat depuis Plats & repas), en se plaçant sur la bonne semaine.
+function allerAuJour(dateISO) {
+  const lundiCible = datesDeLaSemaine(new Date(`${dateISO}T12:00:00`))[0];
+  const lundiActuel = datesDeLaSemaine(new Date())[0];
+  const ecartSemaines = Math.round(
+    (new Date(`${lundiCible}T12:00:00`) - new Date(`${lundiActuel}T12:00:00`)) / (7 * 24 * 60 * 60 * 1000)
+  );
+  decalageSemaine = Math.max(LIMITE_SEMAINES_ARRIERE, Math.min(LIMITE_SEMAINES_AVANT, ecartSemaines));
+  dateSelectionnee = dateISO;
+  afficherEcran("semaine");
+  rendreEcranSemaine();
+}
+
 function changerSemaine(nouveauDecalage) {
   decalageSemaine = Math.max(
     LIMITE_SEMAINES_ARRIERE,
@@ -2308,10 +2322,300 @@ function rendreGrillePlats() {
     });
     // Toucher un plat ouvre sa FICHE (lecture seule) : consulter une recette
     // sans risquer de la modifier par un faux mouvement — l'édition passe
-    // par un bouton à part, "✏️ Modifier" (demandé par Qassim).
-    carte.addEventListener("click", () => ouvrirPanneauFicheRecette(plat.id));
-    grillePlatsEl.appendChild(carte);
+    // par un bouton à part, "✏️ Modifier" (demandé par Qassim). Glisser la
+    // carte à gauche ou à droite révèle des actions rapides (voir
+    // rendreGlissable).
+    grillePlatsEl.appendChild(rendreGlissable(carte, [
+      { classe: "planifier", texte: "📅 Planifier", action: () => ouvrirPanneauPlanifierPlat(plat.id) },
+      { classe: "modifier", texte: "✏️ Modifier", action: () => ouvrirPanneauPlat(plat.id) },
+      { classe: "supprimer", texte: "🗑️ Supprimer", action: () => ouvrirPanneauConfirmerSuppressionPlat(plat.id) },
+    ], () => ouvrirPanneauFicheRecette(plat.id)));
   }
+}
+
+// --- Carte glissable (comme dans une appli de mails) : glisser une carte à
+// gauche ou à droite fait apparaître des boutons d'action derrière elle
+// (demandé par Qassim pour la liste des plats). Un seul élément ouvert à la
+// fois ; toucher la carte ouverte (ou en ouvrir une autre) la referme. Un
+// glissement vertical reste un défilement normal de la page (touch-action:
+// pan-y), et un vrai glissement n'est jamais pris pour un toucher. ---
+
+const LARGEUR_ACTION_GLISSEE = 84; // px par bouton
+let glissableOuvert = null; // { fermer }
+
+function rendreGlissable(carte, actions, surToucher) {
+  const conteneur = document.createElement("div");
+  conteneur.className = "glissable";
+  const boutonsHtml = actions
+    .map((a, i) => `<button type="button" class="glissable-action ${a.classe}" data-index="${i}">${a.texte}</button>`)
+    .join("");
+  conteneur.innerHTML = `
+    <div class="glissable-actions gauche">${boutonsHtml}</div>
+    <div class="glissable-actions droite">${boutonsHtml}</div>
+  `;
+  carte.classList.add("glissable-contenu");
+  conteneur.appendChild(carte);
+
+  const largeur = actions.length * LARGEUR_ACTION_GLISSEE;
+  let decalage = 0; // position de repos : 0, +largeur (actions à gauche) ou -largeur
+  let depart = null; // { x, y, decalage }
+  let glisse = false;
+
+  function placer(x, anime) {
+    carte.style.transition = anime ? "transform 0.2s ease" : "none";
+    carte.style.transform = x === 0 ? "" : `translateX(${x}px)`;
+    // Ne montre que le côté concerné (sinon les deux se voient à travers).
+    conteneur.dataset.cote = x > 0 ? "gauche" : x < 0 ? "droite" : "";
+  }
+  function fermer() {
+    decalage = 0;
+    placer(0, true);
+    if (glissableOuvert && glissableOuvert.fermer === fermer) glissableOuvert = null;
+  }
+
+  carte.addEventListener("pointerdown", (evenement) => {
+    if (evenement.target.closest(".plat-favori")) return;
+    depart = { x: evenement.clientX, y: evenement.clientY, decalage };
+    glisse = false;
+  });
+  carte.addEventListener("pointermove", (evenement) => {
+    if (!depart) return;
+    const dx = evenement.clientX - depart.x;
+    const dy = evenement.clientY - depart.y;
+    if (!glisse) {
+      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) {
+        if (Math.abs(dy) > 10) depart = null; // c'est un défilement vertical
+        return;
+      }
+      glisse = true;
+      if (glissableOuvert && glissableOuvert.fermer !== fermer) glissableOuvert.fermer();
+      carte.setPointerCapture?.(evenement.pointerId);
+    }
+    const x = Math.max(-largeur, Math.min(largeur, depart.decalage + dx));
+    placer(x, false);
+  });
+  function relacher(evenement) {
+    if (!depart) return;
+    const dx = evenement.clientX - depart.x;
+    const x = depart.decalage + dx;
+    depart = null;
+    if (!glisse) return;
+    // Au-delà d'un tiers de la largeur des boutons : on ouvre de ce côté.
+    decalage = x <= -largeur / 3 ? -largeur : x >= largeur / 3 ? largeur : 0;
+    placer(decalage, true);
+    if (decalage !== 0) glissableOuvert = { fermer };
+    else if (glissableOuvert && glissableOuvert.fermer === fermer) glissableOuvert = null;
+  }
+  carte.addEventListener("pointerup", relacher);
+  carte.addEventListener("pointercancel", relacher);
+  // Filet de sécurité : si le système reprend la main en plein glissement
+  // (notification, geste de retour...), on termine proprement le geste.
+  carte.addEventListener("lostpointercapture", relacher);
+
+  carte.addEventListener("click", (evenement) => {
+    if (evenement.target.closest(".plat-favori")) return;
+    if (glisse) {
+      glisse = false;
+      return; // la fin d'un glissement n'est pas un toucher
+    }
+    if (decalage !== 0) {
+      fermer();
+      return;
+    }
+    if (glissableOuvert) glissableOuvert.fermer();
+    surToucher();
+  });
+
+  conteneur.querySelectorAll(".glissable-action").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      fermer();
+      actions[Number(bouton.dataset.index)].action();
+    });
+  });
+
+  return conteneur;
+}
+
+// --- Supprimer un plat, avec confirmation (depuis la liste ou la fiche) ---
+
+function messageSuppressionPlatRefusee(resultat) {
+  const morceaux = [];
+  if (resultat.joursModele.length > 0) morceaux.push(`prévu le ${resultat.joursModele.join(", ")} (semaine type)`);
+  if (resultat.datesHistorique.length > 0) morceaux.push(`utilisé le ${resultat.datesHistorique.join(", ")}`);
+  return `Impossible de le supprimer : ${morceaux.join(" et ")}. Retire-le d'abord du planning.`;
+}
+
+function ouvrirPanneauConfirmerSuppressionPlat(platId, retour = fermerPanneau) {
+  apresFermeturePanneau = rendreEcranPlats;
+
+  function rendrePanneau(messageErreur) {
+    const plat = etat.plats.find((p) => p.id === platId);
+    if (!plat) {
+      fermerPanneau();
+      return;
+    }
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">🗑️ Supprimer ce plat ?</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+      <p class="fiche-texte"><strong>${plat.nom}</strong> sera supprimé définitivement, avec sa
+        recette. Cette action ne peut pas être annulée.</p>
+      ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
+      <div class="panneau-actions">
+        ${messageErreur ? "" : `<button class="bouton-principal bouton-danger" id="confirmer-suppression-plat">Oui, supprimer</button>`}
+        <button class="bouton-secondaire" id="annuler-suppression-plat">${messageErreur ? "Fermer" : "Annuler"}</button>
+      </div>
+    `;
+    panneauPlatEl.querySelector("#confirmer-suppression-plat")?.addEventListener("click", () => {
+      const resultat = supprimerPlat(etat, platId);
+      if (!resultat.ok) {
+        rendrePanneau(messageSuppressionPlatRefusee(resultat));
+        return;
+      }
+      sauvegarder();
+      fermerPanneau();
+    });
+    panneauPlatEl.querySelector("#annuler-suppression-plat").addEventListener("click", retour);
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// --- Planifier un plat (depuis la liste ou la fiche) : choisir un jour, un
+// repas et des portions sans passer par l'écran Semaine. Mêmes deux choix
+// que le panneau créneau : "juste ce jour" ou "et en faire le défaut". ---
+
+const NB_JOURS_PLANIFIABLES = 14;
+
+function ouvrirPanneauPlanifierPlat(platId, retour = fermerPanneau) {
+  apresFermeturePanneau = rendreEcranPlats;
+  const plat = etat.plats.find((p) => p.id === platId);
+  const dates = [];
+  const date = new Date();
+  for (let i = 0; i < NB_JOURS_PLANIFIABLES; i++) {
+    dates.push(dateEnISO(date));
+    date.setDate(date.getDate() + 1);
+  }
+  let dateChoisie = dates[0];
+  // Par défaut, le premier créneau affiché qui correspond au repas du plat
+  // (ex. un plat "Déjeuner/Dîner" → Déjeuner), sinon le premier affiché.
+  let creneauChoisi = creneauxAffiches(etat).find((c) => CRENEAU_INFOS[c].repasId === plat.repas) ?? creneauxAffiches(etat)[0];
+  let portions = 1;
+  let ajoute = null; // { dateISO, creneau } une fois ajouté
+
+  function rendrePanneau() {
+    if (ajoute) {
+      const infos = CRENEAU_INFOS[ajoute.creneau];
+      panneauPlatEl.innerHTML = `
+        <div class="panneau-entete">
+          <span class="panneau-titre">✅ Ajouté au planning</span>
+          <button class="panneau-fermer" aria-label="Fermer">✕</button>
+        </div>
+        <p class="fiche-texte"><strong>${plat.nom}</strong> — ${infos.icone} ${infos.label},
+          ${jourDeLaSemaine(ajoute.dateISO)} ${joursMoisLisible(ajoute.dateISO)}.</p>
+        <div class="panneau-actions">
+          <button class="bouton-principal" id="planifier-voir">Voir dans Semaine</button>
+          <button class="bouton-secondaire" id="planifier-fermer">Fermer</button>
+        </div>
+      `;
+      panneauPlatEl.querySelector("#planifier-voir").addEventListener("click", () => {
+        apresFermeturePanneau = null;
+        fermerPanneau();
+        allerAuJour(ajoute.dateISO);
+      });
+      panneauPlatEl.querySelector("#planifier-fermer").addEventListener("click", retour);
+      panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+      return;
+    }
+
+    const manquants = ingredientsManquantsPourPlat(etatAvecStockProjete(etat, dateChoisie, creneauChoisi), platId, portions);
+    const jourLabel = jourDeLaSemaine(dateChoisie);
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">📅 Planifier ${plat.nom}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="panneau-section-titre">Jour</div>
+      <div class="puces" id="planifier-jours"></div>
+
+      <div class="panneau-section-titre">Repas</div>
+      <div class="puces" id="planifier-creneaux"></div>
+
+      <div class="panneau-section-titre">Portions (par personne)</div>
+      <div class="stepper">
+        <button class="stepper-bouton" id="planifier-moins" aria-label="Moins de portions">−</button>
+        <span class="stepper-valeur">${portions}</span>
+        <button class="stepper-bouton" id="planifier-plus" aria-label="Plus de portions">+</button>
+      </div>
+      ${manquants.length > 0 ? `<p class="panneau-note" style="color:#c0392b;">${texteIngredientsManquants(manquants)}</p>` : ""}
+
+      <div class="panneau-actions">
+        <button class="bouton-principal" id="planifier-jour">Ajouter juste ce jour</button>
+        <button class="bouton-secondaire" id="planifier-defaut">Ajouter et en faire le défaut du ${jourLabel}</button>
+      </div>
+      <p class="panneau-note">"Défaut du ${jourLabel}" s'applique à tous les ${jourLabel} futurs pas encore
+        consultés — pas aux autres jours de la semaine.</p>
+    `;
+
+    const joursEl = panneauPlatEl.querySelector("#planifier-jours");
+    const aujourdhuiISO = dates[0];
+    for (const dateISO of dates) {
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = "puce";
+      if (dateISO === dateChoisie) bouton.classList.add("selectionne");
+      bouton.textContent = dateISO === aujourdhuiISO
+        ? "Aujourd'hui"
+        : `${JOUR_LABELS[jourDeLaSemaine(dateISO)]} ${Number(dateISO.split("-")[2])}`;
+      bouton.addEventListener("click", () => {
+        dateChoisie = dateISO;
+        rendrePanneau();
+      });
+      joursEl.appendChild(bouton);
+    }
+
+    const creneauxEl = panneauPlatEl.querySelector("#planifier-creneaux");
+    for (const creneau of creneauxAffiches(etat)) {
+      const infos = CRENEAU_INFOS[creneau];
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = "puce";
+      if (creneau === creneauChoisi) bouton.classList.add("selectionne");
+      bouton.textContent = `${infos.icone} ${infos.label}`;
+      bouton.addEventListener("click", () => {
+        creneauChoisi = creneau;
+        rendrePanneau();
+      });
+      creneauxEl.appendChild(bouton);
+    }
+
+    panneauPlatEl.querySelector("#planifier-moins").addEventListener("click", () => {
+      portions = Math.max(1, portions - 1);
+      rendrePanneau();
+    });
+    panneauPlatEl.querySelector("#planifier-plus").addEventListener("click", () => {
+      portions += 1;
+      rendrePanneau();
+    });
+    const ajouter = (propager) => {
+      ajouterPlatAuJour(etat, dateChoisie, creneauChoisi, { platId, portions }, propager);
+      sauvegarder();
+      ajoute = { dateISO: dateChoisie, creneau: creneauChoisi };
+      rendrePanneau();
+    };
+    panneauPlatEl.querySelector("#planifier-jour").addEventListener("click", () => ajouter(false));
+    panneauPlatEl.querySelector("#planifier-defaut").addEventListener("click", () => ajouter(true));
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
+  }
+
+  rendrePanneau();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
 }
 
 recherchePlatsEl.addEventListener("input", (evenement) => {
@@ -2826,7 +3130,9 @@ function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
 
       <div class="fiche-actions">
         <button class="bouton-secondaire bouton-petit" id="fiche-favori">${plat.favori ? "⭐ Favori" : "☆ Favori"}</button>
+        <button class="bouton-secondaire bouton-petit" id="fiche-planifier">📅 Planifier</button>
         <button class="bouton-secondaire bouton-petit" id="fiche-modifier">✏️ Modifier</button>
+        <button class="bouton-secondaire bouton-petit" id="fiche-supprimer" aria-label="Supprimer ce plat">🗑️</button>
       </div>
 
       ${nomRepas || nomsEtiquettes.length > 0 ? `
@@ -2881,6 +3187,9 @@ function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
       sauvegarder();
       rendreFiche();
     });
+    const retourFiche = () => ouvrirPanneauFicheRecette(platId, ecranSousJacent);
+    panneauPlatEl.querySelector("#fiche-planifier").addEventListener("click", () => ouvrirPanneauPlanifierPlat(platId, retourFiche));
+    panneauPlatEl.querySelector("#fiche-supprimer").addEventListener("click", () => ouvrirPanneauConfirmerSuppressionPlat(platId, retourFiche));
     panneauPlatEl.querySelector("#fiche-modifier").addEventListener("click", () => {
       ouvrirPanneauPlat(platId, ecranSousJacent, () => ouvrirPanneauFicheRecette(platId, ecranSousJacent));
     });
@@ -3120,10 +3429,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
     panneauPlatEl.querySelector("#plat-supprimer").addEventListener("click", () => {
       const resultat = supprimerPlat(etat, platId);
       if (!resultat.ok) {
-        const morceaux = [];
-        if (resultat.joursModele.length > 0) morceaux.push(`prévu le ${resultat.joursModele.join(", ")} (semaine type)`);
-        if (resultat.datesHistorique.length > 0) morceaux.push(`utilisé le ${resultat.datesHistorique.join(", ")}`);
-        rendrePanneau(`Impossible : ${morceaux.join(" et ")}.`);
+        rendrePanneau(messageSuppressionPlatRefusee(resultat));
         return;
       }
       sauvegarder();
