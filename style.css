@@ -1177,3 +1177,86 @@ textarea.champ-texte {
 .puce-temps.selectionne .puce-temps-valeur {
   color: var(--couleur-accent-texte);
 }
+
+/* Fiche recette (lecture seule) : Plats & repas → toucher un plat. */
+.fiche-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.fiche-repas {
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-texte);
+}
+
+.fiche-infos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fiche-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-carte);
+}
+
+.fiche-info-valeur {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.fiche-info-label {
+  font-size: 0.72rem;
+  color: var(--couleur-texte-discret);
+}
+
+.fiche-texte {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.fiche-personnes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Liste d'ingrédients d'une recette (fiche + "📖 Recette" du planning). */
+.recette-ingredients {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-carte);
+}
+
+.recette-ingredients li {
+  padding: 9px 12px;
+  font-size: 0.95rem;
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.recette-ingredients li:first-child {
+  border-top: none;
+}
+
+.recette-quantite {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.recette-equivalent {
+  font-weight: 400;
+  color: var(--couleur-texte-discret);
+}

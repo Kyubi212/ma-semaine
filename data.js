@@ -2278,7 +2278,7 @@ export const plats = [
     tempsPreparation: 20,
     tempsCuisson: 45,
     portionsReference: 4,
-    etapes: "1. Pochee le poulet avec la carotte, le poireau et le bouillon 30 min à petits frémissements.\n2. Retire le poulet et les légumes, garde le bouillon.\n3. Fais un roux (beurre + farine), délaye avec le bouillon, ajoute les champignons émincés 10 min.\n4. Hors du feu, ajoute la crème fraîche, remets poulet et légumes, sel, poivre.",
+    etapes: "1. Poche le poulet avec la carotte, le poireau et le bouillon 30 min à petits frémissements.\n2. Retire le poulet et les légumes, garde le bouillon.\n3. Fais un roux (beurre + farine), délaye avec le bouillon, ajoute les champignons émincés 10 min.\n4. Hors du feu, ajoute la crème fraîche, remets poulet et légumes, sel, poivre.",
     etiquettes: ["sale"],
     ingredients: [
       { ingredientId: "poulet-morceaux-filet-cuisse-pilon", quantitePortion: 200, unite: "g" },

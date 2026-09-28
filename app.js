@@ -899,21 +899,7 @@ function ouvrirPanneau(dateISO, creneau) {
         </label>
       `;
 
-      const listeIngredientsEl = panneauPlatEl.querySelector("#recette-ingredients");
-      listeIngredientsEl.innerHTML = plat.ingredients.length === 0
-        ? `<p class="panneau-vide">Aucun ingrédient renseigné.</p>`
-        : plat.ingredients.map((ligne) => {
-            const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
-            const quantite = ligne.quantitePortion * element.portions;
-            // Ligne en cuillères : on rappelle l'équivalent en g/ml entre
-            // parenthèses, le même chiffre que l'alerte "Il manque" et la
-            // liste de courses (sinon "1 c. à café" ici et "5 g" là-bas
-            // semblent se contredire).
-            const equivalent = ingredient && ligne.unite !== ingredient.unite
-              ? ` (${formaterQuantite(convertirVersUniteStock(quantite, ligne.unite, ingredient), ingredient.unite)})`
-              : "";
-            return `<p class="panneau-note">${formaterQuantite(quantite, ligne.unite)}${equivalent} — ${ingredient ? ingredient.nom : ligne.ingredientId}</p>`;
-          }).join("");
+      panneauPlatEl.querySelector("#recette-ingredients").innerHTML = htmlIngredientsRecette(plat, element.portions);
 
       panneauPlatEl.querySelector("#recette-cuisine").addEventListener("change", (evenement) => {
         definirCuisine(etat, dateISO, creneau, elementId, evenement.target.checked);
@@ -1174,6 +1160,25 @@ const rayonsReplies = new Set();
 // rayon") : pendant les courses, ce n'est jamais le geste utile — ça se fait
 // depuis Stock ou le Catalogue ("⚙️ Gérer les rayons", voir CLAUDE.md
 // § Rayons éditables).
+
+// Liste des ingrédients d'une recette pour N portions, en lecture seule
+// (fiche recette de Plats & repas, "📖 Recette" du planning). Une ligne en
+// cuillères rappelle son équivalent en g/ml entre parenthèses, le même
+// chiffre que l'alerte "Il manque" et la liste de courses (sinon "1 c. à
+// café" ici et "5 g" là-bas sembleraient se contredire).
+function htmlIngredientsRecette(plat, portions) {
+  if (plat.ingredients.length === 0) {
+    return `<p class="panneau-vide">Aucun ingrédient renseigné.</p>`;
+  }
+  return `<ul class="recette-ingredients">${plat.ingredients.map((ligne) => {
+    const ingredient = etat.ingredients.find((i) => i.id === ligne.ingredientId);
+    const quantite = ligne.quantitePortion * portions;
+    const equivalent = ingredient && ligne.unite !== ingredient.unite
+      ? ` <span class="recette-equivalent">(${formaterQuantite(convertirVersUniteStock(quantite, ligne.unite, ingredient), ingredient.unite)})</span>`
+      : "";
+    return `<li><span class="recette-quantite">${formaterQuantite(quantite, ligne.unite)}${equivalent}</span> ${ingredient ? ingredient.nom : ligne.ingredientId}</li>`;
+  }).join("")}</ul>`;
+}
 
 // "⚠️ Il manque : Pain de mie (2 pièces), Œufs (1 pièce)" — même texte
 // partout (panneau créneau, candidat, recette en lecture seule).
@@ -2215,7 +2220,10 @@ function rendreGrillePlats() {
       sauvegarder();
       rendreGrillePlats();
     });
-    carte.addEventListener("click", () => ouvrirPanneauPlat(plat.id));
+    // Toucher un plat ouvre sa FICHE (lecture seule) : consulter une recette
+    // sans risquer de la modifier par un faux mouvement — l'édition passe
+    // par un bouton à part, "✏️ Modifier" (demandé par Qassim).
+    carte.addEventListener("click", () => ouvrirPanneauFicheRecette(plat.id));
     grillePlatsEl.appendChild(carte);
   }
 }
@@ -2697,7 +2705,109 @@ function ouvrirPanneauNouveauPlat(ecranSousJacent = rendreEcranPlats) {
 // ingrédients (ajoutés via le Catalogue), suppression. Tout s'enregistre
 // immédiatement (même principe que le panneau ingrédient de Stock). ---
 
-function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
+// --- Panneau "fiche recette" (lecture seule), ouvert en touchant un plat
+// sur Plats & repas : tout ce qu'il faut pour cuisiner (temps, matériel,
+// ingrédients recalculés pour le nombre de personnes choisi, étapes), sans
+// aucun champ modifiable. "✏️ Modifier" ouvre l'éditeur, qui revient ici à
+// sa fermeture. Le nombre de personnes démarre sur les portions de
+// référence de la recette et n'est pas enregistré (simple consultation). ---
+
+function ouvrirPanneauFicheRecette(platId, ecranSousJacent = rendreEcranPlats) {
+  apresFermeturePanneau = ecranSousJacent;
+  let personnes = null;
+
+  function rendreFiche() {
+    const plat = etat.plats.find((p) => p.id === platId);
+    if (!plat) {
+      // Supprimé depuis l'éditeur : plus rien à montrer.
+      fermerPanneau();
+      return;
+    }
+    if (personnes === null) personnes = Math.max(1, plat.portionsReference || 1);
+
+    const nomRepas = etat.repas.find((r) => r.id === plat.repas)?.nom ?? "";
+    const nomsMateriel = plat.materiel.map((id) => etat.materiel.find((m) => m.id === id)?.nom).filter(Boolean);
+    const nomsEtiquettes = plat.etiquettes.map((id) => etat.etiquettes.find((e) => e.id === id)?.nom).filter(Boolean);
+    const tempsTotal = plat.tempsPreparation + plat.tempsCuisson;
+    const manquants = ingredientsManquantsPourPlat(etat, platId, personnes);
+
+    panneauPlatEl.innerHTML = `
+      <div class="panneau-entete">
+        <span class="panneau-titre">📖 ${plat.nom}</span>
+        <button class="panneau-fermer" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="fiche-actions">
+        <button class="bouton-secondaire bouton-petit" id="fiche-favori">${plat.favori ? "⭐ Favori" : "☆ Favori"}</button>
+        <button class="bouton-secondaire bouton-petit" id="fiche-modifier">✏️ Modifier</button>
+      </div>
+
+      ${nomRepas || nomsEtiquettes.length > 0 ? `
+        <div class="plat-etiquettes" style="margin-top:10px;">
+          ${nomRepas ? `<span class="plat-etiquette fiche-repas">${nomRepas}</span>` : ""}
+          ${nomsEtiquettes.map((n) => `<span class="plat-etiquette">${n}</span>`).join("")}
+        </div>` : ""}
+
+      <div class="fiche-infos">
+        <div class="fiche-info"><span class="fiche-info-valeur">${plat.tempsPreparation} min</span><span class="fiche-info-label">⏱️ Préparation</span></div>
+        <div class="fiche-info"><span class="fiche-info-valeur">${plat.tempsCuisson > 0 ? `${plat.tempsCuisson} min` : "—"}</span><span class="fiche-info-label">🔥 Cuisson</span></div>
+        <div class="fiche-info"><span class="fiche-info-valeur">${tempsTotal} min</span><span class="fiche-info-label">Total</span></div>
+      </div>
+
+      ${nomsMateriel.length > 0 ? `
+        <div class="panneau-section-titre">Matériel</div>
+        <p class="fiche-texte">${nomsMateriel.join(" · ")}</p>` : ""}
+
+      <div class="fiche-personnes">
+        <span class="panneau-section-titre" style="margin:0;">Ingrédients pour</span>
+        <div class="stepper stepper-compact">
+          <button class="stepper-bouton" id="fiche-moins" aria-label="Moins de personnes">−</button>
+          <span class="stepper-valeur">${personnes} pers.</span>
+          <button class="stepper-bouton" id="fiche-plus" aria-label="Plus de personnes">+</button>
+        </div>
+      </div>
+      ${htmlIngredientsRecette(plat, personnes)}
+      <p class="panneau-note" style="${manquants.length > 0 ? "color:#c0392b;" : ""}">
+        ${manquants.length === 0
+          ? (plat.ingredients.length > 0 ? "🧺 Tu as tout en stock pour ce nombre de personnes." : "")
+          : manquants.length === plat.ingredients.length
+            ? "⚠️ Aucun de ces ingrédients n'est en stock pour l'instant."
+            : texteIngredientsManquants(manquants)}
+      </p>
+
+      <div class="panneau-section-titre">Étapes</div>
+      ${plat.etapes
+        ? `<p class="fiche-texte" style="white-space: pre-line;">${plat.etapes}</p>`
+        : `<p class="panneau-vide">Aucune étape renseignée — "✏️ Modifier" pour les ajouter.</p>`}
+    `;
+
+    panneauPlatEl.querySelector("#fiche-moins").addEventListener("click", () => {
+      personnes = Math.max(1, personnes - 1);
+      rendreFiche();
+    });
+    panneauPlatEl.querySelector("#fiche-plus").addEventListener("click", () => {
+      personnes += 1;
+      rendreFiche();
+    });
+    panneauPlatEl.querySelector("#fiche-favori").addEventListener("click", () => {
+      modifierPlat(etat, platId, { favori: !plat.favori });
+      sauvegarder();
+      rendreFiche();
+    });
+    panneauPlatEl.querySelector("#fiche-modifier").addEventListener("click", () => {
+      ouvrirPanneauPlat(platId, ecranSousJacent, () => ouvrirPanneauFicheRecette(platId, ecranSousJacent));
+    });
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+  }
+
+  rendreFiche();
+  panneauFondEl.hidden = false;
+  panneauPlatEl.hidden = false;
+}
+
+// retour : ce que fait le ✕ de l'éditeur. Par défaut ferme tout ; depuis la
+// fiche recette, y revient (pour voir tout de suite le résultat).
+function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = fermerPanneau) {
   apresFermeturePanneau = ecranSousJacent;
 
   function rendrePanneau(messageErreur) {
@@ -2708,6 +2818,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
         <span class="panneau-titre">✏️ Modifier le plat</span>
         <button class="panneau-fermer" aria-label="Fermer">✕</button>
       </div>
+      <p class="panneau-note" style="margin-top:0;">Chaque changement est enregistré tout de suite.</p>
 
       <div class="panneau-section-titre">Nom</div>
       <input type="text" id="plat-nom" class="champ-texte" value="${plat.nom}">
@@ -2816,10 +2927,10 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
     );
 
     panneauPlatEl.querySelector("#plat-gerer-repas").addEventListener("click", () => {
-      ouvrirPanneauGererRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+      ouvrirPanneauGererRepas(() => ouvrirPanneauPlat(platId, ecranSousJacent, retour), ecranSousJacent);
     });
     panneauPlatEl.querySelector("#plat-gerer-materiel").addEventListener("click", () => {
-      ouvrirPanneauGererMateriel(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+      ouvrirPanneauGererMateriel(() => ouvrirPanneauPlat(platId, ecranSousJacent, retour), ecranSousJacent);
     });
 
     panneauPlatEl.querySelector("#plat-prepa-moins").addEventListener("click", () => {
@@ -2854,7 +2965,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       rendrePanneau();
     });
     panneauPlatEl.querySelector("#plat-gerer-etiquettes").addEventListener("click", () => {
-      ouvrirPanneauGererEtiquettes(() => ouvrirPanneauPlat(platId, ecranSousJacent), ecranSousJacent);
+      ouvrirPanneauGererEtiquettes(() => ouvrirPanneauPlat(platId, ecranSousJacent, retour), ecranSousJacent);
     });
 
     panneauPlatEl.querySelector("#plat-portions-moins").addEventListener("click", () => {
@@ -2915,7 +3026,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       ouvrirPanneauCatalogue(
         ecranSousJacent,
         (ingredientId, retourVersCatalogue) => ouvrirPanneauQuantitePourPlat(platId, ingredientId, retourVersCatalogue),
-        () => ouvrirPanneauPlat(platId, ecranSousJacent)
+        () => ouvrirPanneauPlat(platId, ecranSousJacent, retour)
       );
     });
 
@@ -2932,7 +3043,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats) {
       fermerPanneau();
     });
 
-    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", fermerPanneau);
+    panneauPlatEl.querySelector(".panneau-fermer").addEventListener("click", retour);
   }
 
   rendrePanneau();
