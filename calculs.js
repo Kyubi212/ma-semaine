@@ -28,8 +28,17 @@ const UNITES_CUILLERE_EN_C_A_CAFE = {
 // Ramène toute valeur invalide (négative, NaN, texte...) à 0, jamais à une
 // erreur : c'est la règle du cas limite "quantité saisie négative ou texte
 // au lieu d'un nombre" (CLAUDE.md § Cas limites).
+//
+// Bug réel corrigé (remonté par Qassim, "je peux pas mettre des 0,5, ça
+// prend pas en compte") : une virgule décimale ("0,5", clavier français)
+// n'est PAS un nombre valide pour `Number()` (`Number("0,5")` → `NaN`) ni
+// pour un `<input type="number">` (la norme HTML n'accepte qu'un point comme
+// séparateur décimal, quelle que soit la langue du téléphone — Safari/
+// Chrome rendent alors le champ "invalide" et `.value` redevient une chaîne
+// vide, silencieusement). Une virgule est donc convertie en point ici avant
+// le calcul, quelle que soit la provenance de la valeur.
 export function clampPositif(valeur) {
-  const nombre = Number(valeur);
+  const nombre = typeof valeur === "string" ? Number(valeur.replace(",", ".")) : Number(valeur);
   if (!Number.isFinite(nombre) || nombre < 0) {
     return 0;
   }

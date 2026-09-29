@@ -1812,7 +1812,7 @@ function rendreEcranCourses() {
         <div class="stepper stepper-compact">
           <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${article.nom}" ${achete ? "disabled" : ""}>−</button>
           <label class="stepper-saisie">
-            <input type="number" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(quantiteAffichee)}" min="0" step="any" aria-label="Quantité de ${article.nom}" ${achete ? "disabled" : ""}>
+            <input type="text" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(quantiteAffichee)}" aria-label="Quantité de ${article.nom}" ${achete ? "disabled" : ""}>
             <span class="article-unite">${article.unite}</span>
           </label>
           <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${article.nom}" ${achete ? "disabled" : ""}>+</button>
@@ -1988,7 +1988,7 @@ function construireLigneStock(ingredient, onOuvrir, apresChangement) {
     <div class="stepper stepper-compact">
       <button type="button" class="stepper-bouton" data-action="moins" aria-label="Moins de ${ingredient.nom}">−</button>
       <label class="stepper-saisie">
-        <input type="number" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(Math.max(0, ingredient.enStock))}" min="0" step="any" aria-label="Stock de ${ingredient.nom}">
+        <input type="text" inputmode="decimal" class="stepper-saisie-input" value="${formaterNombre(Math.max(0, ingredient.enStock))}" aria-label="Stock de ${ingredient.nom}">
         <span class="article-unite">${ingredient.unite}</span>
       </label>
       <button type="button" class="stepper-bouton" data-action="plus" aria-label="Plus de ${ingredient.nom}">+</button>
@@ -2109,7 +2109,7 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       <div class="panneau-section-titre">Stock actuel (${ingredient.unite})</div>
       <div class="stepper">
         <button class="stepper-bouton" id="stock-moins" aria-label="Moins">−</button>
-        <input type="number" id="stock-valeur" class="article-quantite-input" value="${formaterNombre(ingredient.enStock)}" min="0" step="any">
+        <input type="text" inputmode="decimal" id="stock-valeur" class="article-quantite-input" value="${formaterNombre(ingredient.enStock)}">
         <button class="stepper-bouton" id="stock-plus" aria-label="Plus">+</button>
       </div>
 
@@ -2120,14 +2120,14 @@ function ouvrirPanneauIngredient(ingredientId, retour = fermerPanneau) {
       </label>
 
       <div class="panneau-section-titre">Minimum à toujours avoir (${ingredient.unite})</div>
-      <input type="number" id="ingredient-minimum" class="champ-texte" value="${formaterNombre(ingredient.minimum)}" min="0" step="any">
+      <input type="text" inputmode="decimal" id="ingredient-minimum" class="champ-texte" value="${formaterNombre(ingredient.minimum)}">
 
       ${ingredient.unite === "g" || ingredient.unite === "ml" ? `
         <div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
         <p class="panneau-note">Optionnel : à régler une fois, permet ensuite de saisir les
           quantités de cet ingrédient dans une recette en cuillères (comme la recette d'origine
           te les donne) plutôt qu'en ${ingredient.unite}.</p>
-        <input type="number" id="ingredient-cuillere" class="champ-texte" value="${ingredient.parCuillereACafe ?? ""}" min="0" step="any" placeholder="Ex. 5">
+        <input type="text" inputmode="decimal" id="ingredient-cuillere" class="champ-texte" value="${ingredient.parCuillereACafe ?? ""}" placeholder="Ex. 5">
       ` : ""}
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
@@ -2251,7 +2251,7 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
       <div class="puces" id="liste-unites"></div>
 
       <div class="panneau-section-titre">Déjà en stock${nouveau.unite ? ` (${nouveau.unite})` : ""}</div>
-      <input type="number" inputmode="decimal" id="nouveau-stock" class="champ-texte" value="${nouveau.enStock}" min="0" step="any" placeholder="0">
+      <input type="text" inputmode="decimal" id="nouveau-stock" class="champ-texte" value="${nouveau.enStock}" placeholder="0">
 
       <div class="panneau-section-titre">Essentiel</div>
       <label class="segmente-bouton" style="display:flex; align-items:center; gap:8px; justify-content:flex-start;">
@@ -2261,14 +2261,14 @@ function ouvrirPanneauNouvelIngredient(retour = fermerPanneau) {
 
       ${nouveau.essentiel ? `
         <div class="panneau-section-titre">Minimum à toujours avoir${nouveau.unite ? ` (${nouveau.unite})` : ""}</div>
-        <input type="number" inputmode="decimal" id="nouveau-minimum" class="champ-texte" value="${nouveau.minimum}" min="0" step="any" placeholder="Ex. 1">
+        <input type="text" inputmode="decimal" id="nouveau-minimum" class="champ-texte" value="${nouveau.minimum}" placeholder="Ex. 1">
       ` : ""}
 
       ${pese ? `
         <div class="panneau-section-titre">Équivalence 1 c. à café (en ${nouveau.unite})</div>
         <p class="panneau-note">Optionnel : permet ensuite de saisir cet ingrédient en cuillères dans
           une recette (1 c. à soupe = 3 c. à café).</p>
-        <input type="number" inputmode="decimal" id="nouveau-cuillere" class="champ-texte" value="${nouveau.parCuillereACafe}" min="0" step="any" placeholder="Ex. 5">
+        <input type="text" inputmode="decimal" id="nouveau-cuillere" class="champ-texte" value="${nouveau.parCuillereACafe}" placeholder="Ex. 5">
       ` : ""}
 
       ${messageErreur ? `<p class="panneau-note" style="color:#c0392b;">${messageErreur}</p>` : ""}
@@ -4373,7 +4373,7 @@ function ouvrirPanneauPlat(platId, ecranSousJacent = rendreEcranPlats, retour = 
         ligneEl.className = "element-prevu ligne-ingredient-recette";
         ligneEl.innerHTML = `
           <span class="element-nom">${ingredient ? ingredient.nom : ligne.ingredientId}</span>
-          <input type="number" inputmode="decimal" class="article-quantite-input" value="${formaterNombre(quantitePourReference)}" min="0" step="any" aria-label="Quantité">
+          <input type="text" inputmode="decimal" class="article-quantite-input" value="${formaterNombre(quantitePourReference)}" aria-label="Quantité">
           <span class="article-unite">${ligne.unite}</span>
           <button class="element-retirer" aria-label="Retirer cet ingrédient">✕</button>
         `;
@@ -4465,7 +4465,7 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
         montrerFormCuillere
           ? `<div class="panneau-section-titre">Équivalence 1 c. à café (en ${ingredient.unite})</div>
              <div class="stepper">
-               <input type="number" id="plat-qte-cuillere-valeur" class="article-quantite-input" min="0" step="any" placeholder="Ex. 5">
+               <input type="text" inputmode="decimal" id="plat-qte-cuillere-valeur" class="article-quantite-input" placeholder="Ex. 5">
                <button class="bouton-secondaire" id="plat-qte-cuillere-valider">Enregistrer</button>
              </div>`
           : `<button class="bouton-discret" id="plat-qte-cuillere-toggle">🥄 La recette parle en cuillères ? Régler l'équivalence</button>`
@@ -4476,7 +4476,7 @@ function ouvrirPanneauQuantitePourPlat(platId, ingredientId, retour) {
         portion${nbPortions > 1 ? "s" : ""}) — ramenée automatiquement à 1 portion.</p>
       <div class="stepper">
         <button class="stepper-bouton" id="plat-qte-moins" aria-label="Moins">−</button>
-        <input type="number" id="plat-qte-valeur" class="article-quantite-input" value="${quantite}" min="0" step="any">
+        <input type="text" inputmode="decimal" id="plat-qte-valeur" class="article-quantite-input" value="${quantite}">
         <button class="stepper-bouton" id="plat-qte-plus" aria-label="Plus">+</button>
       </div>
 

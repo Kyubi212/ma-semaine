@@ -87,6 +87,12 @@ test("clampPositif : ramène le texte ou l'absence de valeur à 0", () => {
   assert.equal(clampPositif(null), 0);
 });
 
+test("clampPositif : accepte une virgule décimale, comme au clavier français (bug réel corrigé)", () => {
+  assert.equal(clampPositif("0,5"), 0.5);
+  assert.equal(clampPositif("12,75"), 12.75);
+  assert.equal(clampPositif("3,0"), 3);
+});
+
 // --- convertirVersUniteStock ---
 
 const huile = { id: "huile", nom: "Huile d'olive", unite: "ml", parCuillereACafe: 5 };

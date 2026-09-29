@@ -398,6 +398,21 @@ unités en toutes lettres à partir de 2 ("2 pièces", "3 gousses", mais "1,5 pi
 "2 c. à café"). Dans "📖 Voir la recette", une ligne en cuillères rappelle son équivalent en g/ml
 ("1 c. à café (5 g) — Beurre"), le même chiffre que l'alerte et les courses.
 
+**Bug réel corrigé (remonté par Qassim, "j'aimerais pouvoir mettre des 0,5... ça prend pas en
+compte")** : une virgule décimale ("0,5", le clavier français) n'est pas un nombre valide pour un
+`<input type="number">` selon la norme HTML (qui n'accepte qu'un POINT comme séparateur décimal,
+quelle que soit la langue du téléphone) — le champ se retrouve silencieusement "invalide", sa
+valeur lue par l'app devient une chaîne vide, et la quantité retombe à 0 sans aucun message
+d'erreur. Corrigé à deux endroits, sur tous les champs de quantité décimale (stock, minimum,
+équivalence cuillère, quantité d'un ingrédient de recette — jamais sur les champs volontairement
+entiers comme "Portions de référence" ou les temps de préparation/cuisson) :
+- ces champs sont passés de `type="number"` à **`type="text" inputmode="decimal"`** (`app.js`) :
+  le clavier numérique s'affiche pareil sur le téléphone, mais le navigateur ne bloque plus une
+  virgule avant même que le code de l'app la voie ;
+- `clampPositif` (`calculs.js`, utilisée par la quasi-totalité des champs numériques de l'app)
+  convertit maintenant une virgule en point avant de lire le nombre, quelle que soit la provenance
+  de la valeur.
+
 ### Portions de référence et saisie des quantités
 
 **Décision clé (demandée par Qassim)** : les quantités d'ingrédients d'un plat se saisissent
